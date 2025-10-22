@@ -10,12 +10,18 @@ import {
   PURGE,
   REGISTER,
 } from "redux-persist";
+
 const persistConfig = {
   key: "root",
   storage,
 };
 
-const rootReducer = combineReducers({});
+// Temporary identity reducer to satisfy Redux requirements
+const dummyReducer = (state = {}, action: unknown) => state;
+
+const rootReducer = combineReducers({
+  dummy: dummyReducer,
+});
 
 const persistedReducer = persistReducer(persistConfig, rootReducer);
 
