@@ -1,5 +1,5 @@
+import { AppealRecord } from "@/app/admin-dashboard/sellers/appeals/page";
 import React from "react";
-import { AppealRecord } from "@/app/sellers/appeals/page";
 
 interface AppealsInboxProps {
   appeals: AppealRecord[];
