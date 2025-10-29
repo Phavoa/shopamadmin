@@ -14,8 +14,18 @@ const page = () => {
         className="h-50 object-contain mx-auto mb-20"
       />
       <Link href="/admin-dashboard">
-        <Button className="cursor-pointer">
+        <Button className="cursor-pointer mb-4">
           Welcome to shopAm Admin Dashboard! Click here to get started.
+        </Button>
+      </Link>
+      <Link href="/logistics/lagos">
+        <Button className="cursor-pointer mb-4 bg-[#02B753] hover:bg-[#02B753]/90">
+          Go to Logistics Lagos
+        </Button>
+      </Link>
+      <Link href="/logistics/non-lagos">
+        <Button className="cursor-pointe bg-[#0915FF] hover:bg-[#0915FF]/90">
+          Go to Logistics Non-Lagos
         </Button>
       </Link>
     </div>
