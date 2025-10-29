@@ -10,14 +10,21 @@ import {
 import { Input } from "@/components/ui/input";
 import { Search, ChevronRight } from "lucide-react";
 import Image from "next/image";
+import Link from "next/link";
 
 function Header() {
   return (
     <header className="bg-[var(--background)] w-full  flex items-center justify-between">
       <div className="flex-1 flex justify-between items-center gap-4 py-6 border-b border-[var(--border)] p-[var(--space-lg)]">
-        <h1 className="text-2xl font-semibold leading-[var(--text-h2-line)] text-[var(--foreground)]">
-          Dashboard
-        </h1>
+        <Link href="/admin-dashboard">
+          <Image
+            src="/shopAmLogo.png"
+            alt={"shopAm Logo"}
+            width={2000}
+            height={100}
+            className="h-20 w-30 object-contain"
+          />
+        </Link>
         <div className="flex items-center gap-4">
           <label htmlFor="global-search" className="sr-only">
             Search

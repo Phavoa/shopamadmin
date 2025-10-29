@@ -1,5 +1,5 @@
 import React from "react";
-import { AppealRecord } from "@/app/sellers/appeals/page";
+import { AppealRecord } from "@/app/admin-dashboard/sellers/appeals/page";
 
 interface AppealDetailProps {
   appeal: AppealRecord | null;
@@ -7,11 +7,8 @@ interface AppealDetailProps {
 
 const formatDate = (dateString: string) => {
   return new Date(dateString).toLocaleDateString("en-US", {
-    year: "numeric",
-    month: "long",
+    month: "short",
     day: "numeric",
-    hour: "2-digit",
-    minute: "2-digit",
   });
 };
 
@@ -370,7 +367,7 @@ export const AppealDetail: React.FC<AppealDetailProps> = ({ appeal }) => {
             e.currentTarget.style.opacity = "1";
           }}
         >
-          Approve Appeal
+          Reinstate
         </button>
         <button
           style={{
@@ -379,7 +376,7 @@ export const AppealDetail: React.FC<AppealDetailProps> = ({ appeal }) => {
             padding: "10px 16px",
             borderRadius: "6px",
             border: "none",
-            backgroundColor: "#DC2626",
+            backgroundColor: "#3B82F6",
             color: "#FFFFFF",
             cursor: "pointer",
             transition: "all 0.2s ease",
@@ -391,7 +388,7 @@ export const AppealDetail: React.FC<AppealDetailProps> = ({ appeal }) => {
             e.currentTarget.style.opacity = "1";
           }}
         >
-          Reject Appeal
+          Extend
         </button>
         <button
           style={{
@@ -412,7 +409,7 @@ export const AppealDetail: React.FC<AppealDetailProps> = ({ appeal }) => {
             e.currentTarget.style.backgroundColor = "#FFFFFF";
           }}
         >
-          Request More Info
+          Contact
         </button>
       </div>
     </div>

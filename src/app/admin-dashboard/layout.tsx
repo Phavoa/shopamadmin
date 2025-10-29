@@ -1,6 +1,8 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
-import "./globals.css";
+import { Header } from "@/components/dashboard/header";
+import { Sidebar } from "@/components/dashboard/sidebar";
+import AppWapper from "../AppWrapper";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -27,7 +29,11 @@ export default function RootLayout({
       <body
         className={`bg-[var(--background)] ${geistSans.variable} ${geistMono.variable} antialiased`}
       >
-        {children}
+        <Header />
+        <div className="mx-auto pr-[var(--page-gutter)] pb-12 grid grid-cols-1 md:grid-cols-[var(--sidebar-width)_1fr] gap-[var(--card-gap)]">
+          <Sidebar />
+          <AppWapper>{children}</AppWapper>
+        </div>
       </body>
     </html>
   );
