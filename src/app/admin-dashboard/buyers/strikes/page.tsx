@@ -4,6 +4,7 @@ import React, { useState, useEffect } from "react";
 import { StrikesTable, StrikeRecord } from "@/components/buyers/StrikesTable";
 import { StrikeForm } from "@/components/buyers/StrikeForm";
 
+
 // Mock data for strikes - in a real app, this would come from an API
 
 const mockStrikeData: StrikeRecord[] = [
