@@ -20,6 +20,7 @@ import {
   Trophy,
   DollarSign,
 } from "lucide-react";
+import Link from "next/link";
 
 function Sidebar() {
   const [isSellersOpen, setIsSellersOpen] = useState(false);
@@ -343,10 +344,13 @@ function Sidebar() {
 
       <div className="mt-auto px-2">
         <hr className="border-[var(--sidebar-border)] my-4" />
-        <button className="flex items-center gap-2 text-[var(--text-body-size)] font-[var(--text-body-weight)] leading-[var(--text-body-line)] text-[var(--muted-foreground)] hover:text-[var(--foreground)]">
-          <Settings className="w-[var(--icon-size-sm)] h-[var(--icon-size-sm)]" />
-          Settings
-        </button>
+        <Link href="/admin-dashboard/settings">
+          <button className="flex items-center gap-2 text-[var(--text-body-size)] font-[var(--text-body-weight)] leading-[var(--text-body-line)] text-[var(--muted-foreground)] hover:text-[var(--foreground)] cursor-pointer">
+            <Settings className="w-[var(--icon-size-sm)] h-[var(--icon-size-sm)]" />
+            Settings
+          </button>
+        </Link>
+
         <button className="flex items-center gap-2 text-[var(--text-body-size)] font-[var(--text-body-weight)] leading-[var(--text-body-line)] text-[var(--destructive)] mt-3 hover:text-[var(--destructive)]">
           <LogIn className="w-[var(--icon-size-sm)] h-[var(--icon-size-sm)]" />
           Logout

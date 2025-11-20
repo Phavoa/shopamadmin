@@ -30,7 +30,7 @@ export default function RootLayout({
         className={`bg-[var(--background)] ${geistSans.variable} ${geistMono.variable} antialiased`}
       >
         <Header />
-        <div className="mx-auto pr-[var(--page-gutter)] pb-12 grid grid-cols-1 md:grid-cols-[var(--sidebar-width)_1fr] gap-[var(--card-gap)]">
+        <div className="mx-auto pr-[var(--page-gutter)] grid grid-cols-1 md:grid-cols-[var(--sidebar-width)_1fr] gap-[var(--card-gap)]">
           <Sidebar />
           <AppWapper>{children}</AppWapper>
         </div>
