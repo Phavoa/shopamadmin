@@ -74,8 +74,8 @@ export default function ForgotPasswordCard() {
           Forgot password
         </h2>
         <p className="mt-3 text-sm text-gray-600">
-          Enter the email address you and we'll send you instructions to reset
-          your password
+          Enter the email address you and {"we'll"} send you instructions to
+          reset your password
         </p>
       </div>
 

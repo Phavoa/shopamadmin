@@ -6,6 +6,7 @@ import {
   FieldValues,
   Path,
   RegisterOptions,
+  DefaultValues,
 } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
@@ -163,55 +164,8 @@ export function PasswordField<T extends FieldValues>({
   );
 }
 
-// Main form wrapper component
-interface FormProps<T extends FieldValues> {
-  onSubmit: (data: T) => void | Promise<void>;
-  schema: z.ZodType<T>;
-  defaultValues?: Partial<T>;
-  children: React.ReactNode;
-  className?: string;
-  loading?: boolean;
-  submitText?: string;
-  disabled?: boolean;
-}
-
-export function Form<T extends FieldValues>({
-  onSubmit,
-  schema,
-  defaultValues,
-  children,
-  className = "",
-  loading = false,
-  submitText = "Submit",
-  disabled = false,
-}: FormProps<T>) {
-  const {
-    control,
-    handleSubmit,
-    formState: { errors, isSubmitting },
-  } = useForm<T>({
-    resolver: zodResolver(schema),
-    defaultValues,
-    mode: "onChange", // Validate on change for better UX
-  });
-
-  return (
-    <form onSubmit={handleSubmit(onSubmit)} className={className}>
-      {React.Children.map(children, (child) => {
-        if (React.isValidElement(child)) {
-          return React.cloneElement(child, {
-            // Pass control and errors to form field components
-            control,
-            errors,
-            loading: isSubmitting || loading,
-            disabled,
-          });
-        }
-        return child;
-      })}
-    </form>
-  );
-}
+// Note: Main Form wrapper component removed as it was unused and causing TypeScript issues
+// The existing auth forms use direct useForm hooks which work correctly
 
 // Error display component
 export function FormError({ error }: { error?: string }) {
