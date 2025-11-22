@@ -25,8 +25,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en">
-      <body
+      <div
         className={`bg-[var(--background)] ${geistSans.variable} ${geistMono.variable} antialiased`}
       >
         <Header />
@@ -34,7 +33,6 @@ export default function RootLayout({
           <Sidebar />
           <AppWapper>{children}</AppWapper>
         </div>
-      </body>
-    </html>
+      </div>
   );
 }

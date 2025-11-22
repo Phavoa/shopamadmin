@@ -1,6 +1,6 @@
 "use client";
 
-import React from "react";
+import React, { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -10,6 +10,50 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+
+// Toggle ON SVG
+const ToggleOnIcon = () => (
+  <svg
+    width="36"
+    height="20"
+    viewBox="0 0 36 20"
+    fill="none"
+    xmlns="http://www.w3.org/2000/svg"
+  >
+    <path
+      d="M0 10C0 4.47715 4.47715 0 10 0H25.7141C31.2369 0 35.7141 4.47715 35.7141 10C35.7141 15.5228 31.2369 20 25.7141 20H10C4.47715 20 0 15.5228 0 10Z"
+      fill="#11C35B"
+    />
+    <path
+      d="M25.7148 0.75C30.8234 0.750035 34.9648 4.89138 34.9648 10C34.9648 15.1086 30.8234 19.25 25.7148 19.25C20.6063 19.25 16.4648 15.1086 16.4648 10C16.4648 4.89136 20.6063 0.75 25.7148 0.75Z"
+      fill="white"
+      stroke="#11C35B"
+      strokeWidth="1.5"
+    />
+  </svg>
+);
+
+// Toggle OFF SVG
+const ToggleOffIcon = () => (
+  <svg
+    width="36"
+    height="20"
+    viewBox="0 0 36 20"
+    fill="none"
+    xmlns="http://www.w3.org/2000/svg"
+  >
+    <path
+      d="M0 10C0 4.47715 4.47715 0 10 0H25.7141C31.2369 0 35.7141 4.47715 35.7141 10C35.7141 15.5228 31.2369 20 25.7141 20H10C4.47715 20 0 15.5228 0 10Z"
+      fill="#D1D5DB"
+    />
+    <path
+      d="M10 0.75C15.1086 0.750035 19.25 4.89138 19.25 10C19.25 15.1086 15.1086 19.25 10 19.25C4.89136 19.25 0.75 15.1086 0.75 10C0.75 4.89136 4.89136 0.75 10 0.75Z"
+      fill="white"
+      stroke="#D1D5DB"
+      strokeWidth="1.5"
+    />
+  </svg>
+);
 
 interface StrikeFormProps {
   selectedBuyer: string;
@@ -28,6 +72,7 @@ export const StrikeForm: React.FC<StrikeFormProps> = ({
   onReasonChange,
   onCooldownDaysChange,
 }) => {
+  const [notifyBuyer, setNotifyBuyer] = useState(true);
   return (
     <div className="bg-white rounded-lg border border-[#E5E7EB] p-6">
       <div className="text-lg font-semibold text-[#111827] mb-4">
@@ -69,7 +114,20 @@ export const StrikeForm: React.FC<StrikeFormProps> = ({
           </SelectContent>
         </Select>
       </div>
-      <p className="text-sm font-medium mt-3">Notify Buyer (email/sms)</p>
+      {/* Notify Buyer Toggle */}
+      <div className="flex items-center justify-between py-3">
+        <span className="text-sm font-medium text-gray-700">
+          Notify Buyer (email/sms)
+        </span>
+        <button
+          type="button"
+          onClick={() => setNotifyBuyer(!notifyBuyer)}
+          className="focus:outline-none"
+        >
+          {notifyBuyer ? <ToggleOnIcon /> : <ToggleOffIcon />}
+        </button>
+      </div>
+
       <div className="flex flex-1 gap-2 mt-4">
         <Button className="bg-[#E67E22] hover:bg-[#D4731F] text-white w-full py-7">
           Apply Strike/Suspension
