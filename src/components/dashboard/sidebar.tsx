@@ -2,7 +2,6 @@
 
 import React, { useState, useEffect } from "react";
 import { usePathname } from "next/navigation";
-import Link from "next/link";
 import {
   Wifi,
   Users,
@@ -22,6 +21,7 @@ import {
   Wrench,
   TrendingUp,
 } from "lucide-react";
+import Link from "next/link";
 
 function Sidebar() {
   const [isSellersOpen, setIsSellersOpen] = useState(false);
@@ -40,38 +40,55 @@ function Sidebar() {
     } else if (pathname.startsWith("/admin-dashboard/livestream")) {
       setActiveMainItem("livestream");
       setIsLivestreamOpen(true);
-      if (pathname === "/admin-dashboard/livestream/slots") setActiveSubItem("slots");
-      else if (pathname === "/admin-dashboard/livestream/monitoring") setActiveSubItem("monitoring");
-      else if (pathname === "/admin-dashboard/livestream/tiers") setActiveSubItem("tiers");
+      if (pathname === "/admin-dashboard/livestream/slots")
+        setActiveSubItem("slots");
+      else if (pathname === "/admin-dashboard/livestream/monitoring")
+        setActiveSubItem("monitoring");
+      else if (pathname === "/admin-dashboard/livestream/tiers")
+        setActiveSubItem("tiers");
       else setActiveSubItem(null);
     } else if (pathname.startsWith("/admin-dashboard/sellers")) {
       setActiveMainItem("sellers");
       setIsSellersOpen(true);
-      if (pathname === "/admin-dashboard/sellers/list") setActiveSubItem("list");
-      else if (pathname === "/admin-dashboard/sellers/verification") setActiveSubItem("verification");
-      else if (pathname === "/admin-dashboard/sellers/strikes") setActiveSubItem("strikes");
-      else if (pathname === "/admin-dashboard/sellers/appeals") setActiveSubItem("appeals");
+      if (pathname === "/admin-dashboard/sellers/list")
+        setActiveSubItem("list");
+      else if (pathname === "/admin-dashboard/sellers/verification")
+        setActiveSubItem("verification");
+      else if (pathname === "/admin-dashboard/sellers/strikes")
+        setActiveSubItem("strikes");
+      else if (pathname === "/admin-dashboard/sellers/appeals")
+        setActiveSubItem("appeals");
     } else if (pathname.startsWith("/admin-dashboard/buyers")) {
       setActiveMainItem("buyers");
       setIsBuyersOpen(true);
-      if (pathname === "/admin-dashboard/buyers/list") setActiveSubItem("buyers-list");
-      else if (pathname === "/admin-dashboard/buyers/strikes") setActiveSubItem("buyers-strikes");
-      else if (pathname === "/admin-dashboard/buyers/appeals") setActiveSubItem("buyers-appeals");
+      if (pathname === "/admin-dashboard/buyers/list")
+        setActiveSubItem("buyers-list");
+      else if (pathname === "/admin-dashboard/buyers/strikes")
+        setActiveSubItem("buyers-strikes");
+      else if (pathname === "/admin-dashboard/buyers/appeals")
+        setActiveSubItem("buyers-appeals");
       else setActiveSubItem(null);
     } else if (pathname.startsWith("/admin-dashboard/finance")) {
       setActiveMainItem("finance");
       setIsFinanceOpen(true);
-      if (pathname === "/admin-dashboard/finance/overview") setActiveSubItem("finance-overview");
-      else if (pathname === "/admin-dashboard/finance/payout-management") setActiveSubItem("finance-payout");
-      else if (pathname === "/admin-dashboard/finance/fee-configuration") setActiveSubItem("finance-fee");
-      else if (pathname === "/admin-dashboard/finance/revenue-reports") setActiveSubItem("finance-revenue");
+      if (pathname === "/admin-dashboard/finance/overview")
+        setActiveSubItem("finance-overview");
+      else if (pathname === "/admin-dashboard/finance/payout-management")
+        setActiveSubItem("finance-payout");
+      else if (pathname === "/admin-dashboard/finance/fee-configuration")
+        setActiveSubItem("finance-fee");
+      else if (pathname === "/admin-dashboard/finance/revenue-reports")
+        setActiveSubItem("finance-revenue");
       else setActiveSubItem(null);
     } else if (pathname.startsWith("/admin-dashboard/reports")) {
       setActiveMainItem("reports");
       setIsReportsOpen(true);
-      if (pathname === "/admin-dashboard/reports/weekly") setActiveSubItem("reports-weekly");
-      else if (pathname === "/admin-dashboard/reports/seller-leaderboard") setActiveSubItem("reports-seller");
-      else if (pathname === "/admin-dashboard/reports/buyer-insights") setActiveSubItem("reports-buyer");
+      if (pathname === "/admin-dashboard/reports/weekly")
+        setActiveSubItem("reports-weekly");
+      else if (pathname === "/admin-dashboard/reports/seller-leaderboard")
+        setActiveSubItem("reports-seller");
+      else if (pathname === "/admin-dashboard/reports/buyer-insights")
+        setActiveSubItem("reports-buyer");
       else setActiveSubItem(null);
     } else if (pathname.startsWith("/admin-dashboard/settings")) {
       setActiveMainItem("settings");
@@ -118,7 +135,11 @@ function Sidebar() {
                 }`}
               />
             </button>
-            <div className={`overflow-hidden transition-all duration-300 ease-in-out ${isLivestreamOpen ? "max-h-48 opacity-100" : "max-h-0 opacity-0"}`}>
+            <div
+              className={`overflow-hidden transition-all duration-300 ease-in-out ${
+                isLivestreamOpen ? "max-h-48 opacity-100" : "max-h-0 opacity-0"
+              }`}
+            >
               <ul className="space-y-1 mt-1">
                 <li>
                   <Link href="/admin-dashboard/livestream/slots">
@@ -177,13 +198,27 @@ function Sidebar() {
             >
               <Users className="w-[var(--icon-size-sm)] h-[var(--icon-size-sm)]" />
               Sellers
-              <ChevronDown className={`w-[var(--icon-size-sm)] h-[var(--icon-size-sm)] ml-auto transition-transform ${isSellersOpen ? "rotate-180" : ""}`} />
+              <ChevronDown
+                className={`w-[var(--icon-size-sm)] h-[var(--icon-size-sm)] ml-auto transition-transform ${
+                  isSellersOpen ? "rotate-180" : ""
+                }`}
+              />
             </button>
-            <div className={`overflow-hidden transition-all duration-300 ease-in-out ${isSellersOpen ? "max-h-48 opacity-100" : "max-h-0 opacity-0"}`}>
+            <div
+              className={`overflow-hidden transition-all duration-300 ease-in-out ${
+                isSellersOpen ? "max-h-48 opacity-100" : "max-h-0 opacity-0"
+              }`}
+            >
               <ul className="space-y-1 mt-1">
                 <li>
                   <Link href="/admin-dashboard/sellers/list">
-                    <button className={`flex items-center gap-3 w-full px-3 py-2 rounded-lg h-10 text-sm transition-colors duration-200 ${activeSubItem === "list" ? "bg-[var(--sidebar-accent)] text-[var(--sidebar-primary)]" : "text-[var(--foreground)] hover:bg-[var(--sidebar-accent)]"}`}>
+                    <button
+                      className={`flex items-center gap-3 w-full px-3 py-2 rounded-lg h-10 text-sm transition-colors duration-200 ${
+                        activeSubItem === "list"
+                          ? "bg-[var(--sidebar-accent)] text-[var(--sidebar-primary)]"
+                          : "text-[var(--foreground)] hover:bg-[var(--sidebar-accent)]"
+                      }`}
+                    >
                       <Users className="w-[var(--icon-size-sm)] h-[var(--icon-size-sm)]" />
                       Sellers List
                     </button>
@@ -191,7 +226,13 @@ function Sidebar() {
                 </li>
                 <li>
                   <Link href="/admin-dashboard/sellers/verification">
-                    <button className={`flex items-center gap-3 w-full px-3 py-2 rounded-lg h-10 text-sm transition-colors duration-200 ${activeSubItem === "verification" ? "bg-[var(--sidebar-accent)] text-[var(--sidebar-primary)]" : "text-[var(--foreground)] hover:bg-[var(--sidebar-accent)]"}`}>
+                    <button
+                      className={`flex items-center gap-3 w-full px-3 py-2 rounded-lg h-10 text-sm transition-colors duration-200 ${
+                        activeSubItem === "verification"
+                          ? "bg-[var(--sidebar-accent)] text-[var(--sidebar-primary)]"
+                          : "text-[var(--foreground)] hover:bg-[var(--sidebar-accent)]"
+                      }`}
+                    >
                       <ShieldCheck className="w-[var(--icon-size-sm)] h-[var(--icon-size-sm)]" />
                       Sellers Verification
                     </button>
@@ -199,7 +240,13 @@ function Sidebar() {
                 </li>
                 <li>
                   <Link href="/admin-dashboard/sellers/strikes">
-                    <button className={`flex items-center gap-3 w-full px-3 py-2 rounded-lg h-10 text-sm transition-colors duration-200 ${activeSubItem === "strikes" ? "bg-[var(--sidebar-accent)] text-[var(--sidebar-primary)]" : "text-[var(--foreground)] hover:bg-[var(--sidebar-accent)]"}`}>
+                    <button
+                      className={`flex items-center gap-3 w-full px-3 py-2 rounded-lg h-10 text-sm transition-colors duration-200 ${
+                        activeSubItem === "strikes"
+                          ? "bg-[var(--sidebar-accent)] text-[var(--sidebar-primary)]"
+                          : "text-[var(--foreground)] hover:bg-[var(--sidebar-accent)]"
+                      }`}
+                    >
                       <AlertTriangle className="w-[var(--icon-size-sm)] h-[var(--icon-size-sm)]" />
                       Strikes & Suspensions
                     </button>
@@ -207,7 +254,13 @@ function Sidebar() {
                 </li>
                 <li>
                   <Link href="/admin-dashboard/sellers/appeals">
-                    <button className={`flex items-center gap-3 w-full px-3 py-2 rounded-lg h-10 text-sm transition-colors duration-200 ${activeSubItem === "appeals" ? "bg-[var(--sidebar-accent)] text-[var(--sidebar-primary)]" : "text-[var(--foreground)] hover:bg-[var(--sidebar-accent)]"}`}>
+                    <button
+                      className={`flex items-center gap-3 w-full px-3 py-2 rounded-lg h-10 text-sm transition-colors duration-200 ${
+                        activeSubItem === "appeals"
+                          ? "bg-[var(--sidebar-accent)] text-[var(--sidebar-primary)]"
+                          : "text-[var(--foreground)] hover:bg-[var(--sidebar-accent)]"
+                      }`}
+                    >
                       <FileText className="w-[var(--icon-size-sm)] h-[var(--icon-size-sm)]" />
                       Appeals & Investigations
                     </button>
@@ -228,13 +281,27 @@ function Sidebar() {
             >
               <Users className="w-[var(--icon-size-sm)] h-[var(--icon-size-sm)]" />
               Buyers
-              <ChevronDown className={`w-[var(--icon-size-sm)] h-[var(--icon-size-sm)] ml-auto transition-transform ${isBuyersOpen ? "rotate-180" : ""}`} />
+              <ChevronDown
+                className={`w-[var(--icon-size-sm)] h-[var(--icon-size-sm)] ml-auto transition-transform ${
+                  isBuyersOpen ? "rotate-180" : ""
+                }`}
+              />
             </button>
-            <div className={`overflow-hidden transition-all duration-300 ease-in-out ${isBuyersOpen ? "max-h-48 opacity-100" : "max-h-0 opacity-0"}`}>
+            <div
+              className={`overflow-hidden transition-all duration-300 ease-in-out ${
+                isBuyersOpen ? "max-h-48 opacity-100" : "max-h-0 opacity-0"
+              }`}
+            >
               <ul className="space-y-1 mt-1">
                 <li>
                   <Link href="/admin-dashboard/buyers/list">
-                    <button className={`flex items-center gap-3 w-full px-3 py-2 rounded-lg h-10 text-sm transition-colors duration-200 ${activeSubItem === "buyers-list" ? "bg-[var(--sidebar-accent)] text-[var(--sidebar-primary)]" : "text-[var(--foreground)] hover:bg-[var(--sidebar-accent)]"}`}>
+                    <button
+                      className={`flex items-center gap-3 w-full px-3 py-2 rounded-lg h-10 text-sm transition-colors duration-200 ${
+                        activeSubItem === "buyers-list"
+                          ? "bg-[var(--sidebar-accent)] text-[var(--sidebar-primary)]"
+                          : "text-[var(--foreground)] hover:bg-[var(--sidebar-accent)]"
+                      }`}
+                    >
                       <Users className="w-[var(--icon-size-sm)] h-[var(--icon-size-sm)]" />
                       Buyers List
                     </button>
@@ -242,7 +309,13 @@ function Sidebar() {
                 </li>
                 <li>
                   <Link href="/admin-dashboard/buyers/strikes">
-                    <button className={`flex items-center gap-3 w-full px-3 py-2 rounded-lg h-10 text-sm transition-colors duration-200 ${activeSubItem === "buyers-strikes" ? "bg-[var(--sidebar-accent)] text-[var(--sidebar-primary)]" : "text-[var(--foreground)] hover:bg-[var(--sidebar-accent)]"}`}>
+                    <button
+                      className={`flex items-center gap-3 w-full px-3 py-2 rounded-lg h-10 text-sm transition-colors duration-200 ${
+                        activeSubItem === "buyers-strikes"
+                          ? "bg-[var(--sidebar-accent)] text-[var(--sidebar-primary)]"
+                          : "text-[var(--foreground)] hover:bg-[var(--sidebar-accent)]"
+                      }`}
+                    >
                       <AlertTriangle className="w-[var(--icon-size-sm)] h-[var(--icon-size-sm)]" />
                       Strikes & Suspensions
                     </button>
@@ -250,7 +323,13 @@ function Sidebar() {
                 </li>
                 <li>
                   <Link href="/admin-dashboard/buyers/appeals">
-                    <button className={`flex items-center gap-3 w-full px-3 py-2 rounded-lg h-10 text-sm transition-colors duration-200 ${activeSubItem === "buyers-appeals" ? "bg-[var(--sidebar-accent)] text-[var(--sidebar-primary)]" : "text-[var(--foreground)] hover:bg-[var(--sidebar-accent)]"}`}>
+                    <button
+                      className={`flex items-center gap-3 w-full px-3 py-2 rounded-lg h-10 text-sm transition-colors duration-200 ${
+                        activeSubItem === "buyers-appeals"
+                          ? "bg-[var(--sidebar-accent)] text-[var(--sidebar-primary)]"
+                          : "text-[var(--foreground)] hover:bg-[var(--sidebar-accent)]"
+                      }`}
+                    >
                       <FileText className="w-[var(--icon-size-sm)] h-[var(--icon-size-sm)]" />
                       Appeals & Investigations
                     </button>
@@ -271,13 +350,27 @@ function Sidebar() {
             >
               <DollarSign className="w-[var(--icon-size-sm)] h-[var(--icon-size-sm)]" />
               Finance
-              <ChevronDown className={`w-[var(--icon-size-sm)] h-[var(--icon-size-sm)] ml-auto transition-transform ${isFinanceOpen ? "rotate-180" : ""}`} />
+              <ChevronDown
+                className={`w-[var(--icon-size-sm)] h-[var(--icon-size-sm)] ml-auto transition-transform ${
+                  isFinanceOpen ? "rotate-180" : ""
+                }`}
+              />
             </button>
-            <div className={`overflow-hidden transition-all duration-300 ease-in-out ${isFinanceOpen ? "max-h-60 opacity-100" : "max-h-0 opacity-0"}`}>
+            <div
+              className={`overflow-hidden transition-all duration-300 ease-in-out ${
+                isFinanceOpen ? "max-h-60 opacity-100" : "max-h-0 opacity-0"
+              }`}
+            >
               <ul className="space-y-1 mt-1">
                 <li>
                   <Link href="/admin-dashboard/finance/overview">
-                    <button className={`flex items-center gap-3 w-full px-3 py-2 rounded-lg h-10 text-sm transition-colors duration-200 ${activeSubItem === "finance-overview" ? "bg-[var(--sidebar-accent)] text-[var(--sidebar-primary)]" : "text-[var(--foreground)] hover:bg-[var(--sidebar-accent)]"}`}>
+                    <button
+                      className={`flex items-center gap-3 w-full px-3 py-2 rounded-lg h-10 text-sm transition-colors duration-200 ${
+                        activeSubItem === "finance-overview"
+                          ? "bg-[var(--sidebar-accent)] text-[var(--sidebar-primary)]"
+                          : "text-[var(--foreground)] hover:bg-[var(--sidebar-accent)]"
+                      }`}
+                    >
                       <OverviewIcon className="w-[var(--icon-size-sm)] h-[var(--icon-size-sm)]" />
                       Overview
                     </button>
@@ -285,7 +378,13 @@ function Sidebar() {
                 </li>
                 <li>
                   <Link href="/admin-dashboard/finance/payout-management">
-                    <button className={`flex items-center gap-3 w-full px-3 py-2 rounded-lg h-10 text-sm transition-colors duration-200 ${activeSubItem === "finance-payout" ? "bg-[var(--sidebar-accent)] text-[var(--sidebar-primary)]" : "text-[var(--foreground)] hover:bg-[var(--sidebar-accent)]"}`}>
+                    <button
+                      className={`flex items-center gap-3 w-full px-3 py-2 rounded-lg h-10 text-sm transition-colors duration-200 ${
+                        activeSubItem === "finance-payout"
+                          ? "bg-[var(--sidebar-accent)] text-[var(--sidebar-primary)]"
+                          : "text-[var(--foreground)] hover:bg-[var(--sidebar-accent)]"
+                      }`}
+                    >
                       <CreditCard className="w-[var(--icon-size-sm)] h-[var(--icon-size-sm)]" />
                       Payout Management
                     </button>
@@ -293,7 +392,13 @@ function Sidebar() {
                 </li>
                 <li>
                   <Link href="/admin-dashboard/finance/fee-configuration">
-                    <button className={`flex items-center gap-3 w-full px-3 py-2 rounded-lg h-10 text-sm transition-colors duration-200 ${activeSubItem === "finance-fee" ? "bg-[var(--sidebar-accent)] text-[var(--sidebar-primary)]" : "text-[var(--foreground)] hover:bg-[var(--sidebar-accent)]"}`}>
+                    <button
+                      className={`flex items-center gap-3 w-full px-3 py-2 rounded-lg h-10 text-sm transition-colors duration-200 ${
+                        activeSubItem === "finance-fee"
+                          ? "bg-[var(--sidebar-accent)] text-[var(--sidebar-primary)]"
+                          : "text-[var(--foreground)] hover:bg-[var(--sidebar-accent)]"
+                      }`}
+                    >
                       <Wrench className="w-[var(--icon-size-sm)] h-[var(--icon-size-sm)]" />
                       Fee Configuration
                     </button>
@@ -301,7 +406,13 @@ function Sidebar() {
                 </li>
                 <li>
                   <Link href="/admin-dashboard/finance/revenue-reports">
-                    <button className={`flex items-center gap-3 w-full px-3 py-2 rounded-lg h-10 text-sm transition-colors duration-200 ${activeSubItem === "finance-revenue" ? "bg-[var(--sidebar-accent)] text-[var(--sidebar-primary)]" : "text-[var(--foreground)] hover:bg-[var(--sidebar-accent)]"}`}>
+                    <button
+                      className={`flex items-center gap-3 w-full px-3 py-2 rounded-lg h-10 text-sm transition-colors duration-200 ${
+                        activeSubItem === "finance-revenue"
+                          ? "bg-[var(--sidebar-accent)] text-[var(--sidebar-primary)]"
+                          : "text-[var(--foreground)] hover:bg-[var(--sidebar-accent)]"
+                      }`}
+                    >
                       <TrendingUp className="w-[var(--icon-size-sm)] h-[var(--icon-size-sm)]" />
                       Revenue Reports
                     </button>
@@ -322,13 +433,27 @@ function Sidebar() {
             >
               <LayoutGrid className="w-[var(--icon-size-sm)] h-[var(--icon-size-sm)]" />
               Reports
-              <ChevronDown className={`w-[var(--icon-size-sm)] h-[var(--icon-size-sm)] ml-auto transition-transform ${isReportsOpen ? "rotate-180" : ""}`} />
+              <ChevronDown
+                className={`w-[var(--icon-size-sm)] h-[var(--icon-size-sm)] ml-auto transition-transform ${
+                  isReportsOpen ? "rotate-180" : ""
+                }`}
+              />
             </button>
-            <div className={`overflow-hidden transition-all duration-300 ease-in-out ${isReportsOpen ? "max-h-48 opacity-100" : "max-h-0 opacity-0"}`}>
+            <div
+              className={`overflow-hidden transition-all duration-300 ease-in-out ${
+                isReportsOpen ? "max-h-48 opacity-100" : "max-h-0 opacity-0"
+              }`}
+            >
               <ul className="space-y-1 mt-1">
                 <li>
                   <Link href="/admin-dashboard/reports/weekly">
-                    <button className={`flex items-center gap-3 w-full px-3 py-2 rounded-lg h-10 text-sm transition-colors duration-200 ${activeSubItem === "reports-weekly" ? "bg-[var(--sidebar-accent)] text-[var(--sidebar-primary)]" : "text-[var(--foreground)] hover:bg-[var(--sidebar-accent)]"}`}>
+                    <button
+                      className={`flex items-center gap-3 w-full px-3 py-2 rounded-lg h-10 text-sm transition-colors duration-200 ${
+                        activeSubItem === "reports-weekly"
+                          ? "bg-[var(--sidebar-accent)] text-[var(--sidebar-primary)]"
+                          : "text-[var(--foreground)] hover:bg-[var(--sidebar-accent)]"
+                      }`}
+                    >
                       <Calendar className="w-[var(--icon-size-sm)] h-[var(--icon-size-sm)]" />
                       Weekly Reports
                     </button>
@@ -336,7 +461,13 @@ function Sidebar() {
                 </li>
                 <li>
                   <Link href="/admin-dashboard/reports/seller-leaderboard">
-                    <button className={`flex items-center gap-3 w-full px-3 py-2 rounded-lg h-10 text-sm transition-colors duration-200 ${activeSubItem === "reports-seller" ? "bg-[var(--sidebar-accent)] text-[var(--sidebar-primary)]" : "text-[var(--foreground)] hover:bg-[var(--sidebar-accent)]"}`}>
+                    <button
+                      className={`flex items-center gap-3 w-full px-3 py-2 rounded-lg h-10 text-sm transition-colors duration-200 ${
+                        activeSubItem === "reports-seller"
+                          ? "bg-[var(--sidebar-accent)] text-[var(--sidebar-primary)]"
+                          : "text-[var(--foreground)] hover:bg-[var(--sidebar-accent)]"
+                      }`}
+                    >
                       <Trophy className="w-[var(--icon-size-sm)] h-[var(--icon-size-sm)]" />
                       Seller Leaderboard
                     </button>
@@ -344,7 +475,13 @@ function Sidebar() {
                 </li>
                 <li>
                   <Link href="/admin-dashboard/reports/buyer-insights">
-                    <button className={`flex items-center gap-3 w-full px-3 py-2 rounded-lg h-10 text-sm transition-colors duration-200 ${activeSubItem === "reports-buyer" ? "bg-[var(--sidebar-accent)] text-[var(--sidebar-primary)]" : "text-[var(--foreground)] hover:bg-[var(--sidebar-accent)]"}`}>
+                    <button
+                      className={`flex items-center gap-3 w-full px-3 py-2 rounded-lg h-10 text-sm transition-colors duration-200 ${
+                        activeSubItem === "reports-buyer"
+                          ? "bg-[var(--sidebar-accent)] text-[var(--sidebar-primary)]"
+                          : "text-[var(--foreground)] hover:bg-[var(--sidebar-accent)]"
+                      }`}
+                    >
                       <TrendingUp className="w-[var(--icon-size-sm)] h-[var(--icon-size-sm)]" />
                       Buyer Insights
                     </button>
@@ -371,9 +508,7 @@ function Sidebar() {
           </button>
         </Link>
         <Link href="/">
-          <button
-            className="flex items-center gap-2 text-sm font-normal leading-5 text-destructive mt-3 hover:text-destructive"
-          >
+          <button className="flex items-center gap-2 text-sm font-normal leading-5 text-destructive mt-3 hover:text-destructive">
             <LogIn className="w-[var(--icon-size-sm)] h-[var(--icon-size-sm)]" />
             Logout
           </button>
