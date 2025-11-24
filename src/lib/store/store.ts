@@ -7,6 +7,9 @@ import { authApi } from "../../api/authApi";
 import { userApi } from "../../api/userApi";
 import { hubApi } from "../../api/hubApi";
 import { deliveryApi } from "../../api/deliveryApi";
+import { orderApi } from "../../api/orderApi";
+import { ridersApi } from "../../api/ridersApi";
+import { shipmentApi } from "../../api/shipmentApi";
 import {
   FLUSH,
   REHYDRATE,
@@ -30,6 +33,9 @@ const rootReducer = combineReducers({
   [userApi.reducerPath]: userApi.reducer,
   [hubApi.reducerPath]: hubApi.reducer,
   [deliveryApi.reducerPath]: deliveryApi.reducer,
+  [orderApi.reducerPath]: orderApi.reducer,
+  [ridersApi.reducerPath]: ridersApi.reducer,
+  [shipmentApi.reducerPath]: shipmentApi.reducer,
   auth: authReducer,
 });
 
@@ -46,7 +52,10 @@ export const store = configureStore({
       authApi.middleware,
       userApi.middleware,
       hubApi.middleware,
-      deliveryApi.middleware
+      deliveryApi.middleware,
+      orderApi.middleware,
+      ridersApi.middleware,
+      shipmentApi.middleware
     ),
   devTools: process.env.NODE_ENV !== "production",
 });

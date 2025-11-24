@@ -1,14 +1,27 @@
 // src/app/logistics/lagos/page.tsx
 "use client";
 
-import { useState } from "react";
+import { useState, useCallback, useMemo, useEffect } from "react";
+import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
-import { Plus } from "lucide-react";
+import { Plus, RefreshCw, Search } from "lucide-react";
+import { useGetOrdersQuery } from "@/api/orderApi";
+import { useCreateRiderMutation, useGetRidersQuery } from "@/api/ridersApi";
+import {
+  useAssignRiderToShipmentMutation,
+  useUpdateShipmentStatusByCodeMutation,
+} from "@/api/shipmentApi";
+import { useNotifications } from "@/hooks/useNotifications";
+import { ErrorBoundary } from "@/components/ui/error-boundary";
 
-// Import all the new components
+// Import all components
 import KPIGrid from "@/components/logistics/KPIGrid";
 import PickupRequestsTable from "@/components/logistics/PickupRequestsTable";
 import DeliveriesTable from "@/components/logistics/DeliveriesTable";
+import {
+  PickupRequestsTableSkeleton,
+  DeliveriesTableSkeleton,
+} from "@/components/logistics/TableSkeleton";
 import RiderStatus from "@/components/logistics/RiderStatus";
 import ExceptionsTable from "@/components/logistics/ExceptionsTable";
 import AddRiderModal from "@/components/logistics/AddRiderModal";
@@ -17,14 +30,21 @@ import AssignRiderModal from "@/components/logistics/AssignRiderModal";
 import TrackOrderModal from "@/components/logistics/TrackOrderModal";
 import InvestigateExceptionModal from "@/components/logistics/InvestigateExceptionModal";
 
-interface Order {
+interface LogisticsOrder {
   id: string;
+  orderCode?: string;
+  trackingId?: string;
   seller?: string;
   buyer?: string;
   pickupAddress?: string;
   deliveryAddress?: string;
   phone: string;
   status: string;
+  shipment?: {
+    status: string;
+    hubId?: string;
+    assignedRiderId?: string | null;
+  };
 }
 
 interface Exception {
@@ -43,6 +63,9 @@ interface Rider {
 }
 
 export default function LagosHubDashboard() {
+  const router = useRouter();
+  const { showSuccess, showError, handleAsyncOperation } = useNotifications();
+
   // Modal states
   const [showAddRiderModal, setShowAddRiderModal] = useState(false);
   const [showAddShopModal, setShowAddShopModal] = useState(false);
@@ -51,189 +74,424 @@ export default function LagosHubDashboard() {
   const [showInvestigateModal, setShowInvestigateModal] = useState(false);
   const [selectedOrder, setSelectedOrder] = useState<string>("");
 
-  // Mock data
-  const kpis = {
-    ordersToday: 128,
-    pickRequests: 22,
-    atHub: 44,
-    waitingForDelivery: 38,
-    exceptions: 4,
-  };
+  // API calls with optimized query parameters
+  const {
+    data: pickupOrdersData,
+    isLoading: pickupLoading,
+    error: pickupError,
+    refetch: refetchPickupOrders,
+  } = useGetOrdersQuery({
+    pickup: true,
+    populate: ["buyer", "seller", "shipment"],
+    sortBy: "createdAt",
+    sortDir: "desc",
+    limit: 50,
+  });
 
-  const pickupRequests: Order[] = [
-    {
-      id: "SA20016",
-      seller: "John D.",
-      pickupAddress: "16 Allam Ave, Ikeja",
-      phone: "0802 111 222",
-      status: "Pending",
-    },
-    {
-      id: "SA20011",
-      seller: "Mary K.",
-      pickupAddress: "13 Bode Thomas, Surulere",
-      phone: "0813 222 333",
-      status: "Awaiting Seller Shipment",
-    },
-    {
-      id: "SA20010",
-      seller: "John D.",
-      pickupAddress: "16 Allam Ave, Ikeja",
-      phone: "0802 111 222",
-      status: "In Transit to Shopam",
-    },
-  ];
+  const {
+    data: deliveryOrdersData,
+    isLoading: deliveryLoading,
+    error: deliveryError,
+    refetch: refetchDeliveryOrders,
+  } = useGetOrdersQuery({
+    delivery: true,
+    populate: ["buyer", "seller", "shipment"],
+    sortBy: "createdAt",
+    sortDir: "desc",
+    limit: 50,
+  });
 
-  const deliveries: Order[] = [
-    {
-      id: "SA20013",
-      buyer: "John D.",
-      deliveryAddress: "Lekki Phase 1, Lagos",
-      phone: "0802 111 222",
-      status: "At Hub",
-    },
-    {
-      id: "SA20011",
-      buyer: "Mary K.",
-      deliveryAddress: "13 Bode Thomas, Surulere",
-      phone: "0813 222 333",
-      status: "Assigned (Rider A)",
-    },
-    {
-      id: "SA20010",
-      buyer: "John D.",
-      deliveryAddress: "Yaba, Lagos",
-      phone: "0802 111 222",
-      status: "Delivered",
-    },
-  ];
+  // Riders API
+  const [createRider, { isLoading: isCreatingRider }] =
+    useCreateRiderMutation();
+  const {
+    data: ridersData,
+    isLoading: ridersLoading,
+    error: ridersError,
+    refetch: refetchRiders,
+  } = useGetRidersQuery({
+    limit: 50,
+  });
 
-  const exceptions: Exception[] = [
-    {
-      order: "SA0018",
-      customer: "Mary K.",
-      issue: "Phone not reachable",
-      address: "13 Bode Thomas, Surulere",
-      phone: "0802 111 222",
-      status: "Exception",
-    },
-    {
-      order: "SA0019",
-      customer: "Jane Doe",
-      issue: "Parcel damaged at hub",
-      address: "2 Platinum Way, Lekki",
-      phone: "0802 111 222",
-      status: "Exception",
-    },
-    {
-      order: "SA0018",
-      customer: "John D.",
-      issue: "Pickup overdue >24h",
-      address: "13 Bode Thomas, Surulere",
-      phone: "0802 111 222",
-      status: "Exception",
-    },
-  ];
+  // Shipment API mutations
+  const [assignRiderToShipment, { isLoading: isAssigningRider }] =
+    useAssignRiderToShipmentMutation();
+  const [updateShipmentStatusByCode, { isLoading: isUpdatingStatus }] =
+    useUpdateShipmentStatusByCodeMutation();
 
-  const riders: Rider[] = [
-    { name: "Rider Paul", status: "Available", color: "green" },
-    { name: "Rider Obi", status: "On Delivery", color: "blue" },
-    { name: "Rider Seyi", status: "Picking Up", color: "blue-700" },
-    { name: "Rider Ahmed", status: "Offline", color: "gray" },
-  ];
+  // Error handling with useEffect to prevent infinite re-renders
+  useEffect(() => {
+    if (pickupError) {
+      console.error("Pickup orders error:", pickupError);
+    }
+    if (deliveryError) {
+      console.error("Delivery orders error:", deliveryError);
+    }
+    if (ridersError) {
+      console.error("Riders data error:", ridersError);
+    }
+  }, [pickupError, deliveryError, ridersError]);
 
-  const handleAssignRider = (orderId: string) => {
+  // Optimized refresh function
+  const refreshAllData = useCallback(async () => {
+    try {
+      await Promise.all([
+        refetchPickupOrders(),
+        refetchDeliveryOrders(),
+        refetchRiders(),
+      ]);
+      showSuccess("Data refreshed successfully");
+    } catch (error) {
+      showError("Failed to refresh data. Please try again.");
+    }
+  }, [
+    refetchPickupOrders,
+    refetchDeliveryOrders,
+    refetchRiders,
+    showSuccess,
+    showError,
+  ]);
+
+  // Transform API data with useMemo for performance optimization
+  const pickupRequests = useMemo((): LogisticsOrder[] => {
+    if (!pickupOrdersData?.data?.items) return [];
+
+    return pickupOrdersData.data.items.map((order) => ({
+      id: order.id,
+      orderCode: order.orderCode,
+      trackingId: order.trackingCode,
+      seller:
+        order.sellerProfile?.shopName ||
+        order.sellerProfile?.businessName ||
+        "Unknown Seller",
+      pickupAddress: order.shipFromSnapshot?.state || "Address not available",
+      phone: order.buyer?.phone || "Phone not available",
+      status: order.shipment?.status || "AWAITING_SELLER_SHIPMENT",
+      shipment: order.shipment,
+    }));
+  }, [pickupOrdersData]);
+
+  const deliveries = useMemo((): LogisticsOrder[] => {
+    if (!deliveryOrdersData?.data?.items) return [];
+
+    return deliveryOrdersData.data.items.map((order) => ({
+      id: order.id,
+      orderCode: order.orderCode,
+      trackingId: order.trackingCode,
+      buyer:
+        order.buyer?.firstName && order.buyer?.lastName
+          ? `${order.buyer.firstName} ${order.buyer.lastName}`
+          : order.buyer?.email || "Unknown Buyer",
+      deliveryAddress:
+        order.shipToSnapshot?.lga ||
+        order.shipToSnapshot?.state ||
+        "Address not available",
+      phone: order.buyer?.phone || "Phone not available",
+      status: order.shipment?.status || "AWAITING_SELLER_SHIPMENT",
+      shipment: order.shipment,
+    }));
+  }, [deliveryOrdersData]);
+
+  // Calculate KPIs with useMemo - uses memoized pickupRequests and deliveries
+  const kpis = useMemo(() => {
+    return {
+      ordersToday:
+        (pickupOrdersData?.data?.items?.length || 0) +
+        (deliveryOrdersData?.data?.items?.length || 0),
+      pickRequests: pickupRequests.length,
+      atHub: deliveries.filter((d) => d.status === "AT_SHOPAM_HUB").length,
+      waitingForDelivery: deliveries.filter(
+        (d) => d.status !== "DELIVERED" && d.status !== "CANCELLED"
+      ).length,
+      exceptions: 0, // TODO: Implement exception tracking
+    };
+  }, [pickupOrdersData, deliveryOrdersData, pickupRequests, deliveries]);
+
+  // Mock data for components - memoized to prevent unnecessary re-renders
+  const exceptions = useMemo<Exception[]>(
+    () => [
+      {
+        order: "SA0018",
+        customer: "Mary K.",
+        issue: "Phone not reachable",
+        address: "13 Bode Thomas, Surulere",
+        phone: "0802 111 222",
+        status: "Exception",
+      },
+      {
+        order: "SA0019",
+        customer: "Jane Doe",
+        issue: "Parcel damaged at hub",
+        address: "2 Platinum Way, Lekki",
+        phone: "0802 111 222",
+        status: "Exception",
+      },
+      {
+        order: "SA0018",
+        customer: "John D.",
+        issue: "Pickup overdue >24h",
+        address: "13 Bode Thomas, Surulere",
+        phone: "0802 111 222",
+        status: "Exception",
+      },
+    ],
+    []
+  );
+
+  const riders = useMemo<Rider[]>(
+    () => [
+      { name: "Rider Paul", status: "Available", color: "green" },
+      { name: "Rider Obi", status: "On Delivery", color: "blue" },
+      { name: "Rider Seyi", status: "Picking Up", color: "blue-700" },
+      { name: "Rider Ahmed", status: "Offline", color: "gray" },
+    ],
+    []
+  );
+
+  // Event handlers
+  const handleAssignRider = useCallback((orderId: string) => {
     setSelectedOrder(orderId);
     setShowAssignRiderModal(true);
-  };
+  }, []);
 
-  const handleInvestigate = (orderId: string) => {
+  const handleInvestigate = useCallback((orderId: string) => {
     setSelectedOrder(orderId);
     setShowInvestigateModal(true);
+  }, []);
+
+  const handleCreateRider = useCallback(
+    async (riderData: {
+      name: string;
+      phone: string;
+      rideType: string;
+      plateNo: string;
+    }) => {
+      await handleAsyncOperation(() => createRider(riderData).unwrap(), {
+        onSuccess: () => {
+          setShowAddRiderModal(false);
+          showSuccess("Rider created successfully");
+          refetchRiders();
+        },
+        successMessage: "",
+        showErrorToast: true,
+      });
+    },
+    [createRider, showSuccess, refetchRiders, handleAsyncOperation]
+  );
+
+  const handleAssignRiderToShipment = useCallback(
+    async (orderId: string, riderId: string) => {
+      await handleAsyncOperation(
+        () => assignRiderToShipment({ orderId, data: { riderId } }).unwrap(),
+        {
+          onSuccess: () => {
+            setShowAssignRiderModal(false);
+            setSelectedOrder("");
+            showSuccess("Rider assigned successfully");
+            refreshAllData();
+          },
+          successMessage: "",
+          showErrorToast: true,
+        }
+      );
+    },
+    [assignRiderToShipment, showSuccess, refreshAllData, handleAsyncOperation]
+  );
+
+  const handleShowAssignedMessage = useCallback(
+    (orderId: string) => {
+      showError(
+        `A rider has already been assigned to this order. Order ID: ${orderId}`,
+        {
+          duration: 5000,
+        }
+      );
+    },
+    [showError]
+  );
+
+  const handleOpenTrackOrderModal = useCallback(() => {
+    setShowTrackOrderModal(true);
+  }, []);
+
+  const handleRefreshAfterStatusUpdate = useCallback(async () => {
+    try {
+      await Promise.all([refetchPickupOrders(), refetchDeliveryOrders()]);
+    } catch (error) {
+      showError("Failed to refresh data after update");
+    }
+  }, [refetchPickupOrders, refetchDeliveryOrders, showError]);
+
+  const handleCloseAssignRiderModal = useCallback(() => {
+    setShowAssignRiderModal(false);
+    setSelectedOrder("");
+  }, []);
+
+  // Derived loading state
+  const isRefreshing = pickupLoading || deliveryLoading;
+
+  // Get error messages for display - properly handle RTK Query error types
+  const getErrorMessage = (error: unknown): string | null => {
+    if (!error) return null;
+
+    // Handle FetchBaseQueryError
+    if (typeof error === "object" && error !== null && "status" in error) {
+      const fetchError = error as {
+        status: number | string;
+        data?: unknown;
+        error?: string;
+      };
+      if (fetchError.error) return fetchError.error;
+      if (fetchError.data && typeof fetchError.data === "object") {
+        const data = fetchError.data as { message?: string };
+        return data.message || `Error: ${fetchError.status}`;
+      }
+      return `Error: ${fetchError.status}`;
+    }
+
+    // Handle SerializedError
+    if (typeof error === "object" && error !== null && "message" in error) {
+      return (error as { message: string }).message;
+    }
+
+    return "An unknown error occurred";
   };
 
+  const pickupErrorMessage = getErrorMessage(pickupError);
+  const deliveryErrorMessage = getErrorMessage(deliveryError);
+
   return (
-    <div className="min-h-screen bg-gray-50 p-6">
-      {/* Header */}
-      <div className="mb-6 flex justify-between items-start">
-        <div>
-          <h1 className="text-3xl font-bold text-gray-900">
-            Lagos Hub Dashboard
-          </h1>
-          <p className="text-gray-600 mt-1">
-            Real-time logistics management and order tracking
-          </p>
-        </div>
-        <div className="flex gap-3">
-          <Button
-            onClick={() => setShowAddRiderModal(true)}
-            className="bg-orange-500 hover:bg-orange-600 flex items-center gap-2"
-          >
-            <Plus className="w-5 h-5" />
-            Add Rider
-          </Button>
+    <ErrorBoundary>
+      <div className="min-h-screen bg-gray-50 p-6">
+        {/* Header */}
+        <div className="mb-6 flex justify-between items-start">
+          <div>
+            <h1 className="text-3xl font-bold text-gray-900">
+              Lagos Hub Dashboard
+            </h1>
+            <p className="text-gray-600 mt-1">
+              Real-time logistics management and order tracking
+            </p>
+          </div>
+          <div className="flex gap-3">
+            <Button
+              onClick={() => router.push("/logistics/track-order")}
+              className="bg-purple-500 hover:bg-purple-600 flex items-center gap-2"
+            >
+              <Search className="w-5 h-5" />
+              Track Order
+            </Button>
 
-          <Button
-            onClick={() => setShowAddShopModal(true)}
-            className="bg-green-500 hover:bg-green-600 flex items-center gap-2"
-          >
-            <Plus className="w-5 h-5" />
-            Add Shop
-          </Button>
+            <Button
+              onClick={() => setShowAddRiderModal(true)}
+              className="bg-orange-500 hover:bg-orange-600 flex items-center gap-2"
+              disabled={isCreatingRider}
+            >
+              <Plus className="w-5 h-5" />
+              {isCreatingRider ? "Creating..." : "Add Rider"}
+            </Button>
+
+            <Button
+              onClick={() => setShowAddShopModal(true)}
+              className="bg-green-500 hover:bg-green-600 flex items-center gap-2"
+            >
+              <Plus className="w-5 h-5" />
+              Add Shop
+            </Button>
+
+            <Button
+              onClick={refreshAllData}
+              variant="outline"
+              className="flex items-center gap-2"
+              disabled={isRefreshing}
+            >
+              <RefreshCw
+                className={`w-4 h-4 ${isRefreshing ? "animate-spin" : ""}`}
+              />
+              Refresh
+            </Button>
+          </div>
         </div>
+
+        {/* KPI Grid - uses memoized kpis */}
+        <KPIGrid kpis={kpis} />
+
+        {/* Pickup Requests Table */}
+        <ErrorBoundary>
+          {pickupLoading ? (
+            <PickupRequestsTableSkeleton />
+          ) : (
+            <PickupRequestsTable
+              pickupRequests={pickupRequests}
+              onAssignRider={handleAssignRider}
+              onShowAssignedMessage={handleShowAssignedMessage}
+              isLoading={pickupLoading}
+              error={pickupErrorMessage}
+              onRefresh={refetchPickupOrders}
+            />
+          )}
+        </ErrorBoundary>
+
+        {/* Deliveries Table */}
+        <ErrorBoundary>
+          {deliveryLoading ? (
+            <DeliveriesTableSkeleton />
+          ) : (
+            <DeliveriesTable
+              deliveries={deliveries}
+              onAssignRider={handleAssignRider}
+              onTrackOrder={handleOpenTrackOrderModal}
+              onShowAssignedMessage={handleShowAssignedMessage}
+              isLoading={deliveryLoading}
+              error={deliveryErrorMessage}
+              onRefresh={refetchDeliveryOrders}
+            />
+          )}
+        </ErrorBoundary>
+
+        {/* Rider Status */}
+        <RiderStatus riders={riders} />
+
+        {/* Exceptions Table */}
+        <ExceptionsTable
+          exceptions={exceptions}
+          onInvestigate={handleInvestigate}
+        />
+
+        {/* Modals */}
+        <AddRiderModal
+          isOpen={showAddRiderModal}
+          onClose={() => setShowAddRiderModal(false)}
+          onCreateRider={handleCreateRider}
+          isLoading={isCreatingRider}
+        />
+
+        <AddShopModal
+          isOpen={showAddShopModal}
+          onClose={() => setShowAddShopModal(false)}
+        />
+
+        <AssignRiderModal
+          isOpen={showAssignRiderModal}
+          onClose={handleCloseAssignRiderModal}
+          riders={ridersData?.data?.items || []}
+          isLoading={ridersLoading || isAssigningRider}
+          selectedOrder={selectedOrder}
+          onAssignRider={handleAssignRiderToShipment}
+        />
+
+        <TrackOrderModal
+          isOpen={showTrackOrderModal}
+          onClose={() => setShowTrackOrderModal(false)}
+          onStatusUpdate={handleRefreshAfterStatusUpdate}
+        />
+
+        <InvestigateExceptionModal
+          isOpen={showInvestigateModal}
+          onClose={() => setShowInvestigateModal(false)}
+          selectedOrder={selectedOrder}
+        />
       </div>
-
-      {/* KPI Grid */}
-      <KPIGrid kpis={kpis} />
-
-      {/* Pickup Requests Table */}
-      <PickupRequestsTable
-        pickupRequests={pickupRequests}
-        onAssignRider={handleAssignRider}
-      />
-
-      {/* Deliveries Table */}
-      <DeliveriesTable
-        deliveries={deliveries}
-        onAssignRider={handleAssignRider}
-        onTrackOrder={() => setShowTrackOrderModal(true)}
-      />
-
-      {/* Rider Status */}
-      <RiderStatus riders={riders} />
-
-      {/* Exceptions Table */}
-      <ExceptionsTable
-        exceptions={exceptions}
-        onInvestigate={handleInvestigate}
-      />
-
-      {/* Modals */}
-      <AddRiderModal
-        isOpen={showAddRiderModal}
-        onClose={() => setShowAddRiderModal(false)}
-      />
-
-      <AddShopModal
-        isOpen={showAddShopModal}
-        onClose={() => setShowAddShopModal(false)}
-      />
-
-      <AssignRiderModal
-        isOpen={showAssignRiderModal}
-        onClose={() => setShowAssignRiderModal(false)}
-      />
-
-      <TrackOrderModal
-        isOpen={showTrackOrderModal}
-        onClose={() => setShowTrackOrderModal(false)}
-      />
-
-      <InvestigateExceptionModal
-        isOpen={showInvestigateModal}
-        onClose={() => setShowInvestigateModal(false)}
-        selectedOrder={selectedOrder}
-      />
-    </div>
+    </ErrorBoundary>
   );
 }
