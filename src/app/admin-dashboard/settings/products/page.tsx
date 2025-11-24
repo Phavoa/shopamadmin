@@ -15,16 +15,20 @@ export default function ProductCategoriesPage() {
   const router = useRouter();
   const [showAddModal, setShowAddModal] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
-  const [selectedCategory, setSelectedCategory] = useState<Category | null>(null);
+  const [selectedCategory, setSelectedCategory] = useState<Category | null>(
+    null
+  );
   const [categoryName, setCategoryName] = useState("");
 
   // Mock data
-  const categories: Category[] = Array(7).fill(null).map((_, i) => ({
-    id: `cat-${i + 1}`,
-    name: "Fashion",
-    image: "/placeholder.png",
-    products: 239,
-  }));
+  const categories: Category[] = Array(7)
+    .fill(null)
+    .map((_, i) => ({
+      id: `cat-${i + 1}`,
+      name: "Fashion",
+      image: "/placeholder.png",
+      products: 239,
+    }));
 
   const handleEdit = (category: Category) => {
     setSelectedCategory(category);
@@ -41,7 +45,9 @@ export default function ProductCategoriesPage() {
     <div className="min-h-screen bg-white">
       {/* Header */}
       <div className="flex items-center justify-between px-6 py-4 border-b border-gray-200">
-        <h1 className="text-2xl font-semibold text-black">Product Categories</h1>
+        <h1 className="text-2xl font-semibold text-black">
+          Product Categories
+        </h1>
       </div>
 
       {/* Back Button and Add Button */}
@@ -97,7 +103,9 @@ export default function ProductCategoriesPage() {
           <tbody>
             {categories.map((category, index) => (
               <tr key={index} className="border-b border-gray-100">
-                <td className="py-4 px-4 text-sm text-black">{category.name}</td>
+                <td className="py-4 px-4 text-sm text-black">
+                  {category.name}
+                </td>
                 <td className="py-4 px-4">
                   <div
                     style={{
@@ -113,7 +121,9 @@ export default function ProductCategoriesPage() {
                     <span className="text-2xl">👕</span>
                   </div>
                 </td>
-                <td className="py-4 px-4 text-sm text-black">{category.products}</td>
+                <td className="py-4 px-4 text-sm text-black">
+                  {category.products}
+                </td>
                 <td className="py-4 px-4">
                   <div className="flex gap-2">
                     <button
@@ -132,6 +142,11 @@ export default function ProductCategoriesPage() {
                       Edit
                     </button>
                     <button
+                      onClick={() =>
+                        router.push(
+                          "/admin-dashboard/settings/products/delete-products"
+                        )
+                      }
                       style={{
                         padding: "6px 20px",
                         borderRadius: "8px",

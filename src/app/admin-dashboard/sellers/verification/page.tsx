@@ -2,9 +2,7 @@
 
 import React, { useState, useEffect } from "react";
 import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
-import { Check, X, FileText, Loader2 } from "lucide-react";
-import { formatDistanceToNow } from "date-fns";
+import { FileText, Loader2, CreditCard, File } from "lucide-react";
 import {
   approveSeller,
   suspendSeller,
@@ -22,28 +20,34 @@ interface DisplaySeller {
   documents: string[];
 }
 
-const getStatusBadgeVariant = (status: string) => {
-  switch (status) {
+const getStatusBadgeStyles = (status: string) => {
+  switch (status.toLowerCase()) {
     case "approved":
-      return "default"; // We'll customize this
+    case "active":
+      return "bg-[#D1FAE5] text-[#065F46] border-[#D1FAE5]";
     case "rejected":
-      return "destructive";
+    case "suspended":
+    case "denied":
+      return "bg-[#FEE2E2] text-[#991B1B] border-[#FEE2E2]";
     case "pending":
     default:
-      return "secondary";
+      return "bg-[#FED7AA] text-[#9A3412] border-[#FED7AA]";
   }
 };
 
-const getStatusBadgeStyles = (status: string) => {
-  switch (status) {
-    case "approved":
-      return "bg-[#D8FED9] text-[#4D5650] border-[#D8FED9]";
-    case "rejected":
-      return "bg-[#FFC5C4] text-[#4D5650] border-[#FFC5C4]";
-    case "pending":
-    default:
-      return "bg-[#E3CBC7] text-[#4D5650] border-[#E3CBC7]";
-  }
+// Helper function to format date
+const formatTimeAgo = (dateString: string) => {
+  const date = new Date(dateString);
+  const now = new Date();
+  const diffInMs = now.getTime() - date.getTime();
+  const diffInDays = Math.floor(diffInMs / (1000 * 60 * 60 * 24));
+  
+  if (diffInDays === 0) return "today";
+  if (diffInDays === 1) return "1 day ago";
+  if (diffInDays < 7) return `${diffInDays} days ago`;
+  if (diffInDays < 30) return `${Math.floor(diffInDays / 7)} weeks ago`;
+  if (diffInDays < 365) return `${Math.floor(diffInDays / 30)} months ago`;
+  return `${Math.floor(diffInDays / 365)} years ago`;
 };
 
 const Page = () => {
@@ -138,32 +142,41 @@ const Page = () => {
   };
 
   return (
-    <div className="flex-1 space-y-6 py-10">
-      <div className="flex gap-6">
-        {/* Main Table Section */}
-        <div className="flex-1 border-t rounded-xl ">
-          <div className="border-[#EAEAEB] shadow-[0_1px_2px_rgba(77,86,80,0.06)] rounded-lg">
-            <div className="px-6 py-6">
-              <div className="text-lg font-semibold text-[#0f1720]">
-                Verification Requests
-              </div>
-            </div>
-            <div className="px-6 pb-6">
+    <div className="min-h-screen bg-white">
+      {/* Header */}
+      <div className="flex items-center justify-between px-6 py-4 border-b border-gray-200">
+        <h1 className="text-2xl font-semibold text-black">
+          Seller Document Verification
+        </h1>
+      </div>
+
+      {/* Content */}
+      <div className="p-6">
+        <div className="grid grid-cols-12 gap-6">
+          {/* Left Side - Sellers Table */}
+          <div className="col-span-7">
+            <div
+              style={{
+                borderRadius: "18px",
+                border: "0.3px solid rgba(0, 0, 0, 0.20)",
+                background: "#FFF",
+              }}
+            >
+              {/* Table */}
               <div className="overflow-x-auto">
                 <table className="w-full">
                   <thead>
-                    <tr className="border-b border-[#EAEAEB]">
-                      <th className="text-left py-3 px-4 text-sm font-medium text-[#4D5650]">
-                        Seller
+                    <tr className="border-b border-gray-200">
+                      <th className="text-left py-4 px-6 text-sm font-medium text-black">
+                        Seller Name
                       </th>
-                      <th className="text-left py-3 px-4 text-sm font-medium text-[#4D5650]">
+                      <th className="text-left py-4 px-6 text-sm font-medium text-black">
                         Status
                       </th>
-                      <th className="text-left py-3 px-4 text-sm font-medium text-[#4D5650]">
+                      <th className="text-left py-4 px-6 text-sm font-medium text-black">
                         Submitted
                       </th>
-
-                      <th className="text-left py-3 px-4 text-sm font-medium text-[#4D5650]">
+                      <th className="text-left py-4 px-6 text-sm font-medium text-black">
                         Actions
                       </th>
                     </tr>
@@ -173,26 +186,20 @@ const Page = () => {
                       <tr>
                         <td colSpan={4} className="py-8 text-center">
                           <div className="flex items-center justify-center">
-                            <Loader2 className="w-6 h-6 animate-spin mr-2" />
-                            Loading sellers...
+                            <Loader2 className="w-6 h-6 animate-spin text-[#E67E22] mr-2" />
+                            <span className="text-gray-600">Loading sellers...</span>
                           </div>
                         </td>
                       </tr>
                     ) : error ? (
                       <tr>
-                        <td
-                          colSpan={4}
-                          className="py-8 text-center text-red-600"
-                        >
+                        <td colSpan={4} className="py-8 text-center text-red-600">
                           {error}
                         </td>
                       </tr>
                     ) : sellers.length === 0 ? (
                       <tr>
-                        <td
-                          colSpan={4}
-                          className="py-8 text-center text-[#9ca3af]"
-                        >
+                        <td colSpan={4} className="py-8 text-center text-gray-500">
                           No pending sellers to review
                         </td>
                       </tr>
@@ -200,16 +207,14 @@ const Page = () => {
                       sellers.map((seller) => (
                         <tr
                           key={seller.id}
-                          className="border-b border-[#EAEAEB] hover:bg-[#F9F9F9]"
+                          className="border-b border-gray-100 hover:bg-gray-50"
                         >
-                          <td className="py-4 px-4">
-                            <p className=" truncate text-lg text-[#0f1720]">
-                              {seller.name}
-                            </p>
+                          <td className="py-4 px-6 text-sm text-black">
+                            {seller.name}
                           </td>
-                          <td className="py-4 px-4">
+                          <td className="py-4 px-6">
                             <Badge
-                              className={`rounded-full px-3 py-1 text-xs font-semibold border ${getStatusBadgeStyles(
+                              className={`rounded-full px-3 py-1 text-xs font-medium border ${getStatusBadgeStyles(
                                 seller.status
                               )}`}
                             >
@@ -217,26 +222,25 @@ const Page = () => {
                                 seller.status.slice(1)}
                             </Badge>
                           </td>
-                          <td className="py-4 px-4 text-sm text-[#4D5650] truncate">
-                            {formatDistanceToNow(
-                              new Date(seller.submittedDate),
-                              {
-                                addSuffix: true,
-                              }
-                            )}
+                          <td className="py-4 px-6 text-sm text-gray-600">
+                            {formatTimeAgo(seller.submittedDate)}
                           </td>
-
-                          <td className="py-4 px-4">
-                            <div className="flex gap-2">
-                              <Button
-                                size="sm"
-                                variant="outline"
-                                className="border-[#EAEAEB] text-[#4D5650] hover:text-[#F9F9F9] px-4 py-1 h-8 text-xs"
-                                onClick={() => handleReview(seller)}
-                              >
-                                View
-                              </Button>
-                            </div>
+                          <td className="py-4 px-6">
+                            <button
+                              onClick={() => handleReview(seller)}
+                              style={{
+                                padding: "6px 20px",
+                                borderRadius: "8px",
+                                border: "0.3px solid rgba(0, 0, 0, 0.20)",
+                                background: "#FFF",
+                                color: "#000",
+                                fontSize: "14px",
+                                fontWeight: 500,
+                                cursor: "pointer",
+                              }}
+                            >
+                              {selectedSeller?.id === seller.id ? "Review" : "View"}
+                            </button>
                           </td>
                         </tr>
                       ))
@@ -246,71 +250,190 @@ const Page = () => {
               </div>
             </div>
           </div>
-        </div>
 
-        {/* Document Preview Section */}
-        <div className="w-lg border rounded-xl ">
-          <div className="border-[#EAEAEB] shadow-[0_1px_2px_rgba(77,86,80,0.06)] rounded-lg">
-            <div className="px-6 py-6">
-              <div className="text-lg font-semibold text-[#0f1720]">
-                Document Preview
-              </div>
-            </div>
-            <div className="px-6 pb-6">
+          {/* Right Side - Details Panel */}
+          <div className="col-span-5">
+            <div
+              style={{
+                padding: "24px",
+                borderRadius: "18px",
+                border: "0.3px solid rgba(0, 0, 0, 0.20)",
+                background: "#FFF",
+              }}
+            >
               {selectedSeller ? (
                 <>
-                  <div className="border-2 border-dashed border-[#EAEAEB] rounded-lg h-[220px] flex items-center justify-center bg-[#EAEAEA]">
-                    <div className="text-center">
-                      <FileText className="w-12 h-12 text-[#9ca3af] mx-auto mb-2" />
-                      <p className="text-sm text-[#9ca3af]">
-                        Document preview for {selectedSeller.name}
-                      </p>
+                  <h2 className="text-lg font-semibold text-black mb-6">
+                    Details - {selectedSeller.name}
+                  </h2>
+
+                  {/* Documents List */}
+                  <div className="space-y-3 mb-6">
+                    <div className="flex items-center gap-3 p-3 bg-gray-50 rounded-lg">
+                      <div
+                        style={{
+                          width: "36px",
+                          height: "36px",
+                          borderRadius: "8px",
+                          background: "#FFF",
+                          border: "0.3px solid rgba(0, 0, 0, 0.10)",
+                          display: "flex",
+                          alignItems: "center",
+                          justifyContent: "center",
+                        }}
+                      >
+                        <CreditCard className="w-4 h-4 text-gray-600" />
+                      </div>
+                      <span className="text-sm text-gray-700">Personal ID</span>
+                    </div>
+
+                    <div className="flex items-center gap-3 p-3 bg-gray-50 rounded-lg">
+                      <div
+                        style={{
+                          width: "36px",
+                          height: "36px",
+                          borderRadius: "8px",
+                          background: "#FFF",
+                          border: "0.3px solid rgba(0, 0, 0, 0.10)",
+                          display: "flex",
+                          alignItems: "center",
+                          justifyContent: "center",
+                        }}
+                      >
+                        <File className="w-4 h-4 text-gray-600" />
+                      </div>
+                      <span className="text-sm text-gray-700">Utility Bill</span>
                     </div>
                   </div>
-                  <div className="flex mt-4 space-y-2 gap-4">
-                    <Button
-                      className="flex-1 bg-[#E57D28] hover:bg-[#E57D28]/90 text-white"
+
+                  {/* Document Image Preview */}
+                  <div className="mb-6">
+                    <h3 className="text-sm font-medium text-black mb-3">
+                      Document Image
+                    </h3>
+                    <div
+                      style={{
+                        width: "100%",
+                        height: "200px",
+                        border: "2px dashed #E5E7EB",
+                        borderRadius: "12px",
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "center",
+                        background: "#FAFAFA",
+                      }}
+                    >
+                      <div className="text-center">
+                        <FileText className="w-12 h-12 text-gray-400 mx-auto mb-2" />
+                        <p className="text-sm text-gray-500">
+                          Documents Image Preview
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Action Buttons */}
+                  <div className="flex gap-3">
+                    <button
                       onClick={handleApprove}
                       disabled={loading}
+                      style={{
+                        flex: 1,
+                        padding: "12px",
+                        borderRadius: "8px",
+                        background: "#E67E22",
+                        color: "#FFF",
+                        fontSize: "14px",
+                        fontWeight: 500,
+                        border: "none",
+                        cursor: loading ? "not-allowed" : "pointer",
+                        opacity: loading ? 0.7 : 1,
+                      }}
                     >
-                      <Check className="w-4 h-4 mr-2" />
                       {loading ? "Approving..." : "Approve"}
-                    </Button>
-                    <Button
-                      variant="outline"
-                      className="flex-1 border-[#EAEAEB] text-[#4D5650] hover:bg-[#F9F9F9]"
+                    </button>
+                    <button
                       onClick={handleReject}
                       disabled={loading}
+                      style={{
+                        flex: 1,
+                        padding: "12px",
+                        borderRadius: "8px",
+                        background: "#FFF",
+                        color: "#EF4444",
+                        fontSize: "14px",
+                        fontWeight: 500,
+                        border: "0.3px solid rgba(0, 0, 0, 0.20)",
+                        cursor: loading ? "not-allowed" : "pointer",
+                        opacity: loading ? 0.7 : 1,
+                      }}
                     >
-                      <X className="w-4 h-4 mr-2" />
                       {loading ? "Rejecting..." : "Reject"}
-                    </Button>
+                    </button>
                   </div>
                 </>
               ) : (
                 <>
-                  <div className="border-2 border-dashed border-[#EAEAEB] rounded-lg h-[220px] flex items-center justify-center bg-[#EAEAEA]">
+                  <h2 className="text-lg font-semibold text-black mb-6">
+                    Details
+                  </h2>
+
+                  {/* Empty State */}
+                  <div
+                    style={{
+                      width: "100%",
+                      height: "300px",
+                      border: "2px dashed #E5E7EB",
+                      borderRadius: "12px",
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      background: "#FAFAFA",
+                      marginBottom: "24px",
+                    }}
+                  >
                     <div className="text-center">
-                      <FileText className="w-12 h-12 text-[#9ca3af] mx-auto mb-2" />
-                      <p className="text-sm text-[#9ca3af]">
-                        Select a seller to review
+                      <FileText className="w-12 h-12 text-gray-400 mx-auto mb-2" />
+                      <p className="text-sm text-gray-500">
+                        Select a seller to review documents
                       </p>
                     </div>
                   </div>
-                  <div className="flex mt-4 space-y-2">
-                    <Button
-                      className="w-full bg-[#E57D28] hover:bg-[#E57D28]/90 text-white"
+
+                  {/* Disabled Action Buttons */}
+                  <div className="flex gap-3">
+                    <button
                       disabled
+                      style={{
+                        flex: 1,
+                        padding: "12px",
+                        borderRadius: "8px",
+                        background: "#E5E7EB",
+                        color: "#9CA3AF",
+                        fontSize: "14px",
+                        fontWeight: 500,
+                        border: "none",
+                        cursor: "not-allowed",
+                      }}
                     >
                       Approve
-                    </Button>
-                    <Button
-                      variant="outline"
-                      className="w-full border-[#EAEAEB] text-[#4D5650] hover:bg-[#F9F9F9]"
+                    </button>
+                    <button
                       disabled
+                      style={{
+                        flex: 1,
+                        padding: "12px",
+                        borderRadius: "8px",
+                        background: "#FFF",
+                        color: "#9CA3AF",
+                        fontSize: "14px",
+                        fontWeight: 500,
+                        border: "0.3px solid #E5E7EB",
+                        cursor: "not-allowed",
+                      }}
                     >
                       Reject
-                    </Button>
+                    </button>
                   </div>
                 </>
               )}

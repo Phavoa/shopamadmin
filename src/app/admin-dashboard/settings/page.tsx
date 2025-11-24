@@ -2,7 +2,7 @@
 
 import React from "react";
 import { useRouter } from "next/navigation";
-import { Bell, Shield, CreditCard, Package } from "lucide-react";
+import { Bell, Shield, CreditCard, Package, User } from "lucide-react";
 
 export default function SettingsPage() {
   const router = useRouter();
@@ -45,6 +45,12 @@ export default function SettingsPage() {
       title: "Products",
       items: ["Product Categories", "Delete Products"],
       route: "/admin-dashboard/settings/products",
+    },
+    {
+      icon: User,
+      title: "Admin Management",
+      items: ["Admin", "Add, Modify & Edit Admins"],
+      route: "/admin-dashboard/settings/admin",
     },
   ];
 
