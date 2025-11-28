@@ -4,12 +4,15 @@ import React, { useState } from "react";
 import { useRouter } from "next/navigation";
 import { ArrowLeft, Plus, Edit, Trash2, X, ChevronDown } from "lucide-react";
 
+// Define proper types for role permissions
+type AdminRole = "Admin" | "Super Admin";
+
 export default function AdminManagementPage() {
   const router = useRouter();
   const [showAddModal, setShowAddModal] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
-  const [selectedRole, setSelectedRole] = useState("Admin");
-  const [editRole, setEditRole] = useState("Super Admin");
+  const [selectedRole, setSelectedRole] = useState<AdminRole>("Admin");
+  const [editRole, setEditRole] = useState<AdminRole>("Super Admin");
 
   const admins = [
     {
@@ -259,7 +262,9 @@ export default function AdminManagementPage() {
                 <div className="relative">
                   <select
                     value={selectedRole}
-                    onChange={(e) => setSelectedRole(e.target.value)}
+                    onChange={(e) =>
+                      setSelectedRole(e.target.value as AdminRole)
+                    }
                     style={{
                       width: "100%",
                       padding: "12px 16px",
@@ -398,7 +403,7 @@ export default function AdminManagementPage() {
                 <div className="relative">
                   <select
                     value={editRole}
-                    onChange={(e) => setEditRole(e.target.value)}
+                    onChange={(e) => setEditRole(e.target.value as AdminRole)}
                     style={{
                       width: "100%",
                       padding: "12px 16px",
