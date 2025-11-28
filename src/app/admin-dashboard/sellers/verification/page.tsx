@@ -7,6 +7,7 @@ import {
   approveSeller,
   suspendSeller,
   getSellers,
+  getUserById,
   SellerProfileVM,
 } from "@/api/sellerApi";
 
@@ -70,18 +71,28 @@ const Page = () => {
         setFetchingSellers(true);
         setError(null);
         const response = await getSellers({ limit: 50 });
-        const displaySellers: DisplaySeller[] = response.data.items.map(
-          (seller: SellerProfileVM) => ({
-            id: seller.userId,
-            name: `${seller.userFirstName} ${seller.userLastName}`,
-            email: seller.userEmail,
-            status: seller.status.toLowerCase(),
-            submittedDate: seller.createdAt,
-            documents: [
-              seller.govIdUrl ? "Government ID" : null,
-              seller.businessDocUrl ? "Business Document" : null,
-            ].filter(Boolean) as string[],
-          })
+        const sellersData = response.data.items;
+
+        // Fetch user profiles for names
+        const userPromises = sellersData.map((seller) => getUserById(seller.userId).catch(() => null));
+        const userResults = await Promise.allSettled(userPromises);
+        const userProfiles = userResults.map((result) => (result.status === 'fulfilled' ? result.value : null));
+
+        const displaySellers: DisplaySeller[] = sellersData.map(
+          (seller: SellerProfileVM, index: number) => {
+            const user = userProfiles[index];
+            return {
+              id: seller.userId,
+              name: user ? `${user.firstName} ${user.lastName}` : 'Unknown User',
+              email: user ? user.email : seller.userEmail,
+              status: seller.status.toLowerCase(),
+              submittedDate: seller.createdAt,
+              documents: [
+                seller.govIdUrl ? "Government ID" : null,
+                seller.businessDocUrl ? "Business Document" : null,
+              ].filter(Boolean) as string[],
+            };
+          }
         );
         setSellers(displaySellers);
       } catch (error) {
