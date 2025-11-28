@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
-import { getSellers, SellerProfileVM, SellerListParams } from "@/api/sellerApi";
+import { getSellers, getUserById, SellerProfileVM, SellerListParams } from "@/api/sellerApi";
 import { Search, ChevronLeft, ChevronRight, Eye, Key, Ban } from "lucide-react";
 
 // SVG Icons
@@ -52,9 +52,11 @@ const Page = () => {
   const [selectedSeller, setSelectedSeller] = useState<DisplaySeller | null>(
     null
   );
-  const [currentPage, setCurrentPage] = useState(1);
+  const [nextCursor, setNextCursor] = useState<string | undefined>();
+  const [prevCursor, setPrevCursor] = useState<string | undefined>();
+  const [hasNext, setHasNext] = useState(false);
+  const [hasPrev, setHasPrev] = useState(false);
   const [selectedTier, setSelectedTier] = useState("Bronze");
-  const sellersPerPage = 9;
 
   // Fetch sellers
   const fetchSellers = async (params: SellerListParams = {}) => {
@@ -63,31 +65,45 @@ const Page = () => {
       setError(null);
       const response = await getSellers({
         ...params,
-        limit: 50,
+        limit: 9, // Match the previous sellersPerPage
       });
-      const displaySellers: DisplaySeller[] = response.data.items.map(
-        (seller: SellerProfileVM) => ({
-          id: seller.userId,
-          name: `${seller.userFirstName} ${seller.userLastName}`,
-          email: seller.userEmail,
-          status: seller.status.toLowerCase(),
-          tier: seller.tier,
-          shopName: seller.shopName,
-          businessCategory: seller.businessCategory,
-          location: `${seller.locationCity}, ${seller.locationState}`,
-          totalSales: seller.totalSales,
-          createdAt: seller.createdAt,
-          reliability: "95%",
-          strikes: 0,
-          lastLive: "Aug 30 (Bronze, 210 viewers)",
-          walletBalance: "₦340,000",
-          totalOrders: 452,
-          completedOrders: 400,
-          activeListings: 35,
-          nextSlot: "Sep 6, 2025 14:00 (Bronze)",
-        })
+      const sellersData = response.data.items;
+
+      // Fetch user profiles for names
+      const userPromises = sellersData.map((seller) => getUserById(seller.userId).catch(() => null));
+      const userResults = await Promise.allSettled(userPromises);
+      const userProfiles = userResults.map((result) => (result.status === 'fulfilled' ? result.value : null));
+
+      const displaySellers: DisplaySeller[] = sellersData.map(
+        (seller: SellerProfileVM, index: number) => {
+          const user = userProfiles[index];
+          return {
+            id: seller.userId,
+            name: user ? `${user.firstName} ${user.lastName}` : 'Unknown User',
+            email: user ? user.email : seller.userEmail,
+            status: seller.status.toLowerCase(),
+            tier: seller.tier,
+            shopName: seller.shopName,
+            businessCategory: seller.businessCategory,
+            location: `${seller.locationCity}, ${seller.locationState}`,
+            totalSales: seller.totalSales,
+            createdAt: seller.createdAt,
+            reliability: "95%", // Dummy, as not in API
+            strikes: 0, // Dummy
+            lastLive: "Aug 30 (Bronze, 210 viewers)", // Dummy
+            walletBalance: "₦340,000", // Dummy
+            totalOrders: 452, // Dummy
+            completedOrders: 400, // Dummy
+            activeListings: 35, // Dummy
+            nextSlot: "Sep 6, 2025 14:00 (Bronze)", // Dummy
+          };
+        }
       );
       setSellers(displaySellers);
+      setNextCursor(response.data.nextCursor);
+      setPrevCursor(response.data.prevCursor);
+      setHasNext(response.data.hasNext);
+      setHasPrev(response.data.hasPrev);
     } catch (error) {
       console.error("Failed to fetch sellers:", error);
       setError("Failed to load sellers. Please try again.");
@@ -100,6 +116,13 @@ const Page = () => {
     fetchSellers();
   }, []);
 
+  useEffect(() => {
+    // Reset cursors when search changes
+    setNextCursor(undefined);
+    setPrevCursor(undefined);
+    fetchSellers({ q: searchQuery || undefined });
+  }, [searchQuery]);
+
   const toggleActionMenu = (sellerId: string) => {
     setActiveActionMenu(activeActionMenu === sellerId ? null : sellerId);
   };
@@ -109,11 +132,18 @@ const Page = () => {
     setActiveActionMenu(null);
   };
 
-  // Pagination
-  const totalPages = Math.ceil(sellers.length / sellersPerPage);
-  const indexOfLastSeller = currentPage * sellersPerPage;
-  const indexOfFirstSeller = indexOfLastSeller - sellersPerPage;
-  const currentSellers = sellers.slice(indexOfFirstSeller, indexOfLastSeller);
+  // Pagination functions
+  const handleNextPage = () => {
+    if (hasNext && nextCursor) {
+      fetchSellers({ after: nextCursor, q: searchQuery || undefined });
+    }
+  };
+
+  const handlePrevPage = () => {
+    if (hasPrev && prevCursor) {
+      fetchSellers({ before: prevCursor, q: searchQuery || undefined });
+    }
+  };
 
   // If seller is selected, show profile view
   if (selectedSeller) {
@@ -172,7 +202,7 @@ const Page = () => {
                 </div>
 
                 {/* Stats Grid */}
-                <div className="grid grid-cols-5 gap-4 mb-6">
+                <div className="grid grid-cols-4 gap-4 mb-6">
                   <div>
                     <p className="text-xs text-gray-500 mb-1">Total Sales</p>
                     <p className="text-lg font-semibold">
@@ -180,15 +210,9 @@ const Page = () => {
                     </p>
                   </div>
                   <div>
-                    <p className="text-xs text-gray-500 mb-1">Reliability</p>
-                    <p className="text-lg font-semibold text-green-600">
-                      {selectedSeller.reliability}
-                    </p>
-                  </div>
-                  <div>
-                    <p className="text-xs text-gray-500 mb-1">Strikes</p>
-                    <p className="text-lg font-semibold">
-                      {selectedSeller.strikes}
+                    <p className="text-xs text-gray-500 mb-1">Status</p>
+                    <p className="text-lg font-semibold capitalize">
+                      {selectedSeller.status}
                     </p>
                   </div>
                   <div>
@@ -205,40 +229,17 @@ const Page = () => {
                   </div>
                 </div>
 
-                {/* Overview */}
-                <div className="mb-6">
-                  <h3 className="text-base font-semibold mb-3">Overview</h3>
-                  <ul className="space-y-2 text-sm text-gray-700">
-                    <li>• Total Orders: {selectedSeller.totalOrders}</li>
-                    <li>
-                      • Completed Orders: {selectedSeller.completedOrders} (89%)
-                    </li>
-                    <li>• Active Listings: {selectedSeller.activeListings}</li>
-                    <li>• Last Live: {selectedSeller.lastLive}</li>
-                    <li>• Next Slot: {selectedSeller.nextSlot}</li>
-                    <li>• Wallet Balance: {selectedSeller.walletBalance}</li>
-                  </ul>
-                </div>
-
-                {/* Activity Log */}
-                <div>
-                  <h3 className="text-base font-semibold mb-3">
-                    Activity Log (Last 30 Days)
-                  </h3>
-                  <ul className="space-y-2 text-sm text-gray-700">
-                    <li>• Aug 2 - Order #7582020 completed - ₦125,000</li>
-                    <li>
-                      • Aug 30 - Livestream (Bronze) - 210 viewers - ₦620,000
-                      sales
-                    </li>
-                    <li>• Aug 26 - Order #7583510 refunded - ₦45,000</li>
-                    <li>• Aug 21 - Slot booked for Aug 30, 14:00 (Bronze)</li>
-                  </ul>
+                {/* Additional Info */}
+                <div className="space-y-2 text-sm text-gray-700">
+                  <p><strong>Name:</strong> {selectedSeller.name}</p>
+                  <p><strong>Email:</strong> {selectedSeller.email}</p>
+                  <p><strong>Tier:</strong> {selectedSeller.tier}</p>
+                  <p><strong>Created:</strong> {new Date(selectedSeller.createdAt).toLocaleDateString()}</p>
                 </div>
               </div>
             </div>
 
-            {/* Right Side - Tier Management */}
+            {/* Right Side - Empty for now */}
             <div className="col-span-4">
               <div
                 style={{
@@ -248,134 +249,8 @@ const Page = () => {
                   background: "#FFF",
                 }}
               >
-                <h3 className="text-lg font-semibold mb-4">
-                  Livestream Tier Management
-                </h3>
-
-                <div className="space-y-4 mb-6">
-                  <div>
-                    <p className="text-sm text-gray-600 mb-1">
-                      Current Tier:{" "}
-                      <span className="font-semibold text-black">
-                        Bronze (Scenario B)
-                      </span>
-                    </p>
-                  </div>
-                  <div>
-                    <p className="text-sm text-gray-600">
-                      Auto-eligibility: Unlocked after ₦5,000,000 sales
-                    </p>
-                  </div>
-                  <div>
-                    <p className="text-sm text-gray-600">Viewer Cap: 150</p>
-                  </div>
-                  <div>
-                    <p className="text-sm text-gray-600">Duration: 70 mins</p>
-                  </div>
-                </div>
-
-                <div className="mb-4">
-                  <p className="text-sm font-medium text-gray-700 mb-3">
-                    Manual Override
-                  </p>
-                  <div className="flex gap-2">
-                    <button
-                      onClick={() => setSelectedTier("Beginner")}
-                      style={{
-                        flex: 1,
-                        padding: "8px",
-                        borderRadius: "8px",
-                        border: "1px solid #E5E7EB",
-                        background:
-                          selectedTier === "Beginner" ? "#E67E22" : "#FFF",
-                        color: selectedTier === "Beginner" ? "#FFF" : "#000",
-                        fontSize: "14px",
-                        cursor: "pointer",
-                      }}
-                    >
-                      Beginner
-                    </button>
-                    <button
-                      onClick={() => setSelectedTier("Bronze")}
-                      style={{
-                        flex: 1,
-                        padding: "8px",
-                        borderRadius: "8px",
-                        border: "1px solid #E5E7EB",
-                        background:
-                          selectedTier === "Bronze" ? "#E67E22" : "#FFF",
-                        color: selectedTier === "Bronze" ? "#FFF" : "#000",
-                        fontSize: "14px",
-                        cursor: "pointer",
-                      }}
-                    >
-                      Bronze
-                    </button>
-                    <button
-                      onClick={() => setSelectedTier("Gold")}
-                      style={{
-                        flex: 1,
-                        padding: "8px",
-                        borderRadius: "8px",
-                        border: "1px solid #E5E7EB",
-                        background:
-                          selectedTier === "Gold" ? "#E67E22" : "#FFF",
-                        color: selectedTier === "Gold" ? "#FFF" : "#000",
-                        fontSize: "14px",
-                        cursor: "pointer",
-                      }}
-                    >
-                      Gold
-                    </button>
-                  </div>
-                </div>
-
-                <button
-                  style={{
-                    width: "100%",
-                    padding: "12px",
-                    borderRadius: "8px",
-                    background: "#E67E22",
-                    color: "#FFF",
-                    fontSize: "14px",
-                    fontWeight: 500,
-                    border: "none",
-                    cursor: "pointer",
-                    marginBottom: "12px",
-                  }}
-                >
-                  Apply Override
-                </button>
-
-                <textarea
-                  placeholder="Write the reason for override...e.g. High Reliability."
-                  style={{
-                    width: "100%",
-                    padding: "12px",
-                    borderRadius: "8px",
-                    border: "0.3px solid rgba(0, 0, 0, 0.20)",
-                    fontSize: "14px",
-                    resize: "none",
-                    marginBottom: "12px",
-                    minHeight: "80px",
-                  }}
-                />
-
-                <button
-                  style={{
-                    width: "100%",
-                    padding: "12px",
-                    borderRadius: "8px",
-                    background: "#FFF",
-                    color: "#E67E22",
-                    fontSize: "14px",
-                    fontWeight: 500,
-                    border: "1px solid #E67E22",
-                    cursor: "pointer",
-                  }}
-                >
-                  Reset to Auto
-                </button>
+                <h3 className="text-lg font-semibold mb-4">Seller Actions</h3>
+                <p className="text-sm text-gray-600">Additional actions can be added here.</p>
               </div>
             </div>
           </div>
@@ -446,14 +321,14 @@ const Page = () => {
                   {error}
                 </td>
               </tr>
-            ) : currentSellers.length === 0 ? (
+            ) : sellers.length === 0 ? (
               <tr>
                 <td colSpan={8} className="py-8 text-center text-gray-500">
                   No sellers found
                 </td>
               </tr>
             ) : (
-              currentSellers.map((seller) => (
+              sellers.map((seller) => (
                 <tr key={seller.id} className="border-b border-gray-100">
                   <td className="py-4 px-6 text-sm text-black">
                     {seller.id.substring(0, 8)}
@@ -557,14 +432,12 @@ const Page = () => {
       {/* Pagination */}
       <div className="flex items-center justify-between px-6 py-4 border-t border-gray-200">
         <p className="text-sm text-gray-600">
-          Showing {indexOfFirstSeller + 1} to{" "}
-          {Math.min(indexOfLastSeller, sellers.length)} of {sellers.length}{" "}
-          sellers
+          Showing {sellers.length} sellers
         </p>
         <div className="flex items-center gap-3">
           <button
-            onClick={() => setCurrentPage(Math.max(1, currentPage - 1))}
-            disabled={currentPage === 1}
+            onClick={handlePrevPage}
+            disabled={!hasPrev}
             className="flex items-center justify-center disabled:opacity-40"
             style={{
               width: "40px",
@@ -585,13 +458,11 @@ const Page = () => {
               background: "#E67E22",
             }}
           >
-            {currentPage}
+            Page
           </button>
           <button
-            onClick={() =>
-              setCurrentPage(Math.min(totalPages, currentPage + 1))
-            }
-            disabled={currentPage === totalPages}
+            onClick={handleNextPage}
+            disabled={!hasNext}
             className="flex items-center justify-center disabled:opacity-40"
             style={{
               width: "40px",
