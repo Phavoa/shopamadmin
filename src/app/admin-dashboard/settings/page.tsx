@@ -1,11 +1,24 @@
 "use client";
 
-import React from "react";
+import React, { useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { Bell, Shield, CreditCard, Package, User } from "lucide-react";
+import { useDispatch } from "react-redux";
+import { setHeaderTitle } from "@/features/shared/headerSice";
+import {
+  PageWrapper,
+  StaggerContainer,
+  SlideUp,
+  Interactive,
+} from "@/components/shared/AnimatedWrapper";
+import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 
 export default function SettingsPage() {
   const router = useRouter();
+  const dispatch = useDispatch();
+  useEffect(() => {
+    dispatch(setHeaderTitle("Settings"));
+  }, [dispatch]);
 
   const settingsCards = [
     {
@@ -55,66 +68,52 @@ export default function SettingsPage() {
   ];
 
   return (
-    <div className="min-h-screen bg-[#F9FAFB]">
-      {/* Header */}
-      <div className="flex items-center justify-between px-6 py-4 bg-white border-b border-gray-200">
-        <h1 className="text-2xl font-semibold text-black">Settings</h1>
-      </div>
+    <PageWrapper>
+      <div className="min-h-screen bg-[#F9FAFB]">
+        {/* Cards Grid */}
+        <div className="px-6 py-8">
+          <StaggerContainer staggerDelay={0.15}>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              {settingsCards.map((card, index) => {
+                const Icon = card.icon;
+                return (
+                  <SlideUp key={index} delay={index * 0.1}>
+                    <Interactive effect="lift">
+                      <Card
+                        className="min-h-64 cursor-pointer transition-all duration-200 shadow-none"
+                        onClick={() => router.push(card.route)}
+                      >
+                        <CardHeader className="flex flex-row items-center gap-3 space-y-0 pb-4">
+                          <div className="w-10 h-10 rounded-lg bg-[#FFE9D5] flex items-center justify-center">
+                            <Icon className="w-5 h-5 text-[#E67E22]" />
+                          </div>
+                          <CardTitle className="text-lg font-semibold text-black">
+                            {card.title}
+                          </CardTitle>
+                        </CardHeader>
 
-      {/* Cards Grid */}
-      <div className="p-6">
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {settingsCards.map((card, index) => {
-            const Icon = card.icon;
-            return (
-              <div
-                key={index}
-                onClick={() => router.push(card.route)}
-                style={{
-                  padding: "20px",
-                  borderRadius: "18px",
-                  border: "0.3px solid rgba(0, 0, 0, 0.20)",
-                  background: "#FFF",
-                  cursor: "pointer",
-                  transition: "all 0.2s ease",
-                }}
-                className="hover:shadow-lg"
-              >
-                <div className="flex items-center gap-3 mb-4">
-                  <div
-                    style={{
-                      width: "40px",
-                      height: "40px",
-                      borderRadius: "8px",
-                      background: "#FFE9D5",
-                      display: "flex",
-                      alignItems: "center",
-                      justifyContent: "center",
-                    }}
-                  >
-                    <Icon className="w-5 h-5 text-[#E67E22]" />
-                  </div>
-                  <h2 className="text-lg font-semibold text-black">
-                    {card.title}
-                  </h2>
-                </div>
-
-                <ul className="space-y-2">
-                  {card.items.map((item, idx) => (
-                    <li
-                      key={idx}
-                      className="flex items-start gap-2 text-sm text-gray-700"
-                    >
-                      <span className="mt-1.5">•</span>
-                      <span>{item}</span>
-                    </li>
-                  ))}
-                </ul>
-              </div>
-            );
-          })}
+                        <CardContent className="flex-1">
+                          <ul className="space-y-2">
+                            {card.items.map((item, idx) => (
+                              <li
+                                key={idx}
+                                className="flex items-start gap-2 text-sm text-gray-700"
+                              >
+                                <span className="mt-1.5">•</span>
+                                <span>{item}</span>
+                              </li>
+                            ))}
+                          </ul>
+                        </CardContent>
+                      </Card>
+                    </Interactive>
+                  </SlideUp>
+                );
+              })}
+            </div>
+          </StaggerContainer>
         </div>
       </div>
-    </div>
+    </PageWrapper>
   );
 }

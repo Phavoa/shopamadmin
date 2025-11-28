@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import {
   Wifi,
   Users,
@@ -20,10 +20,14 @@ import {
   CreditCard,
   Wrench,
   TrendingUp,
+  Loader2,
+  X,
 } from "lucide-react";
 import Link from "next/link";
+import { useLogoutMutation } from "@/api/authApi";
 
 function Sidebar() {
+  const router = useRouter();
   const [isSellersOpen, setIsSellersOpen] = useState(false);
   const [isLivestreamOpen, setIsLivestreamOpen] = useState(false);
   const [isBuyersOpen, setIsBuyersOpen] = useState(false);
@@ -31,7 +35,35 @@ function Sidebar() {
   const [isReportsOpen, setIsReportsOpen] = useState(false);
   const [activeSubItem, setActiveSubItem] = useState<string | null>(null);
   const [activeMainItem, setActiveMainItem] = useState<string | null>(null);
+  const [showLogoutModal, setShowLogoutModal] = useState(false);
   const pathname = usePathname();
+
+  // Auth logout mutation
+  const [logout, { isLoading: isLoggingOut }] = useLogoutMutation();
+
+  // Handle logout confirmation
+  const handleLogoutConfirm = async () => {
+    try {
+      await logout().unwrap();
+      router.push("/auth/login");
+    } catch (error) {
+      console.error("Logout failed:", error);
+      // Even if logout fails, redirect to login page
+      router.push("/auth/login");
+    } finally {
+      setShowLogoutModal(false);
+    }
+  };
+
+  // Show logout confirmation modal
+  const handleLogoutClick = () => {
+    setShowLogoutModal(true);
+  };
+
+  // Close logout confirmation modal
+  const handleCloseLogoutModal = () => {
+    setShowLogoutModal(false);
+  };
 
   useEffect(() => {
     if (pathname === "/admin-dashboard") {
@@ -507,13 +539,73 @@ function Sidebar() {
             Settings
           </button>
         </Link>
-        <Link href="/">
-          <button className="flex items-center gap-2 text-sm font-normal leading-5 text-destructive mt-3 hover:text-destructive">
+        <button
+          onClick={handleLogoutClick}
+          disabled={isLoggingOut}
+          className="flex items-center gap-2 text-sm font-normal leading-5 text-destructive mt-3 hover:text-destructive disabled:opacity-50 disabled:cursor-not-allowed"
+        >
+          {isLoggingOut ? (
+            <Loader2 className="w-[var(--icon-size-sm)] h-[var(--icon-size-sm)] animate-spin" />
+          ) : (
             <LogIn className="w-[var(--icon-size-sm)] h-[var(--icon-size-sm)]" />
-            Logout
-          </button>
-        </Link>
+          )}
+          {isLoggingOut ? "Logging out..." : "Logout"}
+        </button>
       </div>
+
+      {/* Logout Confirmation Modal */}
+      {showLogoutModal && (
+        <div
+          className="fixed inset-0 bg-black/30 backdrop-blur-[3px] flex items-center justify-center z-50"
+          onClick={handleCloseLogoutModal}
+        >
+          <div
+            className="bg-white rounded-lg shadow-lg max-w-md w-full mx-4 p-6"
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Modal Header */}
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-lg font-semibold text-gray-900">
+                Confirm Logout
+              </h3>
+              <button
+                onClick={handleCloseLogoutModal}
+                className="p-1 hover:bg-gray-100 rounded"
+              >
+                <X className="w-5 h-5 text-gray-500" />
+              </button>
+            </div>
+
+            {/* Modal Content */}
+            <div className="mb-6">
+              <p className="text-gray-600">
+                Are you sure you want to log out? You will need to sign in again
+                to access your account.
+              </p>
+            </div>
+
+            {/* Modal Actions */}
+            <div className="flex gap-3 justify-end">
+              <button
+                onClick={handleCloseLogoutModal}
+                className="px-4 py-2 text-gray-700 border border-gray-300 rounded-lg hover:bg-gray-50"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleLogoutConfirm}
+                disabled={isLoggingOut}
+                className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+              >
+                {isLoggingOut ? (
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                ) : null}
+                {isLoggingOut ? "Logging out..." : "Log out"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </aside>
   );
 }

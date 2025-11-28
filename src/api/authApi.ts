@@ -263,7 +263,7 @@ export const authApi = createApi({
     // Logout
     logout: builder.mutation<ApiResponse<{ ok: boolean }>, void>({
       query: () => ({
-        url: "/auth/logout",
+        url: "/auth/logout-all",
         method: "POST",
       }),
       async onQueryStarted(arg, { dispatch, queryFulfilled }) {

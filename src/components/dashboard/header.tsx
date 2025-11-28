@@ -1,4 +1,6 @@
-import React from "react";
+"use client";
+
+import React, { useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Avatar } from "@/components/ui/avatar";
 import {
@@ -11,20 +13,33 @@ import { Input } from "@/components/ui/input";
 import { Search, ChevronRight } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
+import { useSelector } from "react-redux";
+import { RootState } from "@/lib/store/store";
 
 function Header() {
+  const headerTitle = useSelector(
+    (state: RootState) => state.header.headerTitle
+  );
+
   return (
     <header className="bg-[var(--background)] w-full  flex items-center justify-between">
       <div className="flex-1 flex justify-between items-center gap-4 py-6 border-b border-[var(--border)] p-[var(--space-lg)]">
-        <Link href="/admin-dashboard">
-          <Image
-            src="/shopAmLogo.png"
-            alt={"shopAm Logo"}
-            width={2000}
-            height={100}
-            className="h-20 w-30 object-contain"
-          />
-        </Link>
+        <div className="flex  items-center gap-36">
+          <Link href="/admin-dashboard">
+            <Image
+              src="/shopAmLogo.png"
+              alt={"shopAm Logo"}
+              width={2000}
+              height={100}
+              className="h-20 w-30 object-contain"
+            />
+          </Link>
+
+          <h1 className="text-2xl text-black font-semibold">
+            {headerTitle || "hello"}
+          </h1>
+        </div>
+
         <div className="flex items-center gap-4">
           <label htmlFor="global-search" className="sr-only">
             Search
@@ -33,7 +48,7 @@ function Header() {
             <Input
               id="global-search"
               placeholder="Search"
-              className="pr-10 w-[320px] h-10 px-3 border border-[var(--border)] rounded-[var(--radius-sm)] bg-[var(--input)] text-[var(--foreground)] placeholder:text-[var(--muted-foreground)] focus:border-[var(--accent)] focus:outline-none focus:ring-4 focus:ring-[rgba(233,119,30,0.06)]"
+              className="pr-10 min-w-[320px] h-10 px-3 border border-gray-200  rounded-md bg-[var(--input)] text-[var(--foreground)] placeholder:text-[var(--muted-foreground)] focus:border-[var(--accent)] focus:outline-none focus:ring-4 focus:ring-[rgba(233,119,30,0.06)]"
             />
             <Search className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none text-[var(--muted-foreground)] w-4 h-4" />
           </div>

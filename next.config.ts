@@ -6,6 +6,17 @@ const nextConfig: NextConfig = {
   // Use this only if you have real server-only packages that Next should not bundle for client.
   serverExternalPackages: ["@reduxjs/toolkit"],
 
+  images: {
+    remotePatterns: [
+      {
+        protocol: "https",
+        hostname: "res.cloudinary.com",
+        port: "",
+        pathname: "/**",
+      },
+    ],
+  },
+
   // Keep console removal in production if you want smaller output/log noise
   compiler: {
     removeConsole: process.env.NODE_ENV === "production",

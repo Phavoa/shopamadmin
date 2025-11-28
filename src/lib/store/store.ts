@@ -10,6 +10,9 @@ import { deliveryApi } from "../../api/deliveryApi";
 import { orderApi } from "../../api/orderApi";
 import { ridersApi } from "../../api/ridersApi";
 import { shipmentApi } from "../../api/shipmentApi";
+import { productsApi } from "../../api/productsApi";
+import { categoriesApi } from "../../api/categoriesApi";
+import { adminApi } from "../../api/adminApi";
 import {
   FLUSH,
   REHYDRATE,
@@ -19,6 +22,7 @@ import {
   REGISTER,
 } from "redux-persist";
 import authReducer from "../../features/auth/authSlice";
+import headerReducer from "../../features/shared/headerSice";
 import { setupListeners } from "@reduxjs/toolkit/query";
 import storage from "../persistStorage";
 
@@ -36,7 +40,11 @@ const rootReducer = combineReducers({
   [orderApi.reducerPath]: orderApi.reducer,
   [ridersApi.reducerPath]: ridersApi.reducer,
   [shipmentApi.reducerPath]: shipmentApi.reducer,
+  [productsApi.reducerPath]: productsApi.reducer,
+  [categoriesApi.reducerPath]: categoriesApi.reducer,
+  [adminApi.reducerPath]: adminApi.reducer,
   auth: authReducer,
+  header: headerReducer,
 });
 
 const persistedReducer = persistReducer(persistConfig, rootReducer);
@@ -55,7 +63,10 @@ export const store = configureStore({
       deliveryApi.middleware,
       orderApi.middleware,
       ridersApi.middleware,
-      shipmentApi.middleware
+      shipmentApi.middleware,
+      productsApi.middleware,
+      categoriesApi.middleware,
+      adminApi.middleware
     ),
   devTools: process.env.NODE_ENV !== "production",
 });

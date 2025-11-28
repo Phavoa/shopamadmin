@@ -1,93 +1,185 @@
 "use client";
 
-import React, { useState } from "react";
-import { useRouter } from "next/navigation";
-import { ArrowLeft, Plus, Edit, Trash2, X, ChevronDown } from "lucide-react";
+import React, { useEffect, useState } from "react";
+import { motion } from "framer-motion";
+import { X } from "lucide-react";
+import {
+  useCreateAdminMutation,
+  useGetAdminsQuery,
+  useUpdateAdminMutation,
+  useDeleteAdminMutation,
+  type Admin,
+  type CreateAdminRequest,
+  type UpdateAdminRequest,
+  type ListAdminsParams,
+} from "@/api/adminApi";
+import {
+  AdminPageHeader,
+  AdminTable,
+  AdminTableSkeleton,
+  AdminForm,
+  AdminLoadingState,
+  AdminErrorState,
+  AdminEmptyState,
+} from "@/components/admin";
+import { PageWrapper } from "@/components/shared/AnimatedWrapper";
+import { useDispatch } from "react-redux";
+import { setHeaderTitle } from "@/features/shared/headerSice";
 
-// Define proper types for role permissions
-type AdminRole = "Admin" | "Super Admin";
+// Define proper types for role permissions with Hub Admin
+type AdminRole = "ADMIN" | "HUB_ADMIN" | "SUPER_ADMIN";
 
 export default function AdminManagementPage() {
-  const router = useRouter();
   const [showAddModal, setShowAddModal] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
-  const [selectedRole, setSelectedRole] = useState<AdminRole>("Admin");
-  const [editRole, setEditRole] = useState<AdminRole>("Super Admin");
+  const [selectedAdmin, setSelectedAdmin] = useState<Admin | null>(null);
 
-  const admins = [
-    {
-      name: "Akin Damilola",
-      email: "akin.damilola@shopam.com",
-      role: "Super Admin",
-      dateAdded: "Jan 15, 2024",
-      status: "Active",
-    },
-    {
-      name: "Chioma Okafor",
-      email: "chioma.okafor@shopam.com",
-      role: "Admin",
-      dateAdded: "Feb 20, 2024",
-      status: "Active",
-    },
-  ];
+  // Form states
+  const [firstName, setFirstName] = useState("");
+  const [lastName, setLastName] = useState("");
+  const [email, setEmail] = useState("");
+  const [selectedRole, setSelectedRole] = useState<AdminRole>("ADMIN");
+  const [editFirstName, setEditFirstName] = useState("");
+  const [editLastName, setEditLastName] = useState("");
+  const [editEmail, setEditEmail] = useState("");
+  const [editRole, setEditRole] = useState<AdminRole>("ADMIN");
 
-  const rolePermissions = {
-    Admin: [
-      "Manage sellers and buyers",
-      "View reports and analytics",
-      "Monitor livestreams",
-      "Limited settings access",
-    ],
-    "Super Admin": [
-      "Full system access and control",
-      "Manage all admins and users",
-      "Configure system settings",
-      "Access to all reports and analytics",
-    ],
+  const dispatch = useDispatch();
+  useEffect(() => {
+    dispatch(setHeaderTitle("Admin Management"));
+  }, [dispatch]);
+
+  // Query parameters
+  const [queryParams, setQueryParams] = useState<ListAdminsParams>({
+    limit: 50,
+    sortBy: "createdAt",
+    sortDir: "desc",
+  });
+
+  // API hooks
+  const {
+    data: adminsData,
+    isLoading,
+    error,
+    refetch,
+  } = useGetAdminsQuery(queryParams);
+  const [createAdmin, { isLoading: isCreating }] = useCreateAdminMutation();
+  const [updateAdmin, { isLoading: isUpdating }] = useUpdateAdminMutation();
+  const [deleteAdmin, { isLoading: isDeleting }] = useDeleteAdminMutation();
+
+  const admins = adminsData?.data?.items || [];
+
+  // Reset form function
+  const resetForm = () => {
+    setFirstName("");
+    setLastName("");
+    setEmail("");
+    setSelectedRole("ADMIN");
   };
 
+  // Reset edit form function
+  const resetEditForm = () => {
+    setEditFirstName("");
+    setEditLastName("");
+    setEditEmail("");
+    setEditRole("ADMIN");
+  };
+
+  // Handle add admin
+  const handleAddAdmin = async (e: React.FormEvent) => {
+    e.preventDefault();
+
+    try {
+      const adminData: CreateAdminRequest = {
+        firstName,
+        lastName,
+        email,
+        role: selectedRole,
+      };
+
+      await createAdmin(adminData).unwrap();
+      resetForm();
+      setShowAddModal(false);
+      refetch();
+    } catch (error) {
+      console.error("Failed to create admin:", error);
+      // You could add a toast notification here
+    }
+  };
+
+  // Handle edit admin
+  const handleEditAdmin = (admin: Admin) => {
+    setSelectedAdmin(admin);
+    setEditFirstName(admin.firstName);
+    setEditLastName(admin.lastName);
+    setEditEmail(admin.email);
+    setEditRole(admin.role);
+    setShowEditModal(true);
+  };
+
+  // Handle update admin
+  const handleUpdateAdmin = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!selectedAdmin) return;
+
+    try {
+      const updateData: UpdateAdminRequest = {
+        firstName: editFirstName,
+        lastName: editLastName,
+        email: editEmail,
+        role: editRole,
+      };
+
+      await updateAdmin({ id: selectedAdmin.id, data: updateData }).unwrap();
+      resetEditForm();
+      setShowEditModal(false);
+      setSelectedAdmin(null);
+      refetch();
+    } catch (error) {
+      console.error("Failed to update admin:", error);
+      // You could add a toast notification here
+    }
+  };
+
+  // Handle delete admin
+  const handleDeleteAdmin = async (admin: Admin) => {
+    if (
+      window.confirm(
+        `Are you sure you want to remove ${admin.firstName} ${admin.lastName}?`
+      )
+    ) {
+      try {
+        await deleteAdmin(admin.id).unwrap();
+        refetch();
+      } catch (error) {
+        console.error("Failed to delete admin:", error);
+        // You could add a toast notification here
+      }
+    }
+  };
+
+  // Handle add button click
+  const handleAddClick = () => {
+    resetForm();
+    setShowAddModal(true);
+  };
+
+  // Show error state
+  if (error) {
+    return <AdminErrorState onRetry={refetch} />;
+  }
+
   return (
-    <div className="min-h-screen bg-[#F9FAFB]">
-      {/* Header */}
-      <div className="flex items-center justify-between px-6 py-4 bg-white border-b border-gray-200">
-        <h1 className="text-2xl font-semibold text-black">Admin Management</h1>
-      </div>
-
+    <PageWrapper className="min-h-screen">
       {/* Content */}
-      <div className="p-6">
-        {/* Back Button and Add Admin */}
-        <div className="flex items-center justify-between mb-6">
-          <button
-            onClick={() => router.push("/admin-dashboard/settings")}
-            className="flex items-center gap-2 text-gray-700 hover:text-gray-900"
-          >
-            <ArrowLeft className="w-4 h-4" />
-            <span className="text-sm">Back to Settings</span>
-          </button>
-
-          <button
-            onClick={() => setShowAddModal(true)}
-            style={{
-              padding: "10px 20px",
-              borderRadius: "8px",
-              background: "#E67E22",
-              border: "none",
-              color: "white",
-              fontSize: "14px",
-              fontWeight: "500",
-              cursor: "pointer",
-              display: "flex",
-              alignItems: "center",
-              gap: "8px",
-            }}
-          >
-            <Plus className="w-4 h-4" />
-            Add New Admin
-          </button>
-        </div>
+      <div className="px-6 py-8">
+        <AdminPageHeader isCreating={isCreating} onAddClick={handleAddClick} />
 
         {/* Admin Users Card */}
-        <div
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.5, delay: 0.2 }}
           style={{
             padding: "24px",
             borderRadius: "18px",
@@ -96,108 +188,47 @@ export default function AdminManagementPage() {
           }}
         >
           <div className="mb-4">
-            <h2 className="text-lg font-semibold text-black">Admin Users</h2>
+            <h2 className="text-xl font-semibold text-black mb-1">
+              Admin Users
+            </h2>
             <p className="text-sm text-gray-600">
               Manage admin access and permissions
             </p>
           </div>
 
-          {/* Table */}
-          <div className="overflow-x-auto">
-            <table className="w-full">
-              <thead>
-                <tr className="border-b border-gray-200">
-                  <th className="text-left py-3 px-4 text-sm font-medium text-gray-700">
-                    Name
-                  </th>
-                  <th className="text-left py-3 px-4 text-sm font-medium text-gray-700">
-                    Email
-                  </th>
-                  <th className="text-left py-3 px-4 text-sm font-medium text-gray-700">
-                    Role
-                  </th>
-                  <th className="text-left py-3 px-4 text-sm font-medium text-gray-700">
-                    Date Added
-                  </th>
-                  <th className="text-left py-3 px-4 text-sm font-medium text-gray-700">
-                    Status
-                  </th>
-                  <th className="text-left py-3 px-4 text-sm font-medium text-gray-700">
-                    Actions
-                  </th>
-                </tr>
-              </thead>
-              <tbody>
-                {admins.map((admin, index) => (
-                  <tr key={index} className="border-b border-gray-100">
-                    <td className="py-4 px-4 text-sm text-gray-900">
-                      {admin.name}
-                    </td>
-                    <td className="py-4 px-4 text-sm text-gray-600">
-                      {admin.email}
-                    </td>
-                    <td className="py-4 px-4">
-                      <span
-                        style={{
-                          padding: "4px 12px",
-                          borderRadius: "12px",
-                          background:
-                            admin.role === "Super Admin"
-                              ? "#E67E22"
-                              : "#6B7280",
-                          color: "white",
-                          fontSize: "12px",
-                          fontWeight: "500",
-                        }}
-                      >
-                        {admin.role}
-                      </span>
-                    </td>
-                    <td className="py-4 px-4 text-sm text-gray-600">
-                      {admin.dateAdded}
-                    </td>
-                    <td className="py-4 px-4">
-                      <span
-                        style={{
-                          padding: "4px 12px",
-                          borderRadius: "12px",
-                          background: "#10B981",
-                          color: "white",
-                          fontSize: "12px",
-                          fontWeight: "500",
-                        }}
-                      >
-                        {admin.status}
-                      </span>
-                    </td>
-                    <td className="py-4 px-4">
-                      <div className="flex items-center gap-2">
-                        <button
-                          onClick={() => setShowEditModal(true)}
-                          className="p-2 hover:bg-gray-100 rounded"
-                        >
-                          <Edit className="w-4 h-4 text-gray-600" />
-                        </button>
-                        <button className="p-2 hover:bg-red-50 rounded">
-                          <Trash2 className="w-4 h-4 text-red-500" />
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </div>
+          {/* Table or Skeleton */}
+          {isLoading ? (
+            <AdminTableSkeleton rowsCount={5} />
+          ) : (
+            <>
+              {/* Table */}
+              <AdminTable
+                admins={admins}
+                onEdit={handleEditAdmin}
+                onDelete={handleDeleteAdmin}
+                isDeleting={isDeleting}
+              />
+
+              {admins.length === 0 && <AdminEmptyState />}
+            </>
+          )}
+        </motion.div>
       </div>
 
       {/* Add New Admin Modal */}
       {showAddModal && (
-        <div
+        <motion.div
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0 }}
           className="fixed inset-0 bg-black/30 backdrop-blur-[3px] flex items-center justify-center z-50"
           onClick={() => setShowAddModal(false)}
         >
-          <div
+          <motion.div
+            initial={{ opacity: 0, scale: 0.9, y: 20 }}
+            animate={{ opacity: 1, scale: 1, y: 0 }}
+            exit={{ opacity: 0, scale: 0.9, y: 20 }}
+            transition={{ duration: 0.3 }}
             style={{
               width: "500px",
               padding: "24px",
@@ -221,126 +252,37 @@ export default function AdminManagementPage() {
             </div>
 
             {/* Form */}
-            <div className="space-y-4">
-              {/* Full Name */}
-              <div>
-                <input
-                  type="text"
-                  placeholder="Enter Full Name"
-                  style={{
-                    width: "100%",
-                    padding: "12px 16px",
-                    borderRadius: "8px",
-                    border: "0.3px solid rgba(0, 0, 0, 0.20)",
-                    fontSize: "14px",
-                    outline: "none",
-                  }}
-                />
-              </div>
-
-              {/* Email */}
-              <div>
-                <input
-                  type="email"
-                  placeholder="Enter Email Address"
-                  style={{
-                    width: "100%",
-                    padding: "12px 16px",
-                    borderRadius: "8px",
-                    border: "0.3px solid rgba(0, 0, 0, 0.20)",
-                    fontSize: "14px",
-                    outline: "none",
-                  }}
-                />
-              </div>
-
-              {/* Role Dropdown */}
-              <div>
-                <label className="text-sm text-gray-700 mb-2 block">
-                  Select Admin Role:
-                </label>
-                <div className="relative">
-                  <select
-                    value={selectedRole}
-                    onChange={(e) =>
-                      setSelectedRole(e.target.value as AdminRole)
-                    }
-                    style={{
-                      width: "100%",
-                      padding: "12px 16px",
-                      borderRadius: "8px",
-                      border: "0.3px solid rgba(0, 0, 0, 0.20)",
-                      fontSize: "14px",
-                      outline: "none",
-                      appearance: "none",
-                      cursor: "pointer",
-                    }}
-                  >
-                    <option value="Admin">Admin</option>
-                    <option value="Super Admin">Super Admin</option>
-                  </select>
-                  <ChevronDown className="w-4 h-4 text-gray-500 absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none" />
-                </div>
-              </div>
-
-              {/* Permissions Display */}
-              <div
-                style={{
-                  padding: "16px",
-                  borderRadius: "8px",
-                  background: "#FFF3E6",
-                }}
-              >
-                <h3 className="text-sm font-medium text-gray-900 mb-2">
-                  {selectedRole} Permissions
-                </h3>
-                <ul className="space-y-1">
-                  {rolePermissions[selectedRole].map((permission, index) => (
-                    <li
-                      key={index}
-                      className="flex items-start gap-2 text-sm text-gray-700"
-                    >
-                      <span className="mt-1">•</span>
-                      <span>{permission}</span>
-                    </li>
-                  ))}
-                </ul>
-              </div>
-
-              {/* Add Admin Button */}
-              <button
-                style={{
-                  width: "100%",
-                  padding: "12px",
-                  borderRadius: "8px",
-                  background: "#E67E22",
-                  border: "none",
-                  color: "white",
-                  fontSize: "14px",
-                  fontWeight: "500",
-                  cursor: "pointer",
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  gap: "8px",
-                  marginTop: "8px",
-                }}
-              >
-                <Plus className="w-4 h-4" />
-                Add Admin
-              </button>
-            </div>
-          </div>
-        </div>
+            <AdminForm
+              mode="add"
+              firstName={firstName}
+              lastName={lastName}
+              email={email}
+              role={selectedRole}
+              onFirstNameChange={setFirstName}
+              onLastNameChange={setLastName}
+              onEmailChange={setEmail}
+              onRoleChange={setSelectedRole}
+              onSubmit={handleAddAdmin}
+              isLoading={isCreating}
+            />
+          </motion.div>
+        </motion.div>
       )}
 
       {/* Edit Admin Modal */}
-      {showEditModal && (
-        <div
+      {showEditModal && selectedAdmin && (
+        <motion.div
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0 }}
           className="fixed inset-0 bg-black/30 backdrop-blur-[3px] flex items-center justify-center z-50"
           onClick={() => setShowEditModal(false)}
         >
-          <div
+          <motion.div
+            initial={{ opacity: 0, scale: 0.9, y: 20 }}
+            animate={{ opacity: 1, scale: 1, y: 0 }}
+            exit={{ opacity: 0, scale: 0.9, y: 20 }}
+            transition={{ duration: 0.3 }}
             style={{
               width: "500px",
               padding: "24px",
@@ -362,111 +304,22 @@ export default function AdminManagementPage() {
             </div>
 
             {/* Form */}
-            <div className="space-y-4">
-              {/* Full Name */}
-              <div>
-                <input
-                  type="text"
-                  defaultValue="Akin Damilola"
-                  style={{
-                    width: "100%",
-                    padding: "12px 16px",
-                    borderRadius: "8px",
-                    border: "0.3px solid rgba(0, 0, 0, 0.20)",
-                    fontSize: "14px",
-                    outline: "none",
-                  }}
-                />
-              </div>
-
-              {/* Email */}
-              <div>
-                <input
-                  type="email"
-                  defaultValue="akindamilola@shopam.com"
-                  style={{
-                    width: "100%",
-                    padding: "12px 16px",
-                    borderRadius: "8px",
-                    border: "0.3px solid rgba(0, 0, 0, 0.20)",
-                    fontSize: "14px",
-                    outline: "none",
-                  }}
-                />
-              </div>
-
-              {/* Role Dropdown */}
-              <div>
-                <label className="text-sm text-gray-700 mb-2 block">
-                  Select Admin Role:
-                </label>
-                <div className="relative">
-                  <select
-                    value={editRole}
-                    onChange={(e) => setEditRole(e.target.value as AdminRole)}
-                    style={{
-                      width: "100%",
-                      padding: "12px 16px",
-                      borderRadius: "8px",
-                      border: "0.3px solid rgba(0, 0, 0, 0.20)",
-                      fontSize: "14px",
-                      outline: "none",
-                      appearance: "none",
-                      cursor: "pointer",
-                    }}
-                  >
-                    <option value="Admin">Admin</option>
-                    <option value="Super Admin">Super Admin</option>
-                  </select>
-                  <ChevronDown className="w-4 h-4 text-gray-500 absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none" />
-                </div>
-              </div>
-
-              {/* Permissions Display */}
-              <div
-                style={{
-                  padding: "16px",
-                  borderRadius: "8px",
-                  background: "#FFF3E6",
-                }}
-              >
-                <h3 className="text-sm font-medium text-gray-900 mb-2">
-                  {editRole} Permissions
-                </h3>
-                <ul className="space-y-1">
-                  {rolePermissions[editRole].map((permission, index) => (
-                    <li
-                      key={index}
-                      className="flex items-start gap-2 text-sm text-gray-700"
-                    >
-                      <span className="mt-1">•</span>
-                      <span>{permission}</span>
-                    </li>
-                  ))}
-                </ul>
-              </div>
-
-              {/* Update Admin Button */}
-              <button
-                style={{
-                  width: "100%",
-                  padding: "12px",
-                  borderRadius: "8px",
-                  background: "#E67E22",
-                  border: "none",
-                  color: "white",
-                  fontSize: "14px",
-                  fontWeight: "500",
-                  cursor: "pointer",
-                  marginTop: "8px",
-                }}
-              >
-                Update Admin
-              </button>
-            </div>
-          </div>
-        </div>
+            <AdminForm
+              mode="edit"
+              firstName={editFirstName}
+              lastName={editLastName}
+              email={editEmail}
+              role={editRole}
+              onFirstNameChange={setEditFirstName}
+              onLastNameChange={setEditLastName}
+              onEmailChange={setEditEmail}
+              onRoleChange={setEditRole}
+              onSubmit={handleUpdateAdmin}
+              isLoading={isUpdating}
+            />
+          </motion.div>
+        </motion.div>
       )}
-    </div>
+    </PageWrapper>
   );
 }
