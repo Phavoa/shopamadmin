@@ -73,7 +73,7 @@ const BuyersListPage = () => {
         const transformedBuyers = response.data.items.map(buyer => ({
           ...buyer,
           name: `${buyer.userFirstName} ${buyer.userLastName}`,
-          verified: buyer.verified || false,
+          verified: buyer.verified || true,
           totalOrders: 0,
           totalSpend: `₦${(parseInt(buyer.totalPurchases) / 100).toLocaleString()}`,
           lastActivity: new Date(buyer.updatedAt).toLocaleDateString(),
@@ -241,84 +241,166 @@ const BuyersListPage = () => {
     return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
   };
 
-  // Buyer Profile View
-  if (selectedBuyer) {
-    return (
-      <div className="min-h-screen bg-[#F9FAFB] p-6">
+// Replace your "Buyer Profile View" section with this optimized version
+
+// Buyer Profile View
+if (selectedBuyer) {
+  return (
+    <div className="min-h-screen bg-[#F9FAFB]">
+      {/* Header */}
+      <div className="px-6 py-4 bg-white border-b border-gray-200">
         <button
           onClick={() => setSelectedBuyer(null)}
-          className="mb-6 text-sm text-gray-600 hover:text-gray-900 flex items-center gap-2"
+          className="text-sm text-gray-600 hover:text-gray-900 flex items-center gap-2 transition-colors"
         >
           <ChevronLeft className="w-4 h-4" />
           Back to Buyers List
         </button>
+      </div>
 
-        <div className="grid grid-cols-1 gap-6" style={{ gridTemplateColumns: '865px 436px', maxWidth: '1330px' }}>
-          <div style={{ width: '865px', padding: '20px', borderRadius: '18px', border: '0.3px solid rgba(0, 0, 0, 0.20)', background: '#FFF', display: 'flex', flexDirection: 'column', gap: '24px' }}>
-            <div className="flex items-start justify-between">
-              <h2 className="text-xl font-semibold">
-                Buyer Profile - {selectedBuyer.name} ({selectedBuyer.userId.substring(0, 8)})
-              </h2>
-              <div style={{ width: '46px', height: '46px', borderRadius: '46px', background: '#D1D5DB', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '16px', fontWeight: '600', color: '#374151' }}>
-                {selectedBuyer.userFirstName[0]}{selectedBuyer.userLastName[0]}
+      {/* Content */}
+      <div className="p-6">
+        <div className="flex gap-6 max-w-[1190px]">
+          {/* Left Card - Main Profile */}
+          <div
+            style={{
+              width: "865px",
+              padding: "24px",
+              borderRadius: "18px",
+              border: "0.3px solid rgba(0, 0, 0, 0.20)",
+              background: "#FFF",
+            }}
+          >
+            {/* Profile Header */}
+            <div className="flex items-start justify-between mb-6">
+              <div>
+                <h2 className="text-xl font-semibold text-black mb-1">
+                  Buyer Profile - {selectedBuyer.name}
+                </h2>
+                <p className="text-sm text-gray-500">
+                  ID: {selectedBuyer.userId.substring(0, 16)}...
+                </p>
+              </div>
+              <div
+                style={{
+                  width: "56px",
+                  height: "56px",
+                  borderRadius: "50%",
+                  background: "#D1D5DB",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  fontSize: "18px",
+                  fontWeight: "600",
+                  color: "#374151",
+                }}
+              >
+                {selectedBuyer.userFirstName[0]}
+                {selectedBuyer.userLastName[0]}
               </div>
             </div>
 
-            <div className="grid grid-cols-4 gap-4">
+            {/* Stats Grid */}
+            <div className="grid grid-cols-4 gap-6 pb-6 border-b border-gray-100">
               <div>
-                <p className="text-xs text-gray-500 mb-1">Total Spend</p>
-                <p className="text-xl font-semibold">{formatCurrency(selectedBuyer.totalPurchases)}</p>
+                <p className="text-xs text-gray-500 mb-2">Total Spend</p>
+                <p className="text-xl font-semibold text-black">
+                  {formatCurrency(selectedBuyer.totalPurchases)}
+                </p>
               </div>
               <div>
-                <p className="text-xs text-gray-500 mb-1">Joined</p>
-                <p className="text-xl font-semibold">{formatDate(selectedBuyer.createdAt)}</p>
+                <p className="text-xs text-gray-500 mb-2">Joined</p>
+                <p className="text-base font-semibold text-black">
+                  {formatDate(selectedBuyer.createdAt)}
+                </p>
               </div>
               <div>
-                <p className="text-xs text-gray-500 mb-1">Verified</p>
-                <span className="inline-flex px-3 py-1.5 rounded-xl text-xs font-normal" style={{ background: selectedBuyer.verified ? '#D7FDD9' : '#FEE2E2', color: selectedBuyer.verified ? '#008D3F' : '#DC3545' }}>
-                  {selectedBuyer.verified ? 'Yes' : 'No'}
+                <p className="text-xs text-gray-500 mb-2">Verified</p>
+                <span
+                  className="inline-flex px-3 py-1.5 rounded-xl text-xs font-normal"
+                  style={{
+                    background: selectedBuyer.verified ? "#D7FDD9" : "#FEE2E2",
+                    color: selectedBuyer.verified ? "#008D3F" : "#DC3545",
+                  }}
+                >
+                  {selectedBuyer.verified ? "Yes" : "No"}
                 </span>
               </div>
               <div>
-                <p className="text-xs text-gray-500 mb-1">Status</p>
-                <span className="inline-flex px-3 py-1.5 rounded-xl text-xs font-normal" style={{ background: selectedBuyer.status === 'ACTIVE' ? '#D7FDD9' : '#FFE9D5', color: selectedBuyer.status === 'ACTIVE' ? '#008D3F' : '#E67E22' }}>
+                <p className="text-xs text-gray-500 mb-2">Status</p>
+                <span
+                  className="inline-flex px-3 py-1.5 rounded-xl text-xs font-normal"
+                  style={{
+                    background: selectedBuyer.status === "ACTIVE" ? "#D7FDD9" : "#FFE9D5",
+                    color: selectedBuyer.status === "ACTIVE" ? "#008D3F" : "#E67E22",
+                  }}
+                >
                   {selectedBuyer.status}
                 </span>
               </div>
             </div>
 
-            <div>
-              <h3 className="text-base font-semibold mb-3">Buyer Information</h3>
-              <div className="space-y-2 text-sm">
-                <p>Buyer ID: {selectedBuyer.userId}</p>
-                <p>Joined: {formatDate(selectedBuyer.createdAt)}</p>
-                <p>Email: {selectedBuyer.userEmail}</p>
-                <p>Phone: {selectedBuyer.userPhone}</p>
-                <p>Location: {selectedBuyer.locationCity}, {selectedBuyer.locationState}</p>
+            {/* Buyer Information */}
+            <div className="pt-6">
+              <h3 className="text-base font-semibold text-black mb-4">
+                Buyer Information
+              </h3>
+              <div className="grid grid-cols-2 gap-x-8 gap-y-4 text-sm">
+                <div>
+                  <p className="text-gray-500 mb-1">Buyer ID</p>
+                  <p className="text-black font-medium">{selectedBuyer.userId}</p>
+                </div>
+                <div>
+                  <p className="text-gray-500 mb-1">Email</p>
+                  <p className="text-black font-medium">{selectedBuyer.userEmail}</p>
+                </div>
+                <div>
+                  <p className="text-gray-500 mb-1">Phone</p>
+                  <p className="text-black font-medium">{selectedBuyer.userPhone}</p>
+                </div>
+                <div>
+                  <p className="text-gray-500 mb-1">Location</p>
+                  <p className="text-black font-medium">
+                    {selectedBuyer.locationCity}, {selectedBuyer.locationState}
+                  </p>
+                </div>
               </div>
             </div>
           </div>
 
-          <div className="flex flex-col gap-6">
-            <div style={{ width: '436px', padding: '20px', borderRadius: '18px', border: '0.3px solid rgba(0, 0, 0, 0.20)', background: '#FFF' }}>
-              <h3 className="text-base font-semibold mb-3">Location Details</h3>
-              <div className="space-y-3 text-sm">
-                <div>
-                  <p className="text-xs text-gray-500 mb-1">State</p>
-                  <p className="font-semibold">{selectedBuyer.locationState}</p>
-                </div>
-                <div>
-                  <p className="text-xs text-gray-500 mb-1">City</p>
-                  <p className="font-semibold">{selectedBuyer.locationCity}</p>
-                </div>
+          {/* Right Card - Location Details */}
+          <div
+            style={{
+              width: "436px",
+              padding: "24px",
+              borderRadius: "18px",
+              border: "0.3px solid rgba(0, 0, 0, 0.20)",
+              background: "#FFF",
+            }}
+          >
+            <h3 className="text-base font-semibold text-black mb-4">
+              Location Details
+            </h3>
+            <div className="space-y-4">
+              <div>
+                <p className="text-xs text-gray-500 mb-1.5">State</p>
+                <p className="text-base font-semibold text-black">
+                  {selectedBuyer.locationState}
+                </p>
+              </div>
+              <div className="pt-3 border-t border-gray-100">
+                <p className="text-xs text-gray-500 mb-1.5">City</p>
+                <p className="text-base font-semibold text-black">
+                  {selectedBuyer.locationCity}
+                </p>
               </div>
             </div>
           </div>
         </div>
       </div>
-    );
-  }
-
+    </div>
+  );
+}
   // Loading state
   if (loading) {
     return (
