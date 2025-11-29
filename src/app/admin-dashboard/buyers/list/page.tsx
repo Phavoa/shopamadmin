@@ -258,6 +258,7 @@ if (selectedBuyer) {
         </button>
       </div>
 
+
       {/* Content */}
       <div className="p-6">
         <div className="flex gap-6 max-w-[1190px]">
