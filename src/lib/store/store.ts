@@ -13,6 +13,7 @@ import { shipmentApi } from "../../api/shipmentApi";
 import { productsApi } from "../../api/productsApi";
 import { categoriesApi } from "../../api/categoriesApi";
 import { adminApi } from "../../api/adminApi";
+import { orderExceptionsApi } from "../../api/orderExceptionsApi";
 import {
   FLUSH,
   REHYDRATE,
@@ -44,6 +45,7 @@ const rootReducer = combineReducers({
   [productsApi.reducerPath]: productsApi.reducer,
   [categoriesApi.reducerPath]: categoriesApi.reducer,
   [adminApi.reducerPath]: adminApi.reducer,
+  [orderExceptionsApi.reducerPath]: orderExceptionsApi.reducer,
   auth: authReducer,
   header: headerReducer,
   search: searchReducer,
@@ -68,7 +70,8 @@ export const store = configureStore({
       shipmentApi.middleware,
       productsApi.middleware,
       categoriesApi.middleware,
-      adminApi.middleware
+      adminApi.middleware,
+      orderExceptionsApi.middleware
     ),
   devTools: process.env.NODE_ENV !== "production",
 });

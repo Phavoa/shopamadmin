@@ -65,6 +65,12 @@ export default function SettingsPage() {
       items: ["Admin", "Add, Modify & Edit Admins"],
       route: "/admin-dashboard/settings/admin",
     },
+    {
+      icon: User,
+      title: "Users Referrals",
+      items: ["Referrals", "Bonus & Amount"],
+      route: "/admin-dashboard/settings/referrals",
+    },
   ];
 
   return (

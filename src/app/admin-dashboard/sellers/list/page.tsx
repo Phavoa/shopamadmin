@@ -20,27 +20,7 @@ import {
   StaggerContainer,
 } from "@/components/shared/AnimatedWrapper";
 
-// Type for display seller data
-interface DisplaySeller {
-  id: string;
-  name: string;
-  email: string;
-  status: string;
-  tier: string;
-  shopName: string;
-  businessCategory: string;
-  location: string;
-  totalSales: string;
-  createdAt: string;
-  reliability?: string;
-  strikes?: number;
-  lastLive?: string;
-  walletBalance?: string;
-  totalOrders?: number;
-  completedOrders?: number;
-  activeListings?: number;
-  nextSlot?: string;
-}
+type DisplaySeller = SellerProfileVM;
 
 const Page = () => {
   const router = useRouter();
@@ -48,7 +28,6 @@ const Page = () => {
   const searchQuery = useSelector(selectSearchQuery);
 
   const [sellers, setSellers] = useState<DisplaySeller[]>([]);
-  const [loading, setLoading] = useState(false);
   const [fetchingSellers, setFetchingSellers] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [nextCursor, setNextCursor] = useState<string | undefined>();
@@ -61,11 +40,11 @@ const Page = () => {
     dispatch(setHeaderTitle("Seller List"));
   }, [dispatch]);
 
-  // Fetch sellers
   const fetchSellers = async (params: SellerListParams = {}) => {
     try {
       setFetchingSellers(true);
       setError(null);
+
       const response = await getSellers({
         ...params,
         limit: 9, // Match the previous sellersPerPage
@@ -151,7 +130,6 @@ const Page = () => {
     }
   };
 
-  // Sellers List View
   return (
     <PageWrapper className="min-h-screen px-6 py-8">
       <AnimatedWrapper animation="fadeIn" delay={0.1}>
