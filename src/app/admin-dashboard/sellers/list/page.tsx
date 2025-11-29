@@ -115,6 +115,11 @@ const Page = () => {
     router.push(`/admin-dashboard/sellers/${seller.id}`);
   };
 
+  const handleSuspend = async () => {
+    // Refresh the seller list after suspending a seller
+    await fetchSellers();
+  };
+
   // Pagination functions
   const handleNextPage = () => {
     if (hasNext && nextCursor) {
@@ -138,6 +143,7 @@ const Page = () => {
           fetchingSellers={fetchingSellers}
           error={error}
           onViewSeller={handleViewSeller}
+          onSuspend={handleSuspend}
         />
       </AnimatedWrapper>
 

@@ -28,9 +28,14 @@ interface DisplaySeller {
 interface SellerRowProps {
   seller: DisplaySeller;
   onViewSeller: (seller: DisplaySeller) => void;
+  onSuspend?: () => void;
 }
 
-const SellerRow: React.FC<SellerRowProps> = ({ seller, onViewSeller }) => {
+const SellerRow: React.FC<SellerRowProps> = ({
+  seller,
+  onViewSeller,
+  onSuspend,
+}) => {
   return (
     <TableRow>
       <TableCell className="py-4 px-6 text-sm text-black">
@@ -60,7 +65,11 @@ const SellerRow: React.FC<SellerRowProps> = ({ seller, onViewSeller }) => {
       <TableCell className="py-4 px-6 text-sm text-black">
         ₦{parseFloat(seller.totalSales).toLocaleString()}
       </TableCell>
-      <SellerActionsMenu seller={seller} onViewSeller={onViewSeller} />
+      <SellerActionsMenu
+        seller={seller}
+        onViewSeller={onViewSeller}
+        onSuspend={onSuspend}
+      />
     </TableRow>
   );
 };
