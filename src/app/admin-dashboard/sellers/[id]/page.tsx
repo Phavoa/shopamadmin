@@ -118,6 +118,22 @@ const SellerProfilePage = () => {
     }
   }, [productsResponse?.data?.items]);
 
+  // Transform RTK Query error to expected format
+  const transformedProductsError = React.useMemo(() => {
+    if (!productsError) return null;
+
+    if (typeof productsError === "string") return productsError;
+    if (productsError instanceof Error) return productsError;
+    if (
+      "message" in productsError &&
+      typeof productsError.message === "string"
+    ) {
+      return productsError.message;
+    }
+
+    return "An error occurred while fetching products";
+  }, [productsError]);
+
   // Create display seller object from API response
   const displaySeller: DisplaySeller | null =
     user && seller
@@ -207,7 +223,7 @@ const SellerProfilePage = () => {
               orderStatsError={orderStatsError}
               activeListingsCount={activeListingsCount}
               productsLoading={productsLoading}
-              productsError={productsError}
+              productsError={transformedProductsError}
             />
 
             {/* Right Side - Actions */}

@@ -52,7 +52,7 @@ interface SellerProfileCardProps {
   orderStatsError: string | null;
   activeListingsCount: number;
   productsLoading: boolean;
-  productsError: unknown;
+  productsError: string | Error | null | undefined;
 }
 
 const SellerProfileCard: React.FC<SellerProfileCardProps> = ({

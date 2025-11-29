@@ -7,9 +7,9 @@ interface SellerOverviewProps {
   orderStatistics: OrderStatistics | null;
   orderStatsLoading: boolean;
   orderStatsError: string | null;
-  activeListingsCount: number | unknown;
+  activeListingsCount: number | null | undefined;
   productsLoading: boolean;
-  productsError: unknown;
+  productsError: string | Error | null | undefined;
 }
 
 const SellerOverview: React.FC<SellerOverviewProps> = ({

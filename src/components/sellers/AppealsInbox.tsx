@@ -1,11 +1,19 @@
-import { AppealRecord } from "@/app/admin-dashboard/sellers/appeals/page";
 import React from "react";
 
+interface Appeal {
+  id: string;
+  caseId: string;
+  sellerName: string;
+  reason: string;
+  dateSubmitted: string;
+  status: string;
+}
+
 interface AppealsInboxProps {
-  appeals: AppealRecord[];
+  appeals: Appeal[];
   loading: boolean;
-  selectedAppeal: AppealRecord | null;
-  onSelectAppeal: (appeal: AppealRecord) => void;
+  selectedAppeal: Appeal | null;
+  onSelectAppeal: (appeal: Appeal) => void;
 }
 
 const getStatusBadgeStyles = (status: string) => {

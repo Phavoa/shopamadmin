@@ -1,8 +1,29 @@
 import React from "react";
-import { AppealRecord } from "@/app/admin-dashboard/sellers/appeals/page";
+
+interface Appeal {
+  uniqueId: string;
+  caseId: string;
+  sellerName: string;
+  sellerEmail?: string;
+  sellerId?: string;
+  reason?: string;
+  action: string;
+  days: string;
+  status: string;
+  issueDate: string;
+  dateSubmitted?: string;
+  lastUpdated?: string;
+  sla: string;
+  sellerStatement: string;
+  description?: string;
+  adminNotes: string[];
+  notes?: string[];
+  attachments: Array<{ name: string }>;
+  auditTrail: string[];
+}
 
 interface AppealDetailProps {
-  appeal: AppealRecord | null;
+  appeal: Appeal | null;
 }
 
 const formatDate = (dateString: string) => {
@@ -67,7 +88,7 @@ export const AppealDetail: React.FC<AppealDetailProps> = ({ appeal }) => {
             color: "#6B7280",
           }}
         >
-          {appeal.reason}
+          {appeal.action}
         </div>
       </div>
 
@@ -106,7 +127,9 @@ export const AppealDetail: React.FC<AppealDetailProps> = ({ appeal }) => {
             >
               Email:
             </span>
-            <span style={{ color: "#111827" }}>{appeal.sellerEmail}</span>
+            <span style={{ color: "#111827" }}>
+              {appeal.sellerEmail || "N/A"}
+            </span>
           </div>
           <div style={{ display: "flex" }}>
             <span
@@ -118,7 +141,7 @@ export const AppealDetail: React.FC<AppealDetailProps> = ({ appeal }) => {
             >
               Seller ID:
             </span>
-            <span style={{ color: "#111827" }}>{appeal.sellerId}</span>
+            <span style={{ color: "#111827" }}>{appeal.sellerId || "N/A"}</span>
           </div>
         </div>
       </div>
@@ -166,7 +189,7 @@ export const AppealDetail: React.FC<AppealDetailProps> = ({ appeal }) => {
               Submitted:
             </span>
             <span style={{ color: "#111827" }}>
-              {formatDate(appeal.dateSubmitted)}
+              {appeal.dateSubmitted ? formatDate(appeal.dateSubmitted) : "N/A"}
             </span>
           </div>
           <div style={{ display: "flex" }}>
@@ -180,7 +203,7 @@ export const AppealDetail: React.FC<AppealDetailProps> = ({ appeal }) => {
               Last Updated:
             </span>
             <span style={{ color: "#111827" }}>
-              {formatDate(appeal.lastUpdated)}
+              {appeal.lastUpdated ? formatDate(appeal.lastUpdated) : "N/A"}
             </span>
           </div>
         </div>
@@ -205,7 +228,7 @@ export const AppealDetail: React.FC<AppealDetailProps> = ({ appeal }) => {
             lineHeight: "1.75",
           }}
         >
-          {appeal.description}
+          {appeal.sellerStatement}
         </div>
       </div>
 
@@ -257,7 +280,7 @@ export const AppealDetail: React.FC<AppealDetailProps> = ({ appeal }) => {
                     marginBottom: "8px",
                   }}
                 >
-                  {attachment}
+                  {attachment.name}
                 </div>
               </div>
             ))}
@@ -285,7 +308,7 @@ export const AppealDetail: React.FC<AppealDetailProps> = ({ appeal }) => {
               margin: "0",
             }}
           >
-            {appeal.notes.map((note, index) => (
+            {appeal.adminNotes.map((note, index) => (
               <li
                 key={index}
                 style={{

@@ -20,7 +20,26 @@ import {
   StaggerContainer,
 } from "@/components/shared/AnimatedWrapper";
 
-type DisplaySeller = SellerProfileVM;
+interface DisplaySeller {
+  id: string;
+  name: string;
+  email: string;
+  status: string;
+  tier: string;
+  shopName: string;
+  businessCategory: string;
+  location: string;
+  totalSales: string;
+  createdAt: string;
+  reliability?: string;
+  strikes?: number;
+  lastLive?: string;
+  walletBalance?: string;
+  totalOrders?: number;
+  completedOrders?: number;
+  activeListings?: number;
+  nextSlot?: string;
+}
 
 const Page = () => {
   const router = useRouter();
