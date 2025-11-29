@@ -23,6 +23,7 @@ import {
 } from "redux-persist";
 import authReducer from "../../features/auth/authSlice";
 import headerReducer from "../../features/shared/headerSice";
+import { searchReducer } from "../../features/search";
 import { setupListeners } from "@reduxjs/toolkit/query";
 import storage from "../persistStorage";
 
@@ -45,6 +46,7 @@ const rootReducer = combineReducers({
   [adminApi.reducerPath]: adminApi.reducer,
   auth: authReducer,
   header: headerReducer,
+  search: searchReducer,
 });
 
 const persistedReducer = persistReducer(persistConfig, rootReducer);

@@ -53,7 +53,8 @@ export const FileUpload: React.FC<FileUploadProps> = ({
     } catch (error: unknown) {
       const errorMessage =
         error && typeof error === "object" && "data" in error
-          ? (error as { data?: { message?: string } })?.data?.message
+          ? (error as { data?: { message?: string } })?.data?.message ||
+            "Failed to upload image"
           : "Failed to upload image";
 
       console.error("Upload error:", error);
@@ -114,7 +115,7 @@ export const FileUpload: React.FC<FileUploadProps> = ({
             <X className="w-3 h-3" />
           </button>
           {isUploading && (
-            <div className="absolute inset-0 bg-black bg-opacity-50 flex items-center justify-center rounded-lg">
+            <div className="absolute inset-0 bg-black/50 flex items-center justify-center rounded-lg">
               <div className="text-white text-sm font-medium">Uploading...</div>
             </div>
           )}

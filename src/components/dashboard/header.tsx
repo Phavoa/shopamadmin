@@ -13,13 +13,20 @@ import { Input } from "@/components/ui/input";
 import { Search, ChevronRight } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
-import { useSelector } from "react-redux";
+import { useSelector, useDispatch } from "react-redux";
 import { RootState } from "@/lib/store/store";
+import { setSearchQuery } from "@/features/search";
 
 function Header() {
+  const dispatch = useDispatch();
   const headerTitle = useSelector(
     (state: RootState) => state.header.headerTitle
   );
+  const searchQuery = useSelector((state: RootState) => state.search.query);
+
+  const handleSearchChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    dispatch(setSearchQuery(e.target.value));
+  };
 
   return (
     <header className="bg-[var(--background)] w-full  flex items-center justify-between">
@@ -48,6 +55,8 @@ function Header() {
             <Input
               id="global-search"
               placeholder="Search"
+              value={searchQuery}
+              onChange={handleSearchChange}
               className="pr-10 min-w-[320px] h-10 px-3 border border-gray-200  rounded-md bg-[var(--input)] text-[var(--foreground)] placeholder:text-[var(--muted-foreground)] focus:border-[var(--accent)] focus:outline-none focus:ring-4 focus:ring-[rgba(233,119,30,0.06)]"
             />
             <Search className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none text-[var(--muted-foreground)] w-4 h-4" />

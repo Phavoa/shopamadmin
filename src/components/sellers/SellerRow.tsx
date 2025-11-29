@@ -1,11 +1,9 @@
 import React from "react";
+import { TableRow, TableCell } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
-import { MoreHorizontal } from "lucide-react";
-import { formatDistanceToNow } from "date-fns";
-import { getStatusBadgeStyles, getTierBadgeStyles } from "@/lib/sellerUtils";
+import { getTierBadgeStyles } from "@/lib/tierUtils";
+import SellerActionsMenu from "./SellerActionsMenu";
 
-// Type for display seller data
 interface DisplaySeller {
   id: string;
   name: string;
@@ -17,60 +15,53 @@ interface DisplaySeller {
   location: string;
   totalSales: string;
   createdAt: string;
+  reliability?: string;
+  strikes?: number;
+  lastLive?: string;
+  walletBalance?: string;
+  totalOrders?: number;
+  completedOrders?: number;
+  activeListings?: number;
+  nextSlot?: string;
 }
 
 interface SellerRowProps {
   seller: DisplaySeller;
+  onViewSeller: (seller: DisplaySeller) => void;
 }
 
-const SellerRow: React.FC<SellerRowProps> = ({ seller }) => {
+const SellerRow: React.FC<SellerRowProps> = ({ seller, onViewSeller }) => {
   return (
-    <tr className="border-b border-[#EAEAEB] hover:bg-[#F9F9F9]">
-      <td className="py-4 px-4">
-        <p className="font-medium text-[#0f1720] truncate">{seller.shopName}</p>
-      </td>
-      <td className="py-4 px-4">
-        <p className="text-[#0f1720] truncate">{seller.name}</p>
-        <p className="text-sm text-[#9ca3af] truncate">{seller.email}</p>
-      </td>
-      <td className="py-4 px-4">
+    <TableRow>
+      <TableCell className="py-4 px-6 text-sm text-black">
+        {seller.id.substring(0, 8)}
+      </TableCell>
+      <TableCell className="py-4 px-6 text-sm font-medium text-green-600">
+        {seller.shopName}
+      </TableCell>
+      <TableCell className="py-4 px-6">
         <Badge
-          className={`rounded-full px-3 py-1 text-xs font-semibold border ${getStatusBadgeStyles(
-            seller.status
-          )}`}
-        >
-          {seller.status.charAt(0).toUpperCase() + seller.status.slice(1)}
-        </Badge>
-      </td>
-      <td className="py-4 px-4">
-        <Badge
-          className={`rounded-full px-3 py-1 text-xs font-semibold border ${getTierBadgeStyles(
+          className={`inline-flex px-3 py-1 rounded-full text-xs font-medium border-0 ${getTierBadgeStyles(
             seller.tier
           )}`}
         >
           {seller.tier}
         </Badge>
-      </td>
-      <td className="py-4 px-4 text-sm text-[#4D5650] truncate">
-        {seller.businessCategory}
-      </td>
-      <td className="py-4 px-4 text-sm text-[#4D5650] truncate">
-        {seller.location}
-      </td>
-      <td className="py-4 px-4 text-sm text-[#4D5650]">
+      </TableCell>
+      <TableCell className="py-4 px-6 text-sm text-black">
+        {seller.lastLive}
+      </TableCell>
+      <TableCell className="py-4 px-6 text-sm font-medium text-green-600">
+        {seller.reliability}
+      </TableCell>
+      <TableCell className="py-4 px-6 text-sm text-black">
+        {seller.strikes}
+      </TableCell>
+      <TableCell className="py-4 px-6 text-sm text-black">
         ₦{parseFloat(seller.totalSales).toLocaleString()}
-      </td>
-      <td className="py-4 px-4 text-sm text-[#4D5650]">
-        {formatDistanceToNow(new Date(seller.createdAt), {
-          addSuffix: true,
-        })}
-      </td>
-      <td className="py-4 px-4">
-        <Button variant="ghost" size="sm">
-          <MoreHorizontal className="w-4 h-4" />
-        </Button>
-      </td>
-    </tr>
+      </TableCell>
+      <SellerActionsMenu seller={seller} onViewSeller={onViewSeller} />
+    </TableRow>
   );
 };
 

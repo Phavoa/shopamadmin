@@ -1,15 +1,16 @@
+/* eslint-disable @next/next/no-img-element */
 "use client";
 
 import React, { useState, useEffect } from "react";
 import { Badge } from "@/components/ui/badge";
-import { FileText, Loader2, CreditCard, File } from "lucide-react";
+import { FileText, Loader2, CreditCard, File, X, ZoomIn } from "lucide-react";
 import {
   approveSeller,
   suspendSeller,
   getSellers,
-  getUserById,
   SellerProfileVM,
 } from "@/api/sellerApi";
+import { useNotifications } from "@/hooks/useNotifications";
 
 // Type for display seller data
 interface DisplaySeller {
@@ -19,6 +20,13 @@ interface DisplaySeller {
   status: string;
   submittedDate: string;
   documents: string[];
+  govIdUrl?: string;
+  businessDocUrl?: string;
+  businessName?: string;
+  businessCategory?: string;
+  locationState?: string;
+  locationCity?: string;
+  shopName?: string;
 }
 
 const getStatusBadgeStyles = (status: string) => {
@@ -31,6 +39,9 @@ const getStatusBadgeStyles = (status: string) => {
     case "denied":
       return "bg-[#FEE2E2] text-[#991B1B] border-[#FEE2E2]";
     case "pending":
+    case "underreview":
+    case "under_review":
+      return "bg-[#FED7AA] text-[#9A3412] border-[#FED7AA]";
     default:
       return "bg-[#FED7AA] text-[#9A3412] border-[#FED7AA]";
   }
@@ -42,7 +53,7 @@ const formatTimeAgo = (dateString: string) => {
   const now = new Date();
   const diffInMs = now.getTime() - date.getTime();
   const diffInDays = Math.floor(diffInMs / (1000 * 60 * 60 * 24));
-  
+
   if (diffInDays === 0) return "today";
   if (diffInDays === 1) return "1 day ago";
   if (diffInDays < 7) return `${diffInDays} days ago`;
@@ -59,9 +70,23 @@ const Page = () => {
   const [loading, setLoading] = useState(false);
   const [fetchingSellers, setFetchingSellers] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [documentModal, setDocumentModal] = useState<{
+    isOpen: boolean;
+    imageUrl: string;
+    title: string;
+  }>({ isOpen: false, imageUrl: "", title: "" });
+  const { showSuccess, showError } = useNotifications();
 
   const handleReview = (seller: DisplaySeller) => {
     setSelectedSeller(seller);
+  };
+
+  const handleOpenDocument = (imageUrl: string, title: string) => {
+    setDocumentModal({ isOpen: true, imageUrl, title });
+  };
+
+  const handleCloseDocument = () => {
+    setDocumentModal({ isOpen: false, imageUrl: "", title: "" });
   };
 
   // Fetch sellers on component mount
@@ -70,27 +95,36 @@ const Page = () => {
       try {
         setFetchingSellers(true);
         setError(null);
-        const response = await getSellers({ limit: 50 });
+        const response = await getSellers({
+          limit: 50,
+          // status: "UNDER_REVIEW",
+        });
         const sellersData = response.data.items;
 
-        // Fetch user profiles for names
-        const userPromises = sellersData.map((seller) => getUserById(seller.userId).catch(() => null));
-        const userResults = await Promise.allSettled(userPromises);
-        const userProfiles = userResults.map((result) => (result.status === 'fulfilled' ? result.value : null));
-
         const displaySellers: DisplaySeller[] = sellersData.map(
-          (seller: SellerProfileVM, index: number) => {
-            const user = userProfiles[index];
+          (seller: SellerProfileVM) => {
+            // Normalize status to lowercase for consistent display
+            const normalizedStatus = seller.status
+              .toLowerCase()
+              .replace("_", "");
+
             return {
               id: seller.userId,
-              name: user ? `${user.firstName} ${user.lastName}` : 'Unknown User',
-              email: user ? user.email : seller.userEmail,
-              status: seller.status.toLowerCase(),
+              name: `${seller.userFirstName} ${seller.userLastName}`,
+              email: seller.userEmail,
+              status: normalizedStatus,
               submittedDate: seller.createdAt,
               documents: [
                 seller.govIdUrl ? "Government ID" : null,
                 seller.businessDocUrl ? "Business Document" : null,
               ].filter(Boolean) as string[],
+              govIdUrl: seller.govIdUrl,
+              businessDocUrl: seller.businessDocUrl,
+              businessName: seller.businessName,
+              businessCategory: seller.businessCategory,
+              locationState: seller.locationState,
+              locationCity: seller.locationCity,
+              shopName: seller.shopName,
             };
           }
         );
@@ -119,10 +153,13 @@ const Page = () => {
               : seller
           )
         );
+        showSuccess(
+          `Seller ${selectedSeller.name} has been approved successfully`
+        );
         setSelectedSeller(null);
       } catch (error) {
         console.error("Failed to approve seller:", error);
-        // Handle error (e.g., show toast notification)
+        showError("Failed to approve seller. Please try again.");
       } finally {
         setLoading(false);
       }
@@ -142,10 +179,11 @@ const Page = () => {
               : seller
           )
         );
+        showSuccess(`Seller ${selectedSeller.name} has been rejected`);
         setSelectedSeller(null);
       } catch (error) {
         console.error("Failed to reject seller:", error);
-        // Handle error (e.g., show toast notification)
+        showError("Failed to reject seller. Please try again.");
       } finally {
         setLoading(false);
       }
@@ -198,20 +236,28 @@ const Page = () => {
                         <td colSpan={4} className="py-8 text-center">
                           <div className="flex items-center justify-center">
                             <Loader2 className="w-6 h-6 animate-spin text-[#E67E22] mr-2" />
-                            <span className="text-gray-600">Loading sellers...</span>
+                            <span className="text-gray-600">
+                              Loading sellers...
+                            </span>
                           </div>
                         </td>
                       </tr>
                     ) : error ? (
                       <tr>
-                        <td colSpan={4} className="py-8 text-center text-red-600">
+                        <td
+                          colSpan={4}
+                          className="py-8 text-center text-red-600"
+                        >
                           {error}
                         </td>
                       </tr>
                     ) : sellers.length === 0 ? (
                       <tr>
-                        <td colSpan={4} className="py-8 text-center text-gray-500">
-                          No pending sellers to review
+                        <td
+                          colSpan={4}
+                          className="py-8 text-center text-gray-500"
+                        >
+                          No sellers under review at the moment
                         </td>
                       </tr>
                     ) : (
@@ -229,8 +275,10 @@ const Page = () => {
                                 seller.status
                               )}`}
                             >
-                              {seller.status.charAt(0).toUpperCase() +
-                                seller.status.slice(1)}
+                              {seller.status === "underreview"
+                                ? "Under Review"
+                                : seller.status.charAt(0).toUpperCase() +
+                                  seller.status.slice(1)}
                             </Badge>
                           </td>
                           <td className="py-4 px-6 text-sm text-gray-600">
@@ -250,7 +298,9 @@ const Page = () => {
                                 cursor: "pointer",
                               }}
                             >
-                              {selectedSeller?.id === seller.id ? "Review" : "View"}
+                              {selectedSeller?.id === seller.id
+                                ? "Review"
+                                : "View"}
                             </button>
                           </td>
                         </tr>
@@ -278,69 +328,218 @@ const Page = () => {
                     Details - {selectedSeller.name}
                   </h2>
 
+                  {/* Seller Information */}
+                  <div className="space-y-4 mb-6">
+                    <div>
+                      <h3 className="text-sm font-medium text-black mb-2">
+                        Business Information
+                      </h3>
+                      <div className="space-y-2 text-sm text-gray-600">
+                        <p>
+                          <span className="font-medium">Shop:</span>{" "}
+                          {selectedSeller.shopName || "N/A"}
+                        </p>
+                        <p>
+                          <span className="font-medium">Business:</span>{" "}
+                          {selectedSeller.businessName || "N/A"}
+                        </p>
+                        <p>
+                          <span className="font-medium">Category:</span>{" "}
+                          {selectedSeller.businessCategory || "N/A"}
+                        </p>
+                        <p>
+                          <span className="font-medium">Location:</span>{" "}
+                          {selectedSeller.locationCity &&
+                          selectedSeller.locationState
+                            ? `${selectedSeller.locationCity}, ${selectedSeller.locationState}`
+                            : "N/A"}
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+
                   {/* Documents List */}
                   <div className="space-y-3 mb-6">
-                    <div className="flex items-center gap-3 p-3 bg-gray-50 rounded-lg">
-                      <div
-                        style={{
-                          width: "36px",
-                          height: "36px",
-                          borderRadius: "8px",
-                          background: "#FFF",
-                          border: "0.3px solid rgba(0, 0, 0, 0.10)",
-                          display: "flex",
-                          alignItems: "center",
-                          justifyContent: "center",
-                        }}
-                      >
-                        <CreditCard className="w-4 h-4 text-gray-600" />
+                    {selectedSeller.govIdUrl && (
+                      <div className="flex items-center gap-3 p-3 bg-gray-50 rounded-lg">
+                        <div
+                          style={{
+                            width: "36px",
+                            height: "36px",
+                            borderRadius: "8px",
+                            background: "#FFF",
+                            border: "0.3px solid rgba(0, 0, 0, 0.10)",
+                            display: "flex",
+                            alignItems: "center",
+                            justifyContent: "center",
+                          }}
+                        >
+                          <CreditCard className="w-4 h-4 text-gray-600" />
+                        </div>
+                        <span className="text-sm text-gray-700">
+                          Government ID
+                        </span>
                       </div>
-                      <span className="text-sm text-gray-700">Personal ID</span>
-                    </div>
+                    )}
 
-                    <div className="flex items-center gap-3 p-3 bg-gray-50 rounded-lg">
-                      <div
-                        style={{
-                          width: "36px",
-                          height: "36px",
-                          borderRadius: "8px",
-                          background: "#FFF",
-                          border: "0.3px solid rgba(0, 0, 0, 0.10)",
-                          display: "flex",
-                          alignItems: "center",
-                          justifyContent: "center",
-                        }}
-                      >
-                        <File className="w-4 h-4 text-gray-600" />
+                    {selectedSeller.businessDocUrl && (
+                      <div className="flex items-center gap-3 p-3 bg-gray-50 rounded-lg">
+                        <div
+                          style={{
+                            width: "36px",
+                            height: "36px",
+                            borderRadius: "8px",
+                            background: "#FFF",
+                            border: "0.3px solid rgba(0, 0, 0, 0.10)",
+                            display: "flex",
+                            alignItems: "center",
+                            justifyContent: "center",
+                          }}
+                        >
+                          <File className="w-4 h-4 text-gray-600" />
+                        </div>
+                        <span className="text-sm text-gray-700">
+                          Business Document
+                        </span>
                       </div>
-                      <span className="text-sm text-gray-700">Utility Bill</span>
-                    </div>
+                    )}
+
+                    {!selectedSeller.govIdUrl &&
+                      !selectedSeller.businessDocUrl && (
+                        <div className="text-center text-gray-500 text-sm py-4">
+                          No documents available
+                        </div>
+                      )}
                   </div>
 
                   {/* Document Image Preview */}
                   <div className="mb-6">
                     <h3 className="text-sm font-medium text-black mb-3">
-                      Document Image
+                      Document Preview
                     </h3>
-                    <div
-                      style={{
-                        width: "100%",
-                        height: "200px",
-                        border: "2px dashed #E5E7EB",
-                        borderRadius: "12px",
-                        display: "flex",
-                        alignItems: "center",
-                        justifyContent: "center",
-                        background: "#FAFAFA",
-                      }}
-                    >
-                      <div className="text-center">
-                        <FileText className="w-12 h-12 text-gray-400 mx-auto mb-2" />
-                        <p className="text-sm text-gray-500">
-                          Documents Image Preview
-                        </p>
+                    {selectedSeller.govIdUrl ||
+                    selectedSeller.businessDocUrl ? (
+                      <div className="grid grid-cols-1 gap-4">
+                        {selectedSeller.govIdUrl && (
+                          <div>
+                            <p className="text-xs text-gray-600 mb-2">
+                              Government ID
+                            </p>
+                            <div
+                              style={{
+                                width: "100%",
+                                height: "150px",
+                                border: "1px solid #E5E7EB",
+                                borderRadius: "8px",
+                                overflow: "hidden",
+                                background: "#FAFAFA",
+                                cursor: "pointer",
+                                position: "relative",
+                              }}
+                              className="hover:border-[#E67E22] hover:shadow-md transition-all duration-200"
+                              onClick={() =>
+                                handleOpenDocument(
+                                  selectedSeller.govIdUrl!,
+                                  "Government ID"
+                                )
+                              }
+                            >
+                              <img
+                                src={selectedSeller.govIdUrl}
+                                alt="Government ID"
+                                className="w-full h-full object-contain"
+                                onError={(e) => {
+                                  const target = e.target as HTMLImageElement;
+                                  target.style.display = "none";
+                                  target.parentElement!.innerHTML = `
+                                    <div class="flex items-center justify-center h-full text-gray-500">
+                                      <div class="text-center">
+                                        <svg class="w-8 h-8 mx-auto mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"></path>
+                                        </svg>
+                                        <p class="text-xs">Image unavailable</p>
+                                      </div>
+                                    </div>
+                                  `;
+                                }}
+                              />
+                              <div className="absolute inset-0 bg-black bg-opacity-0 hover:bg-opacity-10 flex items-center justify-center transition-all duration-200">
+                                <ZoomIn className="w-6 h-6 text-white opacity-0 hover:opacity-100 transition-opacity duration-200" />
+                              </div>
+                            </div>
+                          </div>
+                        )}
+                        {selectedSeller.businessDocUrl && (
+                          <div>
+                            <p className="text-xs text-gray-600 mb-2">
+                              Business Document
+                            </p>
+                            <div
+                              style={{
+                                width: "100%",
+                                height: "150px",
+                                border: "1px solid #E5E7EB",
+                                borderRadius: "8px",
+                                overflow: "hidden",
+                                background: "#FAFAFA",
+                                cursor: "pointer",
+                                position: "relative",
+                              }}
+                              className="hover:border-[#E67E22] hover:shadow-md transition-all duration-200"
+                              onClick={() =>
+                                handleOpenDocument(
+                                  selectedSeller.businessDocUrl!,
+                                  "Business Document"
+                                )
+                              }
+                            >
+                              <img
+                                src={selectedSeller.businessDocUrl}
+                                alt="Business Document"
+                                className="w-full h-full object-contain"
+                                onError={(e) => {
+                                  const target = e.target as HTMLImageElement;
+                                  target.style.display = "none";
+                                  target.parentElement!.innerHTML = `
+                                    <div class="flex items-center justify-center h-full text-gray-500">
+                                      <div class="text-center">
+                                        <svg class="w-8 h-8 mx-auto mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"></path>
+                                        </svg>
+                                        <p class="text-xs">Image unavailable</p>
+                                      </div>
+                                    </div>
+                                  `;
+                                }}
+                              />
+                              <div className="absolute inset-0 bg-black bg-opacity-0 hover:bg-opacity-10 flex items-center justify-center transition-all duration-200">
+                                <ZoomIn className="w-6 h-6 text-white opacity-0 hover:opacity-100 transition-opacity duration-200" />
+                              </div>
+                            </div>
+                          </div>
+                        )}
                       </div>
-                    </div>
+                    ) : (
+                      <div
+                        style={{
+                          width: "100%",
+                          height: "200px",
+                          border: "2px dashed #E5E7EB",
+                          borderRadius: "12px",
+                          display: "flex",
+                          alignItems: "center",
+                          justifyContent: "center",
+                          background: "#FAFAFA",
+                        }}
+                      >
+                        <div className="text-center">
+                          <FileText className="w-12 h-12 text-gray-400 mx-auto mb-2" />
+                          <p className="text-sm text-gray-500">
+                            No documents to preview
+                          </p>
+                        </div>
+                      </div>
+                    )}
                   </div>
 
                   {/* Action Buttons */}
@@ -452,6 +651,55 @@ const Page = () => {
           </div>
         </div>
       </div>
+
+      {/* Document Modal */}
+      {documentModal.isOpen && (
+        <div
+          className="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-50 p-4"
+          onClick={handleCloseDocument}
+        >
+          <div
+            className="relative max-w-4xl max-h-[90vh] bg-white rounded-lg overflow-hidden"
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Modal Header */}
+            <div className="flex items-center justify-between p-4 border-b border-gray-200">
+              <h3 className="text-lg font-semibold text-gray-900">
+                {documentModal.title}
+              </h3>
+              <button
+                onClick={handleCloseDocument}
+                className="p-2 hover:bg-gray-100 rounded-full transition-colors duration-200"
+              >
+                <X className="w-5 h-5 text-gray-500" />
+              </button>
+            </div>
+
+            {/* Modal Content */}
+            <div className="p-4 flex items-center justify-center max-h-[calc(90vh-80px)] overflow-hidden">
+              <img
+                src={documentModal.imageUrl}
+                alt={documentModal.title}
+                className="max-w-full max-h-full object-contain"
+                onError={(e) => {
+                  const target = e.target as HTMLImageElement;
+                  target.style.display = "none";
+                  target.parentElement!.innerHTML = `
+                    <div class="flex items-center justify-center h-64 text-gray-500">
+                      <div class="text-center">
+                        <svg class="w-16 h-16 mx-auto mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"></path>
+                        </svg>
+                        <p class="text-sm">Failed to load image</p>
+                      </div>
+                    </div>
+                  `;
+                }}
+              />
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
