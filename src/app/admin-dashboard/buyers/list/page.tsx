@@ -1,123 +1,122 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { Search, ChevronLeft, ChevronRight } from "lucide-react";
+import { getBuyers, BuyerProfileVM } from "@/api/buyerApi";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
+import { Label } from "@/components/ui/label";
+import { CheckCircleIcon, XCircleIcon, ActionIcon, EyeIcon, BanIcon, StrikeIcon } from "@/components/buyers/BuyersIcons";
 
-interface Buyer {
-  id: string;
-  name: string;
-  email: string;
-  phone: string;
-  verified: boolean;
-  totalOrders: number;
-  totalSpend: string;
-  lastActivity: string;
-  status: string;
-  completedOrders?: number;
-  pendingOrders?: number;
-  refundRate?: string;
-  lastPurchase?: string;
-  joinedDate?: string;
-  walletBalance?: string;
-  linkedBank?: string;
-  bvnVerified?: boolean;
-  twoFAEnabled?: boolean;
+interface Buyer extends BuyerProfileVM {
+  name?: string;
+  totalOrders?: number;
+  totalSpend?: string;
+  lastActivity?: string;
+  strikes?: number;
 }
 
-// SVG Icons
-const CheckCircleIcon = () => (
-  <svg width="30" height="30" viewBox="0 0 30 30" fill="none" xmlns="http://www.w3.org/2000/svg">
-    <path d="M20.1844 11.6906C20.3161 11.8225 20.39 12.0012 20.39 12.1875C20.39 12.3738 20.3161 12.5525 20.1844 12.6844L13.6219 19.2469C13.49 19.3785 13.3113 19.4525 13.125 19.4525C12.9387 19.4525 12.76 19.3785 12.6281 19.2469L9.81563 16.4344C9.69143 16.3011 9.62381 16.1248 9.62703 15.9426C9.63024 15.7605 9.70404 15.5867 9.83286 15.4579C9.96168 15.329 10.1355 15.2552 10.3176 15.252C10.4998 15.2488 10.6761 15.3164 10.8094 15.4406L13.125 17.7551L19.1906 11.6906C19.3225 11.559 19.5012 11.485 19.6875 11.485C19.8738 11.485 20.0525 11.559 20.1844 11.6906ZM26.9531 15C26.9531 17.3641 26.2521 19.6751 24.9387 21.6408C23.6252 23.6065 21.7584 25.1385 19.5743 26.0432C17.3901 26.948 14.9867 27.1847 12.6681 26.7234C10.3494 26.2622 8.21954 25.1238 6.54787 23.4521C4.87619 21.7805 3.73777 19.6506 3.27656 17.3319C2.81534 15.0133 3.05205 12.6099 3.95676 10.4257C4.86146 8.24159 6.39352 6.37477 8.3592 5.06134C10.3249 3.74791 12.6359 3.04688 15 3.04688C18.169 3.0506 21.2072 4.31114 23.448 6.55197C25.6889 8.79281 26.9494 11.831 26.9531 15ZM25.5469 15C25.5469 12.914 24.9283 10.8749 23.7694 9.14047C22.6105 7.40605 20.9633 6.05423 19.0361 5.25596C17.1089 4.45769 14.9883 4.24883 12.9424 4.65578C10.8965 5.06273 9.01725 6.06723 7.54224 7.54223C6.06723 9.01724 5.06274 10.8965 4.65579 12.9424C4.24883 14.9883 4.4577 17.1089 5.25596 19.0361C6.05423 20.9633 7.40605 22.6105 9.14048 23.7694C10.8749 24.9283 12.914 25.5469 15 25.5469C17.7963 25.5438 20.4771 24.4316 22.4543 22.4543C24.4316 20.4771 25.5438 17.7963 25.5469 15Z" fill="#008D3F"/>
-  </svg>
-);
-
-const XCircleIcon = () => (
-  <svg width="30" height="30" viewBox="0 0 30 30" fill="none" xmlns="http://www.w3.org/2000/svg">
-    <path d="M19.2469 11.7469L15.9938 15L19.2469 18.2531C19.316 18.3175 19.3714 18.3951 19.4098 18.4814C19.4482 18.5676 19.4689 18.6607 19.4706 18.7551C19.4722 18.8495 19.4549 18.9433 19.4195 19.0309C19.3841 19.1184 19.3315 19.198 19.2647 19.2647C19.198 19.3315 19.1184 19.3841 19.0309 19.4195C18.9433 19.4549 18.8495 19.4722 18.7551 19.4706C18.6607 19.4689 18.5676 19.4482 18.4814 19.4098C18.3951 19.3714 18.3175 19.316 18.2531 19.2469L15 15.9937L11.7469 19.2469C11.6136 19.3711 11.4373 19.4387 11.2551 19.4355C11.073 19.4323 10.8992 19.3585 10.7704 19.2296C10.6415 19.1008 10.5677 18.927 10.5645 18.7449C10.5613 18.5627 10.6289 18.3864 10.7531 18.2531L14.0063 15L10.7531 11.7469C10.6289 11.6136 10.5613 11.4373 10.5645 11.2551C10.5677 11.073 10.6415 10.8992 10.7704 10.7704C10.8992 10.6415 11.073 10.5677 11.2551 10.5645C11.4373 10.5613 11.6136 10.6289 11.7469 10.7531L15 14.0062L18.2531 10.7531C18.3864 10.6289 18.5627 10.5613 18.7449 10.5645C18.927 10.5677 19.1008 10.6415 19.2296 10.7704C19.3585 10.8992 19.4323 11.073 19.4355 11.2551C19.4387 11.4373 19.3711 11.6136 19.2469 11.7469ZM26.9531 15C26.9531 17.3641 26.2521 19.6751 24.9387 21.6408C23.6252 23.6065 21.7584 25.1385 19.5743 26.0432C17.3901 26.948 14.9867 27.1847 12.6681 26.7234C10.3494 26.2622 8.21954 25.1238 6.54787 23.4521C4.87619 21.7805 3.73777 19.6506 3.27656 17.3319C2.81534 15.0133 3.05205 12.6099 3.95676 10.4257C4.86146 8.24159 6.39352 6.37477 8.3592 5.06134C10.3249 3.74791 12.6359 3.04688 15 3.04688C18.169 3.0506 21.2072 4.31114 23.448 6.55197C25.6889 8.79281 26.9494 11.831 26.9531 15ZM25.5469 15C25.5469 12.914 24.9283 10.8749 23.7694 9.14047C22.6105 7.40605 20.9633 6.05423 19.0361 5.25596C17.1089 4.45769 14.9883 4.24883 12.9424 4.65578C10.8965 5.06273 9.01725 6.06723 7.54224 7.54223C6.06723 9.01724 5.06274 10.8965 4.65579 12.9424C4.24883 14.9883 4.4577 17.1089 5.25596 19.0361C6.05423 20.9633 7.40605 22.6105 9.14048 23.7694C10.8749 24.9283 12.914 25.5469 15 25.5469C17.7963 25.5438 20.4771 24.4316 22.4543 22.4543C24.4316 20.4771 25.5438 17.7963 25.5469 15Z" fill="#EF4444"/>
-  </svg>
-);
-
-const ActionIcon = () => (
-  <svg width="28" height="28" viewBox="0 0 28 28" fill="none" xmlns="http://www.w3.org/2000/svg">
-    <path d="M14 2.84375C11.7935 2.84375 9.63656 3.49805 7.80192 4.72392C5.96729 5.94978 4.53736 7.69215 3.69297 9.73069C2.84858 11.7692 2.62765 14.0124 3.05812 16.1765C3.48859 18.3406 4.55112 20.3284 6.11134 21.8887C7.67157 23.4489 9.65943 24.5114 11.8235 24.9419C13.9876 25.3724 16.2308 25.1514 18.2693 24.307C20.3079 23.4626 22.0502 22.0327 23.2761 20.1981C24.502 18.3634 25.1563 16.2065 25.1563 14C25.1528 11.0422 23.9763 8.20663 21.8848 6.11518C19.7934 4.02373 16.9578 2.84722 14 2.84375ZM14 23.8437C12.0531 23.8437 10.1499 23.2664 8.53111 22.1848C6.91231 21.1031 5.65062 19.5658 4.90557 17.767C4.16052 15.9683 3.96558 13.9891 4.3454 12.0796C4.72522 10.1701 5.66275 8.41609 7.03942 7.03942C8.4161 5.66274 10.1701 4.72522 12.0796 4.34539C13.9891 3.96557 15.9683 4.16051 17.767 4.90556C19.5658 5.65061 21.1031 6.91231 22.1848 8.53111C23.2664 10.1499 23.8438 12.0531 23.8438 14C23.8409 16.6098 22.8028 19.1119 20.9574 20.9574C19.112 22.8028 16.6098 23.8409 14 23.8437ZM15.0938 9.1875C15.0938 9.40382 15.0296 9.61529 14.9094 9.79515C14.7892 9.97502 14.6184 10.1152 14.4186 10.198C14.2187 10.2808 13.9988 10.3024 13.7866 10.2602C13.5745 10.218 13.3796 10.1139 13.2266 9.9609C13.0736 9.80793 12.9695 9.61305 12.9273 9.40088C12.8851 9.18871 12.9067 8.9688 12.9895 8.76894C13.0723 8.56908 13.2125 8.39826 13.3923 8.27808C13.5722 8.1579 13.7837 8.09375 14 8.09375C14.2901 8.09375 14.5683 8.20898 14.7734 8.4141C14.9785 8.61922 15.0938 8.89742 15.0938 9.1875ZM15.0938 14C15.0938 14.2163 15.0296 14.4278 14.9094 14.6077C14.7892 14.7875 14.6184 14.9277 14.4186 15.0105C14.2187 15.0933 13.9988 15.1149 13.7866 15.0727C13.5745 15.0305 13.3796 14.9264 13.2266 14.7734C13.0736 14.6204 12.9695 14.4255 12.9273 14.2134C12.8851 14.0012 12.9067 13.7813 12.9895 13.5814C13.0723 13.3816 13.2125 13.2108 13.3923 13.0906C13.5722 12.9704 13.7837 12.9062 14 12.9062C14.2901 12.9062 14.5683 13.0215 14.7734 13.2266C14.9785 13.4317 15.0938 13.7099 15.0938 14ZM15.0938 18.8125C15.0938 19.0288 15.0296 19.2403 14.9094 19.4202C14.7892 19.6 14.6184 19.7402 14.4186 19.823C14.2187 19.9058 13.9988 19.9274 13.7866 19.8852C13.5745 19.843 13.3796 19.7389 13.2266 19.5859C13.0736 19.4329 12.9695 19.238 12.9273 19.0259C12.8851 18.8137 12.9067 18.5938 12.9895 18.3939C13.0723 18.1941 13.2125 18.0233 13.3923 17.9031C13.5722 17.7829 13.7837 17.7187 14 17.7187C14.2901 17.7187 14.5683 17.834 14.7734 18.0391C14.9785 18.2442 15.0938 18.5224 15.0938 18.8125Z" fill="black"/>
-  </svg>
-);
-
-const EyeIcon = () => (
-  <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 20 20" fill="none">
-    <path d="M19.178 9.81016C19.1514 9.74922 18.5014 8.30781 17.0499 6.85625C15.703 5.51094 13.3889 3.90625 9.99989 3.90625C6.61082 3.90625 4.29676 5.51094 2.94989 6.85625C1.49832 8.30781 0.848323 9.74687 0.821761 9.81016C0.795052 9.87016 0.78125 9.9351 0.78125 10.0008C0.78125 10.0665 0.795052 10.1314 0.821761 10.1914C0.848323 10.2516 1.49832 11.693 2.94989 13.1445C4.29676 14.4898 6.61082 16.0938 9.99989 16.0938C13.3889 16.0938 15.703 14.4898 17.0499 13.1445C18.5014 11.693 19.1514 10.2539 19.178 10.1914C19.2047 10.1314 19.2185 10.0665 19.2185 10.0008C19.2185 9.9351 19.2047 9.87016 19.178 9.81016ZM9.99989 15.1562C7.54832 15.1562 5.4077 14.2641 3.6366 12.5055C2.89416 11.7676 2.2659 10.9232 1.77254 10C2.26576 9.07697 2.89404 8.23277 3.6366 7.49531C5.4077 5.73594 7.54832 4.84375 9.99989 4.84375C12.4514 4.84375 14.5921 5.73594 16.3632 7.49531C17.1057 8.23277 17.734 9.07697 18.2272 10C17.7296 10.9539 15.2343 15.1562 9.99989 15.1562ZM9.99989 6.40625C9.28911 6.40625 8.5943 6.61702 8.00331 7.01191C7.41232 7.40679 6.9517 7.96806 6.67969 8.62473C6.40769 9.2814 6.33652 10.004 6.47519 10.7011C6.61385 11.3982 6.95613 12.0386 7.45872 12.5412C7.96132 13.0438 8.60166 13.386 9.29878 13.5247C9.9959 13.6634 10.7185 13.5922 11.3752 13.3202C12.0318 13.0482 12.5931 12.5876 12.988 11.9966C13.3829 11.4056 13.5936 10.7108 13.5936 10C13.5924 9.04726 13.2134 8.1339 12.5397 7.46021C11.866 6.78651 10.9526 6.40749 9.99989 6.40625ZM9.99989 12.6562C9.47453 12.6562 8.96097 12.5005 8.52415 12.2086C8.08733 11.9167 7.74688 11.5019 7.54583 11.0165C7.34479 10.5311 7.29218 9.99705 7.39468 9.48179C7.49717 8.96653 7.75015 8.49323 8.12163 8.12175C8.49312 7.75026 8.96642 7.49728 9.48168 7.39479C9.99694 7.2923 10.531 7.3449 11.0164 7.54595C11.5018 7.74699 11.9166 8.08745 12.2085 8.52427C12.5003 8.96108 12.6561 9.47464 12.6561 10C12.6561 10.7045 12.3763 11.3801 11.8781 11.8783C11.38 12.3764 10.7044 12.6562 9.99989 12.6562Z" fill="black" fillOpacity="0.8"/>
-  </svg>
-);
-
-const BanIcon = () => (
-  <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 16 16" fill="none">
-    <path d="M7.96875 0C6.39268 0 4.85201 0.467359 3.54155 1.34298C2.2311 2.21859 1.20972 3.46314 0.606588 4.91924C0.0034526 6.37534 -0.154355 7.97759 0.153121 9.52338C0.460597 11.0692 1.21955 12.4891 2.334 13.6035C3.44845 14.718 4.86834 15.4769 6.41413 15.7844C7.95991 16.0919 9.56216 15.9341 11.0183 15.3309C12.4744 14.7278 13.7189 13.7064 14.5945 12.396C15.4701 11.0855 15.9375 9.54482 15.9375 7.96875C15.935 5.85607 15.0947 3.83063 13.6008 2.33673C12.1069 0.84284 10.0814 0.00248113 7.96875 0ZM15 7.96875C15.0015 9.6714 14.3824 11.3162 13.2586 12.5953L3.34219 2.67891C4.35821 1.78889 5.60921 1.21054 6.94541 1.0131C8.28162 0.815652 9.64642 1.00747 10.8764 1.5656C12.1064 2.12373 13.1495 3.02452 13.8809 4.16012C14.6122 5.29573 15.0007 6.61804 15 7.96875ZM0.937504 7.96875C0.935982 6.2661 1.55509 4.62127 2.67891 3.34219L12.5953 13.2586C11.5793 14.1486 10.3283 14.727 8.99209 14.9244C7.65589 15.1218 6.29109 14.93 5.06108 14.3719C3.83107 13.8138 2.78797 12.913 2.05665 11.7774C1.32533 10.6418 0.936774 9.31946 0.937504 7.96875Z" fill="black" fillOpacity="0.8"/>
-  </svg>
-);
-
-const VerifyIcon = () => (
-  <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 20 20" fill="none">
-    <path d="M13.4563 7.79375C13.544 7.88164 13.5933 8.00078 13.5933 8.125C13.5933 8.24922 13.544 8.36836 13.4563 8.45625L9.08125 12.8313C8.99336 12.919 8.87422 12.9683 8.75 12.9683C8.62578 12.9683 8.50664 12.919 8.41875 12.8313L6.54375 10.9563C6.46095 10.8674 6.41588 10.7499 6.41802 10.6284C6.42016 10.507 6.46936 10.3911 6.55524 10.3052C6.64112 10.2194 6.75699 10.1702 6.87843 10.168C6.99987 10.1659 7.11739 10.2109 7.20625 10.2937L8.75 11.8367L12.7938 7.79375C12.8816 7.70597 13.0008 7.65666 13.125 7.65666C13.2492 7.65666 13.3684 7.70597 13.4563 7.79375ZM17.9688 10C17.9688 11.5761 17.5014 13.1167 16.6258 14.4272C15.7502 15.7377 14.5056 16.759 13.0495 17.3622C11.5934 17.9653 9.99116 18.1231 8.44538 17.8156C6.89959 17.5082 5.4797 16.7492 4.36525 15.6348C3.2508 14.5203 2.49185 13.1004 2.18437 11.5546C1.87689 10.0088 2.0347 8.40659 2.63784 6.95049C3.24097 5.49439 4.26235 4.24984 5.5728 3.37423C6.88326 2.49861 8.42393 2.03125 10 2.03125C12.1127 2.03373 14.1381 2.87409 15.632 4.36798C17.1259 5.86188 17.9663 7.88732 17.9688 10ZM17.0313 10C17.0313 8.60935 16.6189 7.24993 15.8463 6.09365C15.0737 4.93736 13.9755 4.03615 12.6907 3.50397C11.406 2.97179 9.9922 2.83255 8.62827 3.10385C7.26435 3.37516 6.0115 4.04482 5.02816 5.02816C4.04482 6.01149 3.37516 7.26434 3.10386 8.62827C2.83255 9.9922 2.9718 11.406 3.50398 12.6907C4.03615 13.9755 4.93737 15.0737 6.09365 15.8463C7.24993 16.6189 8.60935 17.0312 10 17.0312C11.8642 17.0292 13.6514 16.2877 14.9696 14.9696C16.2877 13.6514 17.0292 11.8642 17.0313 10Z" fill="black" fillOpacity="0.8"/>
-  </svg>
-);
-
-// Mock data
-const allBuyersData = [
-  { 
-    id: "B-10023", 
-    name: "John Doe", 
-    email: "john@email.com", 
-    phone: "0802 123 4567", 
-    verified: true, 
-    totalOrders: 24, 
-    totalSpend: "₦780,000", 
-    lastActivity: "Sep 2, 08:30", 
-    status: "Active",
-    completedOrders: 2,
-    pendingOrders: 2,
-    refundRate: "8%",
-    lastPurchase: "Sep 2, 2025",
-    joinedDate: "Mar 2025",
-    walletBalance: "₦780,000",
-    linkedBank: "24",
-    bvnVerified: true,
-    twoFAEnabled: true
-  },
-  { id: "B-10024", name: "Mary K.", email: "mk@email.com", phone: "0812 500 8899", verified: true, totalOrders: 24, totalSpend: "₦540K", lastActivity: "Sep 2, 08:30", status: "Active" },
-  { id: "B-10025", name: "Jane Smith", email: "jane@email.com", phone: "0813 600 9900", verified: true, totalOrders: 15, totalSpend: "₦320K", lastActivity: "Sep 1, 14:20", status: "Active" },
-  { id: "B-10026", name: "Bob Wilson", email: "bob@email.com", phone: "0814 700 1122", verified: false, totalOrders: 8, totalSpend: "₦180K", lastActivity: "Aug 30, 10:15", status: "Review" },
-  { id: "B-10027", name: "Alice Brown", email: "alice@email.com", phone: "0815 800 2233", verified: true, totalOrders: 32, totalSpend: "₦920K", lastActivity: "Sep 3, 16:45", status: "Active" },
-  { id: "B-10028", name: "Tom Davis", email: "tom@email.com", phone: "0816 900 3344", verified: true, totalOrders: 19, totalSpend: "₦450K", lastActivity: "Sep 2, 09:30", status: "Active" },
-  { id: "B-10029", name: "Sarah Lee", email: "sarah@email.com", phone: "0817 100 4455", verified: true, totalOrders: 27, totalSpend: "₦680K", lastActivity: "Sep 3, 11:20", status: "Active" },
-];
+interface StrikeData {
+  buyerId: string;
+  buyerName: string;
+  buyerEmail: string;
+  reason: string;
+  duration: string;
+  strikeCount: number;
+  status: string;
+  date: string;
+}
 
 const BuyersListPage = () => {
+  const [buyers, setBuyers] = useState<Buyer[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [searchQuery, setSearchQuery] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
   const [activeActionMenu, setActiveActionMenu] = useState<string | null>(null);
   const [selectedBuyer, setSelectedBuyer] = useState<Buyer | null>(null);
-  const buyersPerPage = 7;
-  const totalBuyers = allBuyersData.length;
-  const totalPages = Math.ceil(totalBuyers / buyersPerPage);
+  const [nextCursor, setNextCursor] = useState<string | undefined>();
+  const [hasNext, setHasNext] = useState(false);
+  
+  // Modals state
+  const [suspendModal, setSuspendModal] = useState(false);
+  const [strikeModal, setStrikeModal] = useState(false);
+  const [selectedBuyerForAction, setSelectedBuyerForAction] = useState<Buyer | null>(null);
+  
+  // Form state
+  const [reason, setReason] = useState("");
+  const [duration, setDuration] = useState("");
+  const [actionLoading, setActionLoading] = useState(false);
 
-  // Calculate current buyers to display
-  const indexOfLastBuyer = currentPage * buyersPerPage;
-  const indexOfFirstBuyer = indexOfLastBuyer - buyersPerPage;
-  const currentBuyers = allBuyersData.slice(indexOfFirstBuyer, indexOfLastBuyer);
+  const buyersPerPage = 10;
+
+  // Fetch buyers from API
+  const fetchBuyers = async (cursor?: string) => {
+    try {
+      setLoading(true);
+      setError(null);
+
+      const params = {
+        limit: buyersPerPage,
+        sortBy: "createdAt" as const,
+        sortDir: "desc" as const,
+        ...(searchQuery && { q: searchQuery }),
+        ...(cursor && { after: cursor }),
+      };
+
+      const response = await getBuyers(params);
+      
+      if (response.success) {
+        // Transform data to match UI format
+        const transformedBuyers = response.data.items.map(buyer => ({
+          ...buyer,
+          name: `${buyer.userFirstName} ${buyer.userLastName}`,
+          verified: buyer.verified || true,
+          totalOrders: 0,
+          totalSpend: `₦${(parseInt(buyer.totalPurchases) / 100).toLocaleString()}`,
+          lastActivity: new Date(buyer.updatedAt).toLocaleDateString(),
+          strikes: 0,
+        }));
+        
+        setBuyers(transformedBuyers);
+        setNextCursor(response.data.nextCursor);
+        setHasNext(response.data.hasNext);
+      }
+    } catch (err) {
+      console.error("Error fetching buyers:", err);
+      setError("Failed to load buyers. Please try again.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchBuyers();
+  }, []);
+
+  const handleSearch = () => {
+    setCurrentPage(1);
+    fetchBuyers();
+  };
 
   const handleNextPage = () => {
-    if (currentPage < totalPages) {
+    if (hasNext && nextCursor) {
       setCurrentPage(currentPage + 1);
+      fetchBuyers(nextCursor);
     }
   };
 
   const handlePrevPage = () => {
     if (currentPage > 1) {
       setCurrentPage(currentPage - 1);
+      fetchBuyers();
     }
   };
 
-  const toggleActionMenu = (index: number) => {
-    setActiveActionMenu(activeActionMenu === `buyer-${index}` ? null : `buyer-${index}`);
+  const toggleActionMenu = (buyerId: string) => {
+    setActiveActionMenu(activeActionMenu === buyerId ? null : buyerId);
   };
 
   const handleViewBuyer = (buyer: Buyer) => {
@@ -125,213 +124,426 @@ const BuyersListPage = () => {
     setActiveActionMenu(null);
   };
 
-  // If buyer is selected, show profile view
-  if (selectedBuyer) {
-    return (
-      <div className="min-h-screen bg-[#F9FAFB] p-6">
-        {/* Back Button */}
+  // Handle Suspend
+  const openSuspendModal = (buyer: Buyer) => {
+    setSelectedBuyerForAction(buyer);
+    setSuspendModal(true);
+    setActiveActionMenu(null);
+  };
+
+  const handleSuspend = async () => {
+    if (!selectedBuyerForAction || !reason || !duration) {
+      alert("Please fill in all fields");
+      return;
+    }
+
+    try {
+      setActionLoading(true);
+      
+      // Store suspension data (will connect to backend later)
+      const suspensionData = {
+        buyerId: selectedBuyerForAction.userId,
+        buyerName: selectedBuyerForAction.name || `${selectedBuyerForAction.userFirstName} ${selectedBuyerForAction.userLastName}`,
+        buyerEmail: selectedBuyerForAction.userEmail,
+        reason,
+        duration,
+        status: "Suspended",
+        date: new Date().toISOString(),
+      };
+      
+      console.log("Suspension Data:", suspensionData);
+      
+      // Store in localStorage for now (will use API later)
+      const existingData = JSON.parse(localStorage.getItem("suspensions") || "[]");
+      localStorage.setItem("suspensions", JSON.stringify([...existingData, suspensionData]));
+      
+      setSuspendModal(false);
+      setReason("");
+      setDuration("");
+      alert("Buyer suspended successfully!");
+      
+    } catch (err) {
+      console.error("Error suspending buyer:", err);
+      alert("Failed to suspend buyer");
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
+  // Handle Strike
+  const openStrikeModal = (buyer: Buyer) => {
+    setSelectedBuyerForAction(buyer);
+    setStrikeModal(true);
+    setActiveActionMenu(null);
+  };
+
+  const handleStrike = async () => {
+    if (!selectedBuyerForAction || !reason || !duration) {
+      alert("Please fill in all fields");
+      return;
+    }
+
+    try {
+      setActionLoading(true);
+      
+      // Get existing strikes
+      const existingStrikes = JSON.parse(localStorage.getItem("strikes") || "[]");
+      const buyerStrikes = existingStrikes.filter(
+        (s: StrikeData) => s.buyerId === selectedBuyerForAction.userId
+      );
+      
+      const newStrikeCount = buyerStrikes.length + 1;
+      const status = newStrikeCount >= 3 ? "Suspended" : `Strike(${newStrikeCount}/3)`;
+      
+      const strikeData: StrikeData = {
+        buyerId: selectedBuyerForAction.userId,
+        buyerName: selectedBuyerForAction.name || `${selectedBuyerForAction.userFirstName} ${selectedBuyerForAction.userLastName}`,
+        buyerEmail: selectedBuyerForAction.userEmail,
+        reason,
+        duration,
+        strikeCount: newStrikeCount,
+        status,
+        date: new Date().toISOString(),
+      };
+      
+      console.log("Strike Data:", strikeData);
+      
+      // Store strike
+      localStorage.setItem("strikes", JSON.stringify([...existingStrikes, strikeData]));
+      
+      // If 3 strikes, also add to suspensions
+      if (newStrikeCount >= 3) {
+        const existingSuspensions = JSON.parse(localStorage.getItem("suspensions") || "[]");
+        localStorage.setItem("suspensions", JSON.stringify([...existingSuspensions, strikeData]));
+      }
+      
+      setStrikeModal(false);
+      setReason("");
+      setDuration("");
+      alert(`Strike issued! (${newStrikeCount}/3)${newStrikeCount >= 3 ? " - Buyer suspended" : ""}`);
+      
+    } catch (err) {
+      console.error("Error issuing strike:", err);
+      alert("Failed to issue strike");
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
+  // Format currency
+  const formatCurrency = (kobo: string) => {
+    const amount = parseInt(kobo) / 100;
+    return `₦${amount.toLocaleString()}`;
+  };
+
+  const formatDate = (dateString: string) => {
+    const date = new Date(dateString);
+    return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+  };
+
+// Replace your "Buyer Profile View" section with this optimized version
+
+// Buyer Profile View
+if (selectedBuyer) {
+  return (
+    <div className="min-h-screen bg-[#F9FAFB]">
+      {/* Header */}
+      <div className="px-6 py-4 bg-white border-b border-gray-200">
         <button
           onClick={() => setSelectedBuyer(null)}
-          className="mb-6 text-sm text-gray-600 hover:text-gray-900 flex items-center gap-2"
+          className="text-sm text-gray-600 hover:text-gray-900 flex items-center gap-2 transition-colors"
         >
           <ChevronLeft className="w-4 h-4" />
           Back to Buyers List
         </button>
+      </div>
 
-        {/* Layout Grid */}
-        <div className="grid grid-cols-1 gap-60" style={{ gridTemplateColumns: '655px 436px', maxWidth: '1115px' }}>
-          {/* Left Column - Buyer Profile Card */}
-          <div style={{ width: '865px', padding: '20px', borderRadius: '18px', border: '0.3px solid rgba(0, 0, 0, 0.20)', background: '#FFF', display: 'flex', flexDirection: 'column', gap: '24px' }}>
-            {/* Header with Profile Image */}
-            <div className="flex items-start justify-between">
-              <h2 className="text-xl font-semibold">
-                Buyer Profile - {selectedBuyer.name} ({selectedBuyer.id}) Joined
-              </h2>
-              <div style={{ width: '46px', height: '46px', borderRadius: '46px', background: '#D1D5DB', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '16px', fontWeight: '600', color: '#374151' }}>
-                {selectedBuyer.name.split(' ').map((n: string) => n[0]).join('')}
+
+      {/* Content */}
+      <div className="p-6">
+        <div className="flex gap-6 max-w-[1190px]">
+          {/* Left Card - Main Profile */}
+          <div
+            style={{
+              width: "865px",
+              padding: "24px",
+              borderRadius: "18px",
+              border: "0.3px solid rgba(0, 0, 0, 0.20)",
+              background: "#FFF",
+            }}
+          >
+            {/* Profile Header */}
+            <div className="flex items-start justify-between mb-6">
+              <div>
+                <h2 className="text-xl font-semibold text-black mb-1">
+                  Buyer Profile - {selectedBuyer.name}
+                </h2>
+                <p className="text-sm text-gray-500">
+                  ID: {selectedBuyer.userId.substring(0, 16)}...
+                </p>
+              </div>
+              <div
+                style={{
+                  width: "56px",
+                  height: "56px",
+                  borderRadius: "50%",
+                  background: "#D1D5DB",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  fontSize: "18px",
+                  fontWeight: "600",
+                  color: "#374151",
+                }}
+              >
+                {selectedBuyer.userFirstName[0]}
+                {selectedBuyer.userLastName[0]}
               </div>
             </div>
 
-            {/* Stats Grid - First Row */}
-            <div className="grid grid-cols-4 gap-4">
+            {/* Stats Grid */}
+            <div className="grid grid-cols-4 gap-6 pb-6 border-b border-gray-100">
               <div>
-                <p className="text-xs text-gray-500 mb-1">Total Spend</p>
-                <p className="text-xl font-semibold">{selectedBuyer.totalSpend}</p>
+                <p className="text-xs text-gray-500 mb-2">Total Spend</p>
+                <p className="text-xl font-semibold text-black">
+                  {formatCurrency(selectedBuyer.totalPurchases)}
+                </p>
               </div>
               <div>
-                <p className="text-xs text-gray-500 mb-1">Total Orders</p>
-                <p className="text-xl font-semibold">{selectedBuyer.totalOrders}</p>
+                <p className="text-xs text-gray-500 mb-2">Joined</p>
+                <p className="text-base font-semibold text-black">
+                  {formatDate(selectedBuyer.createdAt)}
+                </p>
               </div>
               <div>
-                <p className="text-xs text-gray-500 mb-1">Completed Orders</p>
-                <p className="text-xl font-semibold">{selectedBuyer.completedOrders}</p>
-              </div>
-              <div>
-                <p className="text-xs text-gray-500 mb-1">Pending Orders</p>
-                <p className="text-xl font-semibold">{selectedBuyer.pendingOrders}</p>
-              </div>
-            </div>
-
-            {/* Stats Grid - Second Row */}
-            <div className="grid grid-cols-4 gap-4">
-              <div>
-                <p className="text-xs text-gray-500 mb-1">Refund Rate</p>
-                <p className="text-xl font-semibold">{selectedBuyer.refundRate}</p>
-              </div>
-              <div>
-                <p className="text-xs text-gray-500 mb-1">Last Purchase</p>
-                <p className="text-xl font-semibold">{selectedBuyer.lastPurchase}</p>
-              </div>
-              <div>
-                <p className="text-xs text-gray-500 mb-1">Verified</p>
-                <span className="inline-flex px-3 py-1.5 rounded-xl text-xs font-normal" style={{ background: selectedBuyer.verified ? '#D7FDD9' : '#FEE2E2', color: selectedBuyer.verified ? '#008D3F' : '#DC3545' }}>
-                  {selectedBuyer.verified ? 'Yes' : 'No'}
+                <p className="text-xs text-gray-500 mb-2">Verified</p>
+                <span
+                  className="inline-flex px-3 py-1.5 rounded-xl text-xs font-normal"
+                  style={{
+                    background: selectedBuyer.verified ? "#D7FDD9" : "#FEE2E2",
+                    color: selectedBuyer.verified ? "#008D3F" : "#DC3545",
+                  }}
+                >
+                  {selectedBuyer.verified ? "Yes" : "No"}
                 </span>
               </div>
               <div>
-                <p className="text-xs text-gray-500 mb-1">Status</p>
-                <span className="inline-flex px-3 py-1.5 rounded-xl text-xs font-normal" style={{ background: selectedBuyer.status === 'Active' ? '#D7FDD9' : '#FFE9D5', color: selectedBuyer.status === 'Active' ? '#008D3F' : '#E67E22' }}>
+                <p className="text-xs text-gray-500 mb-2">Status</p>
+                <span
+                  className="inline-flex px-3 py-1.5 rounded-xl text-xs font-normal"
+                  style={{
+                    background: selectedBuyer.status === "ACTIVE" ? "#D7FDD9" : "#FFE9D5",
+                    color: selectedBuyer.status === "ACTIVE" ? "#008D3F" : "#E67E22",
+                  }}
+                >
                   {selectedBuyer.status}
                 </span>
               </div>
             </div>
 
             {/* Buyer Information */}
-            <div>
-              <h3 className="text-base font-semibold mb-3">Buyer Information</h3>
-              <div className="space-y-2 text-sm">
-                <p>Buyer ID: {selectedBuyer.id}</p>
-                <p>Joined: {selectedBuyer.joinedDate}</p>
-                <p>Email: {selectedBuyer.email}</p>
-                <p>Phone: {selectedBuyer.phone}</p>
+            <div className="pt-6">
+              <h3 className="text-base font-semibold text-black mb-4">
+                Buyer Information
+              </h3>
+              <div className="grid grid-cols-2 gap-x-8 gap-y-4 text-sm">
+                <div>
+                  <p className="text-gray-500 mb-1">Buyer ID</p>
+                  <p className="text-black font-medium">{selectedBuyer.userId}</p>
+                </div>
+                <div>
+                  <p className="text-gray-500 mb-1">Email</p>
+                  <p className="text-black font-medium">{selectedBuyer.userEmail}</p>
+                </div>
+                <div>
+                  <p className="text-gray-500 mb-1">Phone</p>
+                  <p className="text-black font-medium">{selectedBuyer.userPhone}</p>
+                </div>
+                <div>
+                  <p className="text-gray-500 mb-1">Location</p>
+                  <p className="text-black font-medium">
+                    {selectedBuyer.locationCity}, {selectedBuyer.locationState}
+                  </p>
+                </div>
               </div>
             </div>
           </div>
 
-          {/* Right Column - Wallet & Disputes */}
-          <div className="flex flex-col gap-6">
-            {/* Wallet & Security Card */}
-            <div style={{ width: '436px', padding: '20px', borderRadius: '18px', border: '0.3px solid rgba(0, 0, 0, 0.20)', background: '#FFF', display: 'flex', flexDirection: 'column', gap: '24px' }}>
-              <h3 className="text-base font-semibold">Wallet & Security</h3>
-              
-              <div className="grid grid-cols-3 gap-4">
-                <div>
-                  <p className="text-xs text-gray-500 mb-1">Wallet Balance</p>
-                  <p className="text-base font-semibold">{selectedBuyer.walletBalance}</p>
-                </div>
-                <div>
-                  <p className="text-xs text-gray-500 mb-1">Linked Bank</p>
-                  <p className="text-base font-semibold">{selectedBuyer.linkedBank}</p>
-                </div>
-                <div>
-                  <p className="text-xs text-gray-500 mb-1">Last Purchase</p>
-                  <p className="text-base font-semibold">{selectedBuyer.lastPurchase}</p>
-                </div>
+          {/* Right Card - Location Details */}
+          <div
+            style={{
+              width: "436px",
+              padding: "24px",
+              borderRadius: "18px",
+              border: "0.3px solid rgba(0, 0, 0, 0.20)",
+              background: "#FFF",
+            }}
+          >
+            <h3 className="text-base font-semibold text-black mb-4">
+              Location Details
+            </h3>
+            <div className="space-y-4">
+              <div>
+                <p className="text-xs text-gray-500 mb-1.5">State</p>
+                <p className="text-base font-semibold text-black">
+                  {selectedBuyer.locationState}
+                </p>
               </div>
-
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <p className="text-xs text-gray-500 mb-2">Verification</p>
-                  <span className="inline-flex px-3 py-1.5 rounded-xl text-xs font-normal" style={{ background: selectedBuyer.bvnVerified ? '#D7FDD9' : '#FEE2E2', color: selectedBuyer.bvnVerified ? '#008D3F' : '#DC3545' }}>
-                    {selectedBuyer.bvnVerified ? 'BVN Verified' : 'Not Verified'}
-                  </span>
-                </div>
-                <div>
-                  <p className="text-xs text-gray-500 mb-2">2FA</p>
-                  <span className="inline-flex px-3 py-1.5 rounded-xl text-xs font-normal" style={{ background: selectedBuyer.twoFAEnabled ? '#D7FDD9' : '#FEE2E2', color: selectedBuyer.twoFAEnabled ? '#008D3F' : '#DC3545' }}>
-                    {selectedBuyer.twoFAEnabled ? 'Enabled' : 'Disabled'}
-                  </span>
-                </div>
-              </div>
-            </div>
-
-            {/* Disputes / Reports Card */}
-            <div style={{ width: '436px', padding: '20px', borderRadius: '18px', border: '0.3px solid rgba(0, 0, 0, 0.20)', background: '#FFF', display: 'flex', flexDirection: 'column', gap: '24px' }}>
-              <h3 className="text-base font-semibold">Disputes / Reports</h3>
-              
-              <div className="space-y-3 text-sm text-gray-700">
-                <p>Aug 25: Buyer requested refund on order FX-67906 (Product not as described)</p>
-                <p>No open disputes currently</p>
+              <div className="pt-3 border-t border-gray-100">
+                <p className="text-xs text-gray-500 mb-1.5">City</p>
+                <p className="text-base font-semibold text-black">
+                  {selectedBuyer.locationCity}
+                </p>
               </div>
             </div>
           </div>
         </div>
-
-        {/* Recent Orders - Full Width */}
-        <div className="mt-6" style={{ width: '1330px', padding: '20px', borderRadius: '18px', border: '0.3px solid rgba(0, 0, 0, 0.20)', background: '#FFF', display: 'flex', flexDirection: 'column', gap: '24px' }}>
-          <div className="flex justify-between items-center">
-            <h3 className="text-base font-semibold">Recent Orders</h3>
-            <button className="text-sm" style={{ color: '#E67E22' }}>See all orders</button>
-          </div>
-
-          <table className="w-full">
-            <thead>
-              <tr className="border-b border-gray-200">
-                <th className="text-left py-3 text-sm font-medium text-gray-700">Order ID</th>
-                <th className="text-left py-3 text-sm font-medium text-gray-700">Date</th>
-                <th className="text-left py-3 text-sm font-medium text-gray-700">Seller</th>
-                <th className="text-left py-3 text-sm font-medium text-gray-700">Items</th>
-                <th className="text-left py-3 text-sm font-medium text-gray-700">Amount</th>
-                <th className="text-left py-3 text-sm font-medium text-gray-700">Status</th>
-              </tr>
-            </thead>
-            <tbody>
-              <tr className="border-b border-gray-100">
-                <td className="py-3 text-sm">FX-68012</td>
-                <td className="py-3 text-sm">Sep 2</td>
-                <td className="py-3 text-sm">Maxi Gadgets</td>
-                <td className="py-3 text-sm">iPhone 12 Pro Max 128 GB</td>
-                <td className="py-3 text-sm">₦320,000</td>
-                <td className="py-3">
-                  <span className="inline-flex px-3 py-1.5 rounded-xl text-xs font-normal" style={{ background: '#D7FDD9', color: '#008D3F' }}>
-                    Completed
-                  </span>
-                </td>
-              </tr>
-              <tr className="border-b border-gray-100">
-                <td className="py-3 text-sm">FX-68012</td>
-                <td className="py-3 text-sm">Sep 2</td>
-                <td className="py-3 text-sm">Maxi Gadgets</td>
-                <td className="py-3 text-sm">iPhone 12 Pro Max 128 GB</td>
-                <td className="py-3 text-sm">₦320,000</td>
-                <td className="py-3">
-                  <span className="inline-flex px-3 py-1.5 rounded-xl text-xs font-normal" style={{ background: '#FFE9D5', color: '#E67E22' }}>
-                    Pending
-                  </span>
-                </td>
-              </tr>
-              <tr>
-                <td className="py-3 text-sm">FX-68012</td>
-                <td className="py-3 text-sm">Sep 2</td>
-                <td className="py-3 text-sm">Maxi Gadgets</td>
-                <td className="py-3 text-sm">iPhone 12 Pro Max 128 GB</td>
-                <td className="py-3 text-sm">₦320,000</td>
-                <td className="py-3">
-                  <span className="inline-flex px-3 py-1.5 rounded-xl text-xs font-normal" style={{ background: '#FFE5E5', color: '#DC3545' }}>
-                    Refunded
-                  </span>
-                </td>
-              </tr>
-            </tbody>
-          </table>
+      </div>
+    </div>
+  );
+}
+  // Loading state
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-white flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#E67E22] mx-auto mb-4"></div>
+          <p className="text-gray-600">Loading buyers...</p>
         </div>
       </div>
     );
   }
 
-  // Buyers List View
+  // Error state
+  if (error) {
+    return (
+      <div className="min-h-screen bg-white flex items-center justify-center">
+        <div className="text-center">
+          <p className="text-red-600 mb-4">{error}</p>
+          <Button onClick={() => fetchBuyers()}>Retry</Button>
+        </div>
+      </div>
+    );
+  }
+
+  // Main Buyers List View
   return (
     <div className="min-h-screen bg-white">
+      {/* Suspend Modal */}
+      <Dialog open={suspendModal} onOpenChange={setSuspendModal}>
+        <DialogContent className="sm:max-w-[500px]">
+          <DialogHeader>
+            <DialogTitle>Suspend Buyer</DialogTitle>
+            <DialogDescription>
+              Suspend {selectedBuyerForAction?.name} from making purchases
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div>
+              <Label htmlFor="reason">Reason for Suspension</Label>
+              <Textarea
+                id="reason"
+                placeholder="Enter reason..."
+                value={reason}
+                onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) => setReason(e.target.value)}
+                className="mt-2"
+              />
+            </div>
+            <div>
+              <Label htmlFor="duration">Duration (days)</Label>
+              <Input
+                id="duration"
+                type="number"
+                placeholder="e.g., 7"
+                value={duration}
+                onChange={(e: React.ChangeEvent<HTMLInputElement>) => setDuration(e.target.value)}
+                className="mt-2"
+              />
+            </div>
+          </div>
+          <div className="flex justify-end gap-3">
+            <Button variant="outline" onClick={() => setSuspendModal(false)}>
+              Cancel
+            </Button>
+            <Button 
+              onClick={handleSuspend} 
+              disabled={actionLoading}
+              className="bg-red-600 hover:bg-red-700"
+            >
+              {actionLoading ? "Suspending..." : "Suspend Buyer"}
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Strike Modal */}
+      <Dialog open={strikeModal} onOpenChange={setStrikeModal}>
+        <DialogContent className="sm:max-w-[500px]">
+          <DialogHeader>
+            <DialogTitle>Issue Strike</DialogTitle>
+            <DialogDescription>
+              Issue a strike to {selectedBuyerForAction?.name}. After 3 strikes, buyer will be suspended.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div>
+              <Label htmlFor="strike-reason">Reason for Strike</Label>
+              <Textarea
+                id="strike-reason"
+                placeholder="Enter reason..."
+                value={reason}
+                onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) => setReason(e.target.value)}
+                className="mt-2"
+              />
+            </div>
+            <div>
+              <Label htmlFor="strike-duration">Cooldown Period (days)</Label>
+              <Input
+                id="strike-duration"
+                type="number"
+                placeholder="e.g., 7"
+                value={duration}
+                onChange={(e: React.ChangeEvent<HTMLInputElement>) => setDuration(e.target.value)}
+                className="mt-2"
+              />
+            </div>
+          </div>
+          <div className="flex justify-end gap-3">
+            <Button variant="outline" onClick={() => setStrikeModal(false)}>
+              Cancel
+            </Button>
+            <Button 
+              onClick={handleStrike} 
+              disabled={actionLoading}
+              className="bg-orange-600 hover:bg-orange-700"
+            >
+              {actionLoading ? "Issuing Strike..." : "Issue Strike"}
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
       {/* Header */}
       <div className="flex items-center justify-between px-6 py-4 border-b border-gray-200">
         <h1 className="text-2xl font-semibold">Buyer List</h1>
-        <div className="relative">
-          <input
-            type="text"
-            placeholder="Search Buyer by Name"
-            className="w-[320px] h-10 pl-10 pr-4 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#E67E22]"
-          />
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+        <div className="flex items-center gap-3">
+          <div className="relative">
+            <input
+              type="text"
+              placeholder="Search by name, email or phone"
+              value={searchQuery}
+              onChange={(e: React.ChangeEvent<HTMLInputElement>) => setSearchQuery(e.target.value)}
+              onKeyPress={(e: React.KeyboardEvent<HTMLInputElement>) => e.key === 'Enter' && handleSearch()}
+              className="w-[320px] h-10 pl-10 pr-4 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#E67E22]"
+            />
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+          </div>
+          <button
+            onClick={handleSearch}
+            className="px-4 h-10 bg-[#E67E22] text-white rounded-lg text-sm font-medium hover:bg-[#d67020]"
+          >
+            Search
+          </button>
         </div>
       </div>
 
@@ -343,96 +555,105 @@ const BuyersListPage = () => {
               <th className="text-left py-4 px-6 text-sm font-medium text-black">Buyer ID</th>
               <th className="text-left py-4 px-6 text-sm font-medium text-black">Name</th>
               <th className="text-left py-4 px-6 text-sm font-medium text-black">Email/Phone</th>
+              <th className="text-left py-4 px-6 text-sm font-medium text-black">Location</th>
               <th className="text-left py-4 px-6 text-sm font-medium text-black">Verified</th>
-              <th className="text-left py-4 px-6 text-sm font-medium text-black">Total Orders</th>
               <th className="text-left py-4 px-6 text-sm font-medium text-black">Total Spend</th>
-              <th className="text-left py-4 px-6 text-sm font-medium text-black">Last Activity</th>
+              <th className="text-left py-4 px-6 text-sm font-medium text-black">Joined</th>
               <th className="text-left py-4 px-6 text-sm font-medium text-black">Status</th>
               <th className="text-left py-4 px-6 text-sm font-medium text-black">Actions</th>
             </tr>
           </thead>
           <tbody>
-            {currentBuyers.map((buyer, index) => (
-              <tr key={index} className="border-b border-gray-100">
-                <td className="py-4 px-6 text-sm text-black">{buyer.id}</td>
-                <td className="py-4 px-6 text-sm text-black">{buyer.name}</td>
-                <td className="py-4 px-6 text-sm text-black">
-                  {buyer.email} / {buyer.phone}
-                </td>
-                <td className="py-4 px-6">
-                  {buyer.verified ? <CheckCircleIcon /> : <XCircleIcon />}
-                </td>
-                <td className="py-4 px-6 text-sm text-black">{buyer.totalOrders}</td>
-                <td className="py-4 px-6 text-sm font-medium text-black">{buyer.totalSpend}</td>
-                <td className="py-4 px-6 text-sm text-black">{buyer.lastActivity}</td>
-                <td className="py-4 px-6">
-                  <div
-                    className="inline-flex justify-center items-center rounded-xl"
-                    style={{
-                      width: '77px',
-                      padding: '7px 10px',
-                      background: buyer.status === "Active" ? "#D7FDD9" : "#FFE9D5"
-                    }}
-                  >
-                    <span
-                      style={{
-                        width: '57px',
-                        color: buyer.status === "Active" ? "#008D3F" : "#E67E22",
-                        textAlign: 'center',
-                        fontFamily: "'Work Sans', sans-serif",
-                        fontSize: '12px',
-                        fontWeight: 400,
-                        lineHeight: 'normal'
-                      }}
-                    >
-                      {buyer.status}
-                    </span>
-                  </div>
-                </td>
-                <td className="py-4 px-6 relative">
-                  <button
-                    onClick={() => toggleActionMenu(index)}
-                    className="hover:opacity-70 transition-opacity"
-                  >
-                    <ActionIcon />
-                  </button>
-                  
-                  {activeActionMenu === `buyer-${index}` && (
-                    <div 
-                      className="absolute right-12 top-12 z-20 rounded-xl shadow-lg border border-gray-200"
-                      style={{
-                        width: '187px',
-                        padding: '4px 8px',
-                        background: '#FFF',
-                        borderRadius: '12px'
-                      }}
-                    >
-                      <button 
-                        onClick={() => handleViewBuyer(buyer)}
-                        className="flex items-center justify-between w-full px-2 py-2 text-sm hover:bg-gray-50 border-b-1 border-black/10"
-                      >
-                        <span>View</span>
-                        <div className="flex items-center justify-center" style={{ width: '40px', height: '40px', borderRadius: '12px', border: '0.2px solid rgba(0,0,0,0.3)', background: '' }}>
-                          <EyeIcon />
-                        </div>
-                      </button>
-                      <button className="flex items-center justify-between w-full px-2 py-2 text-sm hover:bg-gray-50 border-b-1 border-black/10">
-                        <span>Suspend</span>
-                        <div className="flex items-center justify-center" style={{ width: '40px', height: '40px', borderRadius: '12px', border: '0.2px solid rgba(0,0,0,0.3)', background: '#F4F4F4' }}>
-                          <BanIcon />
-                        </div>
-                      </button>
-                      <button className="flex items-center justify-between w-full px-2 py-2 text-sm hover:bg-gray-50 rounded-lg">
-                        <span>Verify</span>
-                        <div className="flex items-center justify-center" style={{ width: '40px', height: '40px', borderRadius: '12px', border: '0.2px solid rgba(0,0,0,0.3)', background: '#F4F4F4' }}>
-                          <VerifyIcon />
-                        </div>
-                      </button>
-                    </div>
-                  )}
+            {buyers.length === 0 ? (
+              <tr>
+                <td colSpan={9} className="py-8 text-center text-gray-500">
+                  No buyers found
                 </td>
               </tr>
-            ))}
+            ) : (
+              buyers.map((buyer) => (
+                <tr key={buyer.userId} className="border-b border-gray-100">
+                  <td className="py-4 px-6 text-sm text-black">{buyer.userId.substring(0, 8)}</td>
+                  <td className="py-4 px-6 text-sm text-black">{buyer.name}</td>
+                  <td className="py-4 px-6 text-sm text-black">
+                    {buyer.userEmail}<br />{buyer.userPhone}
+                  </td>
+                  <td className="py-4 px-6 text-sm text-black">{buyer.locationCity}, {buyer.locationState}</td>
+                  <td className="py-4 px-6">
+                    {buyer.verified ? <CheckCircleIcon /> : <XCircleIcon />}
+                  </td>
+                  <td className="py-4 px-6 text-sm font-medium text-black">{buyer.totalSpend}</td>
+                  <td className="py-4 px-6 text-sm text-black">{buyer.lastActivity}</td>
+                  <td className="py-4 px-6">
+                    <div
+                      className="inline-flex justify-center items-center rounded-xl"
+                      style={{
+                        padding: '7px 10px',
+                        background: buyer.status === "ACTIVE" ? "#D7FDD9" : "#FFE9D5"
+                      }}
+                    >
+                      <span
+                        style={{
+                          color: buyer.status === "ACTIVE" ? "#008D3F" : "#E67E22",
+                          textAlign: 'center',
+                          fontSize: '12px',
+                          fontWeight: 400,
+                        }}
+                      >
+                        {buyer.status}
+                      </span>
+                    </div>
+                  </td>
+                  <td className="py-4 px-6 relative">
+                    <button
+                      onClick={() => toggleActionMenu(buyer.userId)}
+                      className="hover:opacity-70 transition-opacity"
+                    >
+                      <ActionIcon />
+                    </button>
+                    
+                    {activeActionMenu === buyer.userId && (
+                      <div 
+                        className="absolute right-12 top-12 z-20 rounded-xl shadow-lg border border-gray-200"
+                        style={{
+                          width: '187px',
+                          padding: '4px 8px',
+                          background: '#FFF',
+                        }}
+                      >
+                        <button 
+                          onClick={() => handleViewBuyer(buyer)}
+                          className="flex items-center justify-between w-full px-2 py-2 text-sm hover:bg-gray-50 border-b border-gray-100"
+                        >
+                          <span>View</span>
+                          <div className="flex items-center justify-center" style={{ width: '40px', height: '40px', borderRadius: '12px', border: '0.2px solid rgba(0,0,0,0.3)' }}>
+                            <EyeIcon />
+                          </div>
+                        </button>
+                        <button 
+                          onClick={() => openSuspendModal(buyer)}
+                          className="flex items-center justify-between w-full px-2 py-2 text-sm hover:bg-gray-50 border-b border-gray-100"
+                        >
+                          <span>Suspend</span>
+                          <div className="flex items-center justify-center" style={{ width: '40px', height: '40px', borderRadius: '12px', border: '0.2px solid rgba(0,0,0,0.3)', background: '#F4F4F4' }}>
+                            <BanIcon />
+                          </div>
+                        </button>
+                        <button 
+                          onClick={() => openStrikeModal(buyer)}
+                          className="flex items-center justify-between w-full px-2 py-2 text-sm hover:bg-gray-50 rounded-lg"
+                        >
+                          <span>Strike</span>
+                          <div className="flex items-center justify-center" style={{ width: '40px', height: '40px', borderRadius: '12px', border: '0.2px solid rgba(0,0,0,0.3)', background: '#F4F4F4' }}>
+                            <StrikeIcon />
+                          </div>
+                        </button>
+                      </div>
+                    )}
+                  </td>
+                </tr>
+              ))
+            )}
           </tbody>
         </table>
       </div>
@@ -440,12 +661,12 @@ const BuyersListPage = () => {
       {/* Pagination */}
       <div className="flex items-center justify-between px-6 py-4 border-t border-gray-200">
         <p className="text-sm text-gray-600">
-          Showing {indexOfFirstBuyer + 1} to {Math.min(indexOfLastBuyer, totalBuyers)} of {totalBuyers} buyers
+          Showing page {currentPage}
         </p>
         <div className="flex items-center gap-3">
           <button
             onClick={handlePrevPage}
-            disabled={currentPage === 1}
+            disabled={currentPage === 1 || loading}
             className="flex items-center justify-center disabled:opacity-40 disabled:cursor-not-allowed hover:opacity-70 transition-opacity"
             style={{
               width: '40px',
@@ -470,7 +691,7 @@ const BuyersListPage = () => {
           </button>
           <button
             onClick={handleNextPage}
-            disabled={currentPage === totalPages}
+            disabled={!hasNext || loading}
             className="flex items-center justify-center disabled:opacity-40 disabled:cursor-not-allowed hover:opacity-70 transition-opacity"
             style={{
               width: '40px',
