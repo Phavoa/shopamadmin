@@ -3,76 +3,48 @@
 import React, { useState, useEffect } from "react";
 import { StrikesTable, StrikeRecord } from "@/components/sellers/StrikesTable";
 import { StrikeForm } from "@/components/sellers/StrikeForm";
-import { getSellers, getUserById, SellerProfileVM } from "@/api/sellerApi";
-
-
-const getStatusBadgeStyles = (status: string) => {
-  if (status.includes("Strike")) {
-    return "bg-[#D4F4DD] text-[#2E7D32] border-none";
-  } else if (status === "Suspended") {
-    return "bg-[#FFD4D4] text-[#D32F2F] border-none";
-  } else {
-    return "bg-[#E8F5E9] text-[#43A047] border-none";
-  }
-};
+import { getSellers, SellerProfileVM } from "@/api/sellerApi";
 
 const Page = () => {
   const [strikes, setStrikes] = useState<StrikeRecord[]>([]);
-  const [loading, setLoading] = useState(false);
   const [fetchingStrikes, setFetchingStrikes] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
-  const [statusFilter, setStatusFilter] = useState<string>("all");
   const [selectedSeller, setSelectedSeller] = useState<string>("");
   const [reason, setReason] = useState<string>("");
   const [cooldownDays, setCooldownDays] = useState<string>("");
-  const [selectedStrike, setSelectedStrike] = useState<StrikeRecord | null>(
-    null
-  );
 
-  // Fetch strikes with filters
   const fetchStrikes = async () => {
     try {
       setFetchingStrikes(true);
       setError(null);
+      
       const response = await getSellers({
         status: "SUSPENDED",
+        populate: "user",
         limit: 50,
       });
-      const sellersData = response.data.items;
 
-      // Fetch user profiles for names
-      const userPromises = sellersData.map((seller) => getUserById(seller.userId).catch(() => null));
-      const userResults = await Promise.allSettled(userPromises);
-      const userProfiles = userResults.map((result) => (result.status === 'fulfilled' ? result.value : null));
-
-      let strikeRecords: StrikeRecord[] = sellersData.map(
-        (seller: SellerProfileVM, index: number): StrikeRecord => {
-          const user = userProfiles[index];
-          return {
-            id: seller.userId,
-            sellerId: seller.userId,
-            sellerName: user ? `${user.firstName} ${user.lastName}` : 'Unknown User',
-            sellerEmail: user ? user.email : seller.userEmail,
-            reason: "Suspended",
-            date: seller.updatedAt, // Use updatedAt as suspension date
-            status: "Suspended",
-            cooldownEnds: null, // No cooldown info
-            issuedBy: "Admin",
-            description: "Seller account suspended",
-          };
-        }
+      let strikeRecords: StrikeRecord[] = response.data.items.map(
+        (seller: SellerProfileVM): StrikeRecord => ({
+          id: seller.userId,
+          sellerId: seller.userId,
+          sellerName: seller.shopName,
+          sellerEmail: seller.userEmail || "N/A",
+          reason: "Account Suspended",
+          date: seller.updatedAt,
+          status: "Suspended",
+          cooldownEnds: null,
+          issuedBy: "Admin",
+          description: `Seller account suspended - ${seller.shopName}`,
+        })
       );
 
-      if (searchQuery) {
+      if (searchQuery.trim()) {
         strikeRecords = strikeRecords.filter(
           (strike) =>
-            strike.sellerName
-              .toLowerCase()
-              .includes(searchQuery.toLowerCase()) ||
-            strike.sellerEmail
-              .toLowerCase()
-              .includes(searchQuery.toLowerCase()) ||
+            strike.sellerName.toLowerCase().includes(searchQuery.toLowerCase()) ||
+            strike.sellerEmail.toLowerCase().includes(searchQuery.toLowerCase()) ||
             strike.reason.toLowerCase().includes(searchQuery.toLowerCase())
         );
       }
@@ -80,29 +52,23 @@ const Page = () => {
       setStrikes(strikeRecords);
     } catch (error) {
       console.error("Failed to fetch strikes:", error);
-      setError("Failed to load strikes. Please try again.");
+      setError("Failed to load suspended sellers. Please try again.");
     } finally {
       setFetchingStrikes(false);
     }
   };
 
-  // Initial fetch
   useEffect(() => {
     fetchStrikes();
   }, []);
 
-  // Handle search and filters
   useEffect(() => {
-    fetchStrikes();
+    const debounceTimer = setTimeout(() => {
+      fetchStrikes();
+    }, 300);
+
+    return () => clearTimeout(debounceTimer);
   }, [searchQuery]);
-
-  const handleSearch = () => {
-    fetchStrikes();
-  };
-
-  const handleViewDetails = (strike: StrikeRecord) => {
-    setSelectedStrike(strike);
-  };
 
   return (
     <div className="bg-[#F9FAFB] min-h-screen py-8">
