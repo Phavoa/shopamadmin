@@ -1,8 +1,10 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import ReferralsHeader from "./ReferralsHeader";
 import ReferralsTable from "./ReferralsTable";
 import ReferralsPagination from "./ReferralsPagination";
 import { Referral } from "./ReferralsTable";
+import { setHeaderTitle } from "@/features/shared/headerSice";
+import { useDispatch } from "react-redux";
 
 // Mock Data
 const referralsData: Referral[] = [
@@ -87,6 +89,7 @@ const ITEMS_PER_PAGE = 5;
 // Main Component
 const ReferralsPage: React.FC = () => {
   // Pagination state
+  const dispatch = useDispatch();
   const [currentPage, setCurrentPage] = useState(1);
 
   // Calculate pagination
@@ -95,6 +98,10 @@ const ReferralsPage: React.FC = () => {
   const startIndex = (currentPage - 1) * ITEMS_PER_PAGE;
   const endIndex = startIndex + ITEMS_PER_PAGE;
   const currentData = referralsData.slice(startIndex, endIndex);
+
+  useEffect(() => {
+    dispatch(setHeaderTitle("Referrals"));
+  }, [dispatch]);
 
   // Pagination handlers
   const handleNextPage = () => {

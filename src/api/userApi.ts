@@ -332,6 +332,30 @@ export const userApi = createApi({
     }),
 
     // Get all users
+    /**
+     * GET /api/user
+     * List users (keyset pagination + optional populate)
+     *
+     * Lists users with keyset pagination (opaque after/before cursors).
+     *
+     * Search & Filters:
+     * - q: case-insensitive match across firstName, lastName, email, phone
+     * - hasSeller: filter users that (do/do not) have a seller profile
+     * - sellerStatus, sellerTier, state, city: apply seller-related filters (when present)
+     *
+     * Sorting:
+     * - sortBy: one of createdAt, lastName, sellerTotalSales (relation sort by sellerProfile.totalSales)
+     * - sortDir: asc | desc (default desc). Stable tiebreaker on id is applied.
+     *
+     * Counts:
+     * - Each user always includes followersCount and followingCount
+     *
+     * Populate (expand related data) — allowed:
+     * - sellerProfile, addresses
+     * - Social graph (id-only arrays by default): followers, following, blocks, blockedBy
+     *
+     * Tip: If you don't pass populate, the response still includes id-only arrays for these social relations (capped) due to repo configuration.
+     */
     getUsers: builder.query<ApiResponse<{ items: User[] }>, ListUsersParams>({
       query: (params = {}) => ({
         url: "/user",

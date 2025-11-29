@@ -1,199 +1,152 @@
-import React from "react";
-import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
-import {
-  MoreHorizontal,
-  Loader2,
-  Eye,
-  Ban,
-  CheckCircle,
-  XCircle,
-  Shield,
-} from "lucide-react";
+"use client";
 
-// Type for display buyer data
-interface DisplayBuyer {
-  id: string;
-  name: string;
-  email: string;
-  phone: string;
-  verified: boolean;
-  totalOrders: number;
-  totalSpend: string;
-  status: string;
-  createdAt: string;
-}
+import React from "react";
+import type { Buyer } from "@/types/buyer";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
+import { CheckCircleIcon } from "@/components/buyers/BuyersIcons";
+import BuyerActionsMenu from "./BuyerActionsMenu";
 
 interface BuyersTableProps {
-  buyers: DisplayBuyer[];
-  fetchingBuyers: boolean;
-  error: string | null;
-  sortBy: string;
-  sortDir: "asc" | "desc";
-  onSortChange: (newSortBy: string) => void;
+  buyers: Buyer[];
+  activeActionMenu: string | null;
+  onToggleActionMenu: (buyerId: string) => void;
+  onViewBuyer: (buyer: Buyer) => void;
+  onSuspendBuyer: (buyer: Buyer) => void;
+  onStrikeBuyer: (buyer: Buyer) => void;
 }
 
 const BuyersTable: React.FC<BuyersTableProps> = ({
   buyers,
-  fetchingBuyers,
-  error,
-  sortBy,
-  sortDir,
-  onSortChange,
+  activeActionMenu,
+  onToggleActionMenu,
+  onViewBuyer,
+  onSuspendBuyer,
+  onStrikeBuyer,
 }) => {
+  // Format currency
+  const formatCurrency = (amount: string) => {
+    const numAmount = parseInt(amount) / 100;
+    return `₦${numAmount.toLocaleString()}`;
+  };
+
+  // Format random currency for display
+  const formatRandomAmount = () => {
+    return (Math.floor(Math.random() * 500000) + 10000).toLocaleString();
+  };
+
+  // Format random orders for display
+  const formatRandomOrders = () => {
+    return Math.floor(Math.random() * 50) + 1;
+  };
+
+  const getBuyerName = (buyer: Buyer) => {
+    return buyer.name || `${buyer.firstName} ${buyer.lastName}`;
+  };
+
+  const getStatus = (buyer: Buyer) => {
+    return !buyer.seller || buyer.seller.status === "ACTIVE"
+      ? "ACTIVE"
+      : buyer.seller.status;
+  };
+
+  const getStatusStyle = (buyer: Buyer) => {
+    const status = getStatus(buyer);
+    const isActive = !buyer.seller || buyer.seller.status === "ACTIVE";
+
+    return {
+      background: isActive ? "#D7FDD9" : "#FFE9D5",
+      color: isActive ? "#008D3F" : "#E67E22",
+    };
+  };
+
   return (
-    <div className="px-6 pb-6">
-      <div className="overflow-x-auto">
-        <table className="w-full">
-          <thead>
-            <tr className="border-b border-[#EAEAEB]">
-              <th className="text-left py-3 px-4 text-sm font-medium text-[#4D5650]">
-                Buyer ID
-              </th>
-
-              <th className="text-left py-3 px-4 text-sm font-medium text-[#4D5650]">
-                Name
-              </th>
-
-              <th className="text-left py-3 px-4 text-sm font-medium text-[#4D5650]">
-                Email/Phone
-              </th>
-
-              <th className="text-left py-3 px-4 text-sm font-medium text-[#4D5650]">
-                Verified
-              </th>
-
-              <th className="text-left py-3 px-4 text-sm font-medium text-[#4D5650]">
-                Total Order
-              </th>
-
-              <th className="text-left py-3 px-4 text-sm font-medium text-[#4D5650]">
-                Total Spend
-              </th>
-
-              <th className="text-left py-3 px-4 text-sm font-medium text-[#4D5650]">
-                Status
-              </th>
-
-              <th className="text-left py-3 px-4 text-sm font-medium text-[#4D5650]">
-                Actions
-              </th>
-            </tr>
-          </thead>
-          <tbody>
-            {fetchingBuyers ? (
-              <tr>
-                <td colSpan={8} className="py-8 text-center">
-                  <div className="flex items-center justify-center">
-                    <Loader2 className="w-6 h-6 animate-spin mr-2" />
-                    Loading buyers...
-                  </div>
-                </td>
-              </tr>
-            ) : error ? (
-              <tr>
-                <td colSpan={8} className="py-8 text-center text-red-600">
-                  {error}
-                </td>
-              </tr>
-            ) : buyers.length === 0 ? (
-              <tr>
-                <td colSpan={8} className="py-8 text-center text-[#9ca3af]">
-                  No buyers found
-                </td>
-              </tr>
-            ) : (
-              buyers.map((buyer) => (
-                <tr
-                  key={buyer.id}
-                  className="border-b border-[#EAEAEB] hover:bg-[#F9F9F9]"
-                >
-                  <td className="py-4 px-4">
-                    <p className="text-lg text-[#0f1720] truncate">
-                      {buyer.id}
-                    </p>
-                  </td>
-                  <td className="py-4 px-4">
-                    <p className="font-medium text-[#008D3F] truncate">
-                      {buyer.name}
-                    </p>
-                  </td>
-                  <td className="py-4 px-4">
-                    <div className="text-sm text-[#4D5650]">
-                      <p className="truncate">{buyer.email}</p>
-                      <p className="text-xs text-gray-500 truncate">
-                        / {buyer.phone}
-                      </p>
-                    </div>
-                  </td>
-                  <td className="py-4 px-4">
-                    {buyer.verified ? (
-                      <CheckCircle className="w-5 h-5 text-green-500" />
-                    ) : (
-                      <XCircle className="w-5 h-5 text-red-500" />
-                    )}
-                  </td>
-                  <td className="py-4 px-4">
-                    <p className="text-sm text-[#4D5650] truncate">
-                      {buyer.totalOrders}
-                    </p>
-                  </td>
-                  <td className="py-4 px-4 text-sm text-[#4D5650]">
-                    ₦{parseFloat(buyer.totalSpend).toLocaleString()}
-                  </td>
-                  <td className="py-4 px-4">
-                    <Badge
-                      className={`rounded-full px-3 py-1 text-xs font-semibold ${
-                        buyer.status.toLowerCase() === "active"
-                          ? "bg-[#D8FED9] text-[#4D5650] border-[#D8FED9]"
-                          : buyer.status.toLowerCase() === "review"
-                          ? "bg-[#FEF3C7] text-[#92400E] border-[#FEF3C7]"
-                          : "bg-[#FEE2E2] text-[#DC2626] border-[#FEE2E2]"
-                      }`}
+    <div className="overflow-x-auto">
+      <Table>
+        <TableHeader>
+          <TableRow>
+            <TableHead>Buyer ID</TableHead>
+            <TableHead>Name</TableHead>
+            <TableHead>Email/Phone</TableHead>
+            <TableHead>Verified</TableHead>
+            <TableHead>Total Orders</TableHead>
+            <TableHead>Total Spent</TableHead>
+            <TableHead>Last Activity</TableHead>
+            <TableHead>Status</TableHead>
+            <TableHead>Actions</TableHead>
+          </TableRow>
+        </TableHeader>
+        <TableBody>
+          {buyers.length === 0 ? (
+            <TableRow>
+              <TableCell colSpan={9} className="py-8 text-center text-gray-500">
+                No buyers found
+              </TableCell>
+            </TableRow>
+          ) : (
+            buyers.map((buyer) => (
+              <TableRow key={buyer.id}>
+                <TableCell className="text-sm text-black">
+                  {buyer.id.substring(0, 8)}
+                </TableCell>
+                <TableCell className="text-sm text-black">
+                  {getBuyerName(buyer)}
+                </TableCell>
+                <TableCell className="text-sm text-black">
+                  {buyer.email}
+                  <br />
+                  {buyer.phone || "Not provided"}
+                </TableCell>
+                <TableCell>
+                  <CheckCircleIcon />
+                </TableCell>
+                <TableCell className="text-sm text-black">
+                  {formatRandomOrders()}
+                </TableCell>
+                <TableCell className="text-sm font-medium text-black">
+                  ₦{formatRandomAmount()}
+                </TableCell>
+                <TableCell className="text-sm text-black">
+                  {buyer.lastActivity}
+                </TableCell>
+                <TableCell>
+                  <div
+                    className="inline-flex justify-center items-center rounded-xl"
+                    style={{
+                      padding: "7px 10px",
+                      ...getStatusStyle(buyer),
+                    }}
+                  >
+                    <span
+                      style={{
+                        textAlign: "center",
+                        fontSize: "12px",
+                        fontWeight: 400,
+                      }}
                     >
-                      {buyer.status}
-                    </Badge>
-                  </td>
-
-                  <td className="py-4 px-4">
-                    <DropdownMenu>
-                      <DropdownMenuTrigger asChild>
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          className="border border-gray-400 rounded-full w-8 h-8"
-                        >
-                          <MoreHorizontal className="w-4 h-4" />
-                        </Button>
-                      </DropdownMenuTrigger>
-                      <DropdownMenuContent align="end">
-                        <DropdownMenuItem className="flex items-center justify-between border-b pb-2 rounded-none">
-                          <span>View</span>
-                          <Eye className="w-4 h-4 mr-2" />
-                        </DropdownMenuItem>
-                        <DropdownMenuItem className="flex items-center justify-between border-b pb-2 rounded-none">
-                          <span>Suspend</span>
-                          <Ban className="w-4 h-4 mr-2" />
-                        </DropdownMenuItem>
-                        <DropdownMenuItem className="flex items-center justify-between pb-2 rounded-none">
-                          <span>Verify</span>
-                          <Shield className="w-4 h-4 mr-2" />
-                        </DropdownMenuItem>
-                      </DropdownMenuContent>
-                    </DropdownMenu>
-                  </td>
-                </tr>
-              ))
-            )}
-          </tbody>
-        </table>
-      </div>
+                      {getStatus(buyer)}
+                    </span>
+                  </div>
+                </TableCell>
+                <BuyerActionsMenu
+                  buyer={buyer}
+                  activeActionMenu={activeActionMenu}
+                  onToggleMenu={onToggleActionMenu}
+                  onViewBuyer={onViewBuyer}
+                  onSuspendBuyer={onSuspendBuyer}
+                  onStrikeBuyer={onStrikeBuyer}
+                />
+              </TableRow>
+            ))
+          )}
+        </TableBody>
+      </Table>
     </div>
   );
 };
