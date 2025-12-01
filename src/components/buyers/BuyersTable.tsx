@@ -115,15 +115,15 @@ const BuyersTable: React.FC<BuyersTableProps> = ({
                   <div
                     className="inline-flex justify-center items-center rounded-xl"
                     style={{
-                      padding: "7px 10px",
+                      padding: "5px 8px",
                       ...getStatusStyle(buyer),
                     }}
                   >
                     <span
                       style={{
                         textAlign: "center",
-                        fontSize: "12px",
-                        fontWeight: 400,
+                        fontSize: "10px",
+                        fontWeight: 600,
                       }}
                     >
                       {getStatus(buyer)}
