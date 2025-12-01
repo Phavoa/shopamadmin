@@ -17,6 +17,11 @@ interface Exception {
 interface ExceptionsTableProps {
   exceptions: Exception[];
   onInvestigate: (orderId: string) => void;
+  onRequestMoreEvidence?: (exceptionId: string) => void;
+  onResolveException?: (exceptionId: string) => void;
+  isLoading?: boolean;
+  error?: string | null;
+  onRefresh?: () => void;
 }
 
 const getStatusColor = (status: string) => {
@@ -35,6 +40,8 @@ const getStatusColor = (status: string) => {
 export default function ExceptionsTable({
   exceptions,
   onInvestigate,
+  onRequestMoreEvidence,
+  onResolveException,
 }: ExceptionsTableProps) {
   return (
     <Card>
@@ -95,12 +102,6 @@ export default function ExceptionsTable({
                       className="border-green-500 text-white bg-green-700 hover:bg-green-800"
                     >
                       Investigate
-                    </Button>
-                    <Button
-                      size="sm"
-                      className="bg-orange-500 hover:bg-orange-600"
-                    >
-                      Manage Issue
                     </Button>
                   </div>
                 </td>

@@ -147,6 +147,7 @@ export interface GetOrdersParams {
   sellerId?: string;
   pickup?: boolean;
   delivery?: boolean;
+  isLagosOrder?: boolean;
 }
 
 export interface GetOrderByIdParams {

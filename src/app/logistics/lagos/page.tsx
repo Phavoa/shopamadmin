@@ -5,12 +5,18 @@ import { useState, useCallback, useMemo, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Plus, RefreshCw, Search } from "lucide-react";
-import { useGetOrdersQuery } from "@/api/orderApi";
+import { useGetOrdersQuery, Order } from "@/api/orderApi";
 import { useCreateRiderMutation, useGetRidersQuery } from "@/api/ridersApi";
 import {
   useAssignRiderToShipmentMutation,
   useUpdateShipmentStatusByCodeMutation,
 } from "@/api/shipmentApi";
+import {
+  useGetOrderExceptionsQuery,
+  useRequestMoreEvidenceMutation,
+  useResolveExceptionMutation,
+  OrderException,
+} from "@/api/orderExceptionsApi";
 import { useNotifications } from "@/hooks/useNotifications";
 import { ErrorBoundary } from "@/components/ui/error-boundary";
 
@@ -29,6 +35,8 @@ import AddShopModal from "@/components/logistics/AddShopModal";
 import AssignRiderModal from "@/components/logistics/AssignRiderModal";
 import TrackOrderModal from "@/components/logistics/TrackOrderModal";
 import InvestigateExceptionModal from "@/components/logistics/InvestigateExceptionModal";
+import RequestMoreEvidenceModal from "@/components/logistics/RequestMoreEvidenceModal";
+import ResolveExceptionModal from "@/components/logistics/ResolveExceptionModal";
 
 interface LogisticsOrder {
   id: string;
@@ -48,12 +56,13 @@ interface LogisticsOrder {
 }
 
 interface Exception {
-  order: string;
+  order: string; // Exception ID for actions
   customer: string;
   issue: string;
   address: string;
   phone: string;
   status: string;
+  orderId?: string; // Original order ID for display
 }
 
 interface Rider {
@@ -72,7 +81,14 @@ export default function LagosHubDashboard() {
   const [showAssignRiderModal, setShowAssignRiderModal] = useState(false);
   const [showTrackOrderModal, setShowTrackOrderModal] = useState(false);
   const [showInvestigateModal, setShowInvestigateModal] = useState(false);
+  const [showRequestMoreEvidenceModal, setShowRequestMoreEvidenceModal] =
+    useState(false);
+  const [showResolveExceptionModal, setShowResolveExceptionModal] =
+    useState(false);
   const [selectedOrder, setSelectedOrder] = useState<string>("");
+  const [selectedException, setSelectedException] = useState<string>("");
+  const [selectedExceptionData, setSelectedExceptionData] =
+    useState<OrderException | null>(null);
 
   // API calls with optimized query parameters
   const {
@@ -83,6 +99,7 @@ export default function LagosHubDashboard() {
   } = useGetOrdersQuery({
     pickup: true,
     populate: ["buyer", "seller", "shipment"],
+    isLagosOrder: true,
     sortBy: "createdAt",
     sortDir: "desc",
     limit: 50,
@@ -96,6 +113,7 @@ export default function LagosHubDashboard() {
   } = useGetOrdersQuery({
     delivery: true,
     populate: ["buyer", "seller", "shipment"],
+    isLagosOrder: true,
     sortBy: "createdAt",
     sortDir: "desc",
     limit: 50,
@@ -119,6 +137,27 @@ export default function LagosHubDashboard() {
   const [updateShipmentStatusByCode, { isLoading: isUpdatingStatus }] =
     useUpdateShipmentStatusByCodeMutation();
 
+  // Order Exceptions API
+  const [requestMoreEvidence, { isLoading: isRequestingEvidence }] =
+    useRequestMoreEvidenceMutation();
+  const [resolveException, { isLoading: isResolvingException }] =
+    useResolveExceptionMutation();
+
+  // Get all order exceptions
+  const {
+    data: orderExceptionsData,
+    isLoading: exceptionsLoading,
+    error: exceptionsError,
+    refetch: refetchExceptions,
+  } = useGetOrderExceptionsQuery({
+    params: {
+      limit: 50,
+      sortBy: "createdAt",
+      sortDir: "desc",
+      populate: ["buyer", "seller"],
+    },
+  });
+
   // Error handling with useEffect to prevent infinite re-renders
   useEffect(() => {
     if (pickupError) {
@@ -130,7 +169,10 @@ export default function LagosHubDashboard() {
     if (ridersError) {
       console.error("Riders data error:", ridersError);
     }
-  }, [pickupError, deliveryError, ridersError]);
+    if (exceptionsError) {
+      console.error("Order exceptions error:", exceptionsError);
+    }
+  }, [pickupError, deliveryError, ridersError, exceptionsError]);
 
   // Optimized refresh function
   const refreshAllData = useCallback(async () => {
@@ -139,6 +181,7 @@ export default function LagosHubDashboard() {
         refetchPickupOrders(),
         refetchDeliveryOrders(),
         refetchRiders(),
+        refetchExceptions(),
       ]);
       showSuccess("Data refreshed successfully");
     } catch (error) {
@@ -148,6 +191,7 @@ export default function LagosHubDashboard() {
     refetchPickupOrders,
     refetchDeliveryOrders,
     refetchRiders,
+    refetchExceptions,
     showSuccess,
     showError,
   ]);
@@ -156,7 +200,7 @@ export default function LagosHubDashboard() {
   const pickupRequests = useMemo((): LogisticsOrder[] => {
     if (!pickupOrdersData?.data?.items) return [];
 
-    return pickupOrdersData.data.items.map((order) => ({
+    return pickupOrdersData.data.items.map((order: Order) => ({
       id: order.id,
       orderCode: order.orderCode,
       trackingId: order.trackingCode,
@@ -174,7 +218,7 @@ export default function LagosHubDashboard() {
   const deliveries = useMemo((): LogisticsOrder[] => {
     if (!deliveryOrdersData?.data?.items) return [];
 
-    return deliveryOrdersData.data.items.map((order) => ({
+    return deliveryOrdersData.data.items.map((order: Order) => ({
       id: order.id,
       orderCode: order.orderCode,
       trackingId: order.trackingCode,
@@ -194,49 +238,46 @@ export default function LagosHubDashboard() {
 
   // Calculate KPIs with useMemo - uses memoized pickupRequests and deliveries
   const kpis = useMemo(() => {
+    const totalExceptions = orderExceptionsData?.data?.items?.length || 0;
     return {
       ordersToday:
         (pickupOrdersData?.data?.items?.length || 0) +
         (deliveryOrdersData?.data?.items?.length || 0),
       pickRequests: pickupRequests.length,
-      atHub: deliveries.filter((d) => d.status === "AT_SHOPAM_HUB").length,
-      waitingForDelivery: deliveries.filter(
-        (d) => d.status !== "DELIVERED" && d.status !== "CANCELLED"
+      atHub: deliveries.filter(
+        (d: LogisticsOrder) => d.status === "AT_SHOPAM_HUB"
       ).length,
-      exceptions: 0, // TODO: Implement exception tracking
+      waitingForDelivery: deliveries.filter(
+        (d: LogisticsOrder) =>
+          d.status !== "DELIVERED" && d.status !== "CANCELLED"
+      ).length,
+      exceptions: totalExceptions,
     };
-  }, [pickupOrdersData, deliveryOrdersData, pickupRequests, deliveries]);
+  }, [
+    pickupOrdersData,
+    deliveryOrdersData,
+    pickupRequests,
+    deliveries,
+    orderExceptionsData,
+  ]);
 
-  // Mock data for components - memoized to prevent unnecessary re-renders
-  const exceptions = useMemo<Exception[]>(
-    () => [
-      {
-        order: "SA0018",
-        customer: "Mary K.",
-        issue: "Phone not reachable",
-        address: "13 Bode Thomas, Surulere",
-        phone: "0802 111 222",
-        status: "Exception",
-      },
-      {
-        order: "SA0019",
-        customer: "Jane Doe",
-        issue: "Parcel damaged at hub",
-        address: "2 Platinum Way, Lekki",
-        phone: "0802 111 222",
-        status: "Exception",
-      },
-      {
-        order: "SA0018",
-        customer: "John D.",
-        issue: "Pickup overdue >24h",
-        address: "13 Bode Thomas, Surulere",
-        phone: "0802 111 222",
-        status: "Exception",
-      },
-    ],
-    []
-  );
+  // Transform API data for exceptions table
+  const exceptions = useMemo<Exception[]>(() => {
+    if (!orderExceptionsData?.data?.items) return [];
+
+    return orderExceptionsData.data.items.map((exception: OrderException) => ({
+      order: exception.id, // Use exception ID for actions
+      customer:
+        exception.buyer?.firstName && exception.buyer?.lastName
+          ? `${exception.buyer.firstName} ${exception.buyer.lastName}`
+          : exception.buyer?.email || "Unknown Customer",
+      issue: exception.description || exception.type || "No description",
+      address: exception.buyer?.address || "Address not available",
+      phone: exception.buyer?.phone || "Phone not available",
+      status: exception.status,
+      orderId: exception.orderId, // Keep order ID for display
+    }));
+  }, [orderExceptionsData]);
 
   const riders = useMemo<Rider[]>(
     () => [
@@ -254,9 +295,30 @@ export default function LagosHubDashboard() {
     setShowAssignRiderModal(true);
   }, []);
 
-  const handleInvestigate = useCallback((orderId: string) => {
-    setSelectedOrder(orderId);
-    setShowInvestigateModal(true);
+  const handleInvestigate = useCallback(
+    (exceptionId: string) => {
+      const exception = orderExceptionsData?.data?.items?.find(
+        (ex: OrderException) => ex.id === exceptionId
+      );
+      if (exception) {
+        setSelectedExceptionData(exception);
+        setSelectedOrder(exception.orderId);
+        setShowInvestigateModal(true);
+      }
+    },
+    [orderExceptionsData]
+  );
+
+  const handleRequestMoreEvidence = useCallback((exceptionId: string) => {
+    setSelectedException(exceptionId);
+    setSelectedOrder(""); // Clear selectedOrder since we're using exceptionId
+    setShowRequestMoreEvidenceModal(true);
+  }, []);
+
+  const handleResolveException = useCallback((exceptionId: string) => {
+    setSelectedException(exceptionId);
+    setSelectedOrder(""); // Clear selectedOrder since we're using exceptionId
+    setShowResolveExceptionModal(true);
   }, []);
 
   const handleCreateRider = useCallback(
@@ -326,6 +388,88 @@ export default function LagosHubDashboard() {
     setShowAssignRiderModal(false);
     setSelectedOrder("");
   }, []);
+
+  const handleRequestMoreEvidenceSubmit = useCallback(
+    async (orderId: string, note: string) => {
+      // Find the exception to get the actual order ID
+      const exception = orderExceptionsData?.data?.items?.find(
+        (ex: OrderException) => ex.id === selectedException
+      );
+      if (!exception) {
+        showError("Exception not found");
+        return;
+      }
+
+      await handleAsyncOperation(
+        () =>
+          requestMoreEvidence({
+            orderId: exception.orderId,
+            exId: selectedException,
+            data: { note },
+          }).unwrap(),
+        {
+          onSuccess: () => {
+            setShowRequestMoreEvidenceModal(false);
+            setSelectedException("");
+            setSelectedOrder("");
+            showSuccess("Evidence request sent successfully");
+            refetchExceptions();
+          },
+          successMessage: "",
+          showErrorToast: true,
+        }
+      );
+    },
+    [
+      requestMoreEvidence,
+      selectedException,
+      orderExceptionsData,
+      refetchExceptions,
+      showSuccess,
+      handleAsyncOperation,
+    ]
+  );
+
+  const handleResolveExceptionSubmit = useCallback(
+    async (orderId: string, status: "RESOLVED" | "REJECTED") => {
+      // Find the exception to get the actual order ID
+      const exception = orderExceptionsData?.data?.items?.find(
+        (ex: OrderException) => ex.id === selectedException
+      );
+      if (!exception) {
+        showError("Exception not found");
+        return;
+      }
+
+      await handleAsyncOperation(
+        () =>
+          resolveException({
+            orderId: exception.orderId,
+            exId: selectedException,
+            data: { status },
+          }).unwrap(),
+        {
+          onSuccess: () => {
+            setShowResolveExceptionModal(false);
+            setSelectedException("");
+            setSelectedOrder("");
+            showSuccess(`Exception ${status.toLowerCase()} successfully`);
+            refetchExceptions();
+          },
+          successMessage: "",
+          showErrorToast: true,
+        }
+      );
+    },
+    [
+      resolveException,
+      selectedException,
+      orderExceptionsData,
+      refetchExceptions,
+      showSuccess,
+      handleAsyncOperation,
+    ]
+  );
 
   // Derived loading state
   const isRefreshing = pickupLoading || deliveryLoading;
@@ -456,6 +600,11 @@ export default function LagosHubDashboard() {
         <ExceptionsTable
           exceptions={exceptions}
           onInvestigate={handleInvestigate}
+          onRequestMoreEvidence={handleRequestMoreEvidence}
+          onResolveException={handleResolveException}
+          isLoading={exceptionsLoading}
+          error={getErrorMessage(exceptionsError)}
+          onRefresh={refetchExceptions}
         />
 
         {/* Modals */}
@@ -488,8 +637,44 @@ export default function LagosHubDashboard() {
 
         <InvestigateExceptionModal
           isOpen={showInvestigateModal}
-          onClose={() => setShowInvestigateModal(false)}
-          selectedOrder={selectedOrder}
+          onClose={() => {
+            setShowInvestigateModal(false);
+            setSelectedExceptionData(null);
+            setSelectedOrder("");
+          }}
+          exception={selectedExceptionData}
+        />
+
+        <RequestMoreEvidenceModal
+          isOpen={showRequestMoreEvidenceModal}
+          onClose={() => {
+            setShowRequestMoreEvidenceModal(false);
+            setSelectedException("");
+          }}
+          exceptionId={selectedException}
+          orderId={
+            orderExceptionsData?.data?.items?.find(
+              (ex: OrderException) => ex.id === selectedException
+            )?.orderId || ""
+          }
+          onSubmit={handleRequestMoreEvidenceSubmit}
+          isLoading={isRequestingEvidence}
+        />
+
+        <ResolveExceptionModal
+          isOpen={showResolveExceptionModal}
+          onClose={() => {
+            setShowResolveExceptionModal(false);
+            setSelectedException("");
+          }}
+          exceptionId={selectedException}
+          orderId={
+            orderExceptionsData?.data?.items?.find(
+              (ex: OrderException) => ex.id === selectedException
+            )?.orderId || ""
+          }
+          onResolve={handleResolveExceptionSubmit}
+          isLoading={isResolvingException}
         />
       </div>
     </ErrorBoundary>

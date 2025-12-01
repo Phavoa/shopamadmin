@@ -9,15 +9,32 @@ const API_BASE_URL =
 export interface OrderException {
   id: string;
   orderId: string;
-  exceptionType: string;
+  type: string;
   status: "OPEN" | "IN_REVIEW" | "RESOLVED" | "REJECTED";
   description: string;
+  images?: string[];
   createdAt: string;
   updatedAt: string;
   adminNotes?: string;
   buyerNotes?: string;
   resolutionNotes?: string;
   evidenceRequests?: EvidenceRequest[];
+  // Populated fields when using populate parameter
+  buyer?: {
+    id: string;
+    firstName: string;
+    lastName: string;
+    email: string;
+    phone: string;
+    address?: string;
+  };
+  seller?: {
+    id: string;
+    firstName: string;
+    lastName: string;
+    email: string;
+    phone: string;
+  };
 }
 
 export interface EvidenceRequest {
@@ -27,12 +44,23 @@ export interface EvidenceRequest {
   adminId: string;
 }
 
-export interface AdminResolveDto {
-  status: "OPEN" | "IN_REVIEW" | "RESOLVED" | "REJECTED";
+export interface BuyerReportDto {
+  type: "DAMAGED_ITEM" | string;
+  description: string;
+  images?: string[];
 }
 
 export interface RequestMoreEvidenceDto {
   note: string;
+}
+
+export interface BuyerRespondDto {
+  description: string;
+  images?: string[];
+}
+
+export interface AdminResolveDto {
+  status: "OPEN" | "IN_REVIEW" | "RESOLVED" | "REJECTED";
 }
 
 export interface OrderExceptionListResponse {
@@ -146,13 +174,26 @@ export const orderExceptionsApi = createApi({
   baseQuery: baseQueryWithReauth,
   tagTypes: ["OrderException"],
   endpoints: (builder) => ({
-    // Get order exceptions list
+    // Buyer reports an issue for an order
+    reportIssue: builder.mutation<
+      ApiResponse<OrderException>,
+      { orderId: string; data: BuyerReportDto }
+    >({
+      query: ({ orderId, data }) => ({
+        url: `/orders-exceptions/${orderId}/buyer/report`,
+        method: "POST",
+        body: data,
+      }),
+      invalidatesTags: ["OrderException"],
+    }),
+
+    // Get all order exceptions list
     getOrderExceptions: builder.query<
       ApiResponse<OrderExceptionListResponse>,
-      { orderId: string; params?: GetOrderExceptionsParams }
+      { params?: GetOrderExceptionsParams }
     >({
-      query: ({ orderId, params = {} }) => ({
-        url: `/orders/${orderId}/exceptions`,
+      query: ({ params = {} }) => ({
+        url: `/orders-exceptions`,
         method: "GET",
         params,
       }),
@@ -174,7 +215,7 @@ export const orderExceptionsApi = createApi({
       { orderId: string; exId: string; data: RequestMoreEvidenceDto }
     >({
       query: ({ orderId, exId, data }) => ({
-        url: `/orders/${orderId}/exceptions/${exId}/admin/request-more`,
+        url: `/orders-exceptions/${exId}/admin/request-more`,
         method: "POST",
         body: data,
       }),
@@ -184,13 +225,29 @@ export const orderExceptionsApi = createApi({
       ],
     }),
 
-    // Resolve the exception
+    // Buyer responds with more evidence
+    buyerRespond: builder.mutation<
+      ApiResponse<OrderException>,
+      { orderId: string; exId: string; data: BuyerRespondDto }
+    >({
+      query: ({ orderId, exId, data }) => ({
+        url: `/orders-exceptions/${exId}/buyer/respond`,
+        method: "PATCH",
+        body: data,
+      }),
+      invalidatesTags: (result, error, { exId }) => [
+        { type: "OrderException", id: exId },
+        "OrderException",
+      ],
+    }),
+
+    // Admin resolves the exception
     resolveException: builder.mutation<
       ApiResponse<OrderException>,
       { orderId: string; exId: string; data: AdminResolveDto }
     >({
       query: ({ orderId, exId, data }) => ({
-        url: `/orders/${orderId}/exceptions/${exId}/admin/resolve`,
+        url: `/orders-exceptions/${exId}/admin/resolve`,
         method: "PATCH",
         body: data,
       }),
@@ -204,8 +261,10 @@ export const orderExceptionsApi = createApi({
 
 // EXPORT ALL HOOKS
 export const {
+  useReportIssueMutation,
   useGetOrderExceptionsQuery,
   useLazyGetOrderExceptionsQuery,
   useRequestMoreEvidenceMutation,
+  useBuyerRespondMutation,
   useResolveExceptionMutation,
 } = orderExceptionsApi;
