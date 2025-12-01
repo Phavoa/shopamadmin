@@ -1,15 +1,15 @@
 "use client";
 
 import React, { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
 import { useGetUsersQuery } from "@/api/userApi";
 import type { User } from "@/types/auth";
-import type { Buyer, StrikeData } from "@/types/buyer";
+import type { Buyer, StrikeData, SelectedBuyerForAction } from "@/types/buyer";
 import { useSelector, useDispatch } from "react-redux";
 import { selectSearchQuery } from "@/features/search";
 
 // Import the new components
 import {
-  BuyerProfileView,
   BuyersListLayout,
   BuyerLoadingState,
   BuyerErrorState,
@@ -24,11 +24,10 @@ import {
 import { setHeaderTitle } from "@/features/shared/headerSice";
 
 const BuyersListPage = () => {
+  const router = useRouter();
   const dispatch = useDispatch();
   const searchQuery = useSelector(selectSearchQuery);
   const [currentPage, setCurrentPage] = useState(1);
-  const [activeActionMenu, setActiveActionMenu] = useState<string | null>(null);
-  const [selectedBuyer, setSelectedBuyer] = useState<Buyer | null>(null);
   const [nextCursor, setNextCursor] = useState<string | undefined>();
   const [hasNext, setHasNext] = useState(false);
 
@@ -36,7 +35,7 @@ const BuyersListPage = () => {
   const [suspendModal, setSuspendModal] = useState(false);
   const [strikeModal, setStrikeModal] = useState(false);
   const [selectedBuyerForAction, setSelectedBuyerForAction] =
-    useState<Buyer | null>(null);
+    useState<SelectedBuyerForAction | null>(null);
 
   // Form state
   const [reason, setReason] = useState("");
@@ -47,7 +46,7 @@ const BuyersListPage = () => {
     dispatch(setHeaderTitle("Buyer List"));
   }, [dispatch]);
 
-  const buyersPerPage = 20; // Show more users per page
+  const buyersPerPage = 20;
 
   // Fetch buyers using useGetUsersQuery
   const {
@@ -77,7 +76,7 @@ const BuyersListPage = () => {
       name: `${user.firstName} ${user.lastName}`,
       verified: user.isVerified || true,
       totalOrders: 0,
-      totalSpend: "₦0", // Note: totalPurchases not available in User type
+      totalSpend: "₦0",
       lastActivity: new Date(user.updatedAt).toLocaleDateString(),
       strikes: 0,
       followersCount: user.followersCount || 0,
@@ -110,7 +109,6 @@ const BuyersListPage = () => {
   const handleNextPage = () => {
     if (hasNext && nextCursor) {
       setCurrentPage(currentPage + 1);
-      // Note: RTK Query handles pagination internally with after cursor
     }
   };
 
@@ -120,20 +118,20 @@ const BuyersListPage = () => {
     }
   };
 
-  const toggleActionMenu = (buyerId: string) => {
-    setActiveActionMenu(activeActionMenu === buyerId ? null : buyerId);
-  };
-
   const handleViewBuyer = (buyer: Buyer) => {
-    setSelectedBuyer(buyer);
-    setActiveActionMenu(null);
+    router.push(`/admin-dashboard/buyers/${buyer.id}`);
   };
 
   // Handle Suspend
   const openSuspendModal = (buyer: Buyer) => {
-    setSelectedBuyerForAction(buyer);
+    setSelectedBuyerForAction({
+      id: buyer.id,
+      name: buyer.name || `${buyer.firstName} ${buyer.lastName}`,
+      firstName: buyer.firstName,
+      lastName: buyer.lastName,
+      email: buyer.email,
+    });
     setSuspendModal(true);
-    setActiveActionMenu(null);
   };
 
   const handleSuspend = async () => {
@@ -172,7 +170,11 @@ const BuyersListPage = () => {
       setSuspendModal(false);
       setReason("");
       setDuration("");
+      setSelectedBuyerForAction(null);
       alert("Buyer suspended successfully!");
+
+      // Refresh the list
+      refetch();
     } catch (err) {
       console.error("Error suspending buyer:", err);
       alert("Failed to suspend buyer");
@@ -183,14 +185,19 @@ const BuyersListPage = () => {
 
   // Handle Strike
   const openStrikeModal = (buyer: Buyer) => {
-    setSelectedBuyerForAction(buyer);
+    setSelectedBuyerForAction({
+      id: buyer.id,
+      name: buyer.name || `${buyer.firstName} ${buyer.lastName}`,
+      firstName: buyer.firstName,
+      lastName: buyer.lastName,
+      email: buyer.email,
+    });
     setStrikeModal(true);
-    setActiveActionMenu(null);
   };
 
   const handleStrike = async () => {
-    if (!selectedBuyerForAction || !reason || !duration) {
-      alert("Please fill in all fields");
+    if (!selectedBuyerForAction || !reason) {
+      alert("Please enter a reason");
       return;
     }
 
@@ -216,7 +223,7 @@ const BuyersListPage = () => {
           `${selectedBuyerForAction.firstName} ${selectedBuyerForAction.lastName}`,
         buyerEmail: selectedBuyerForAction.email,
         reason,
-        duration,
+        duration: "",
         strikeCount: newStrikeCount,
         status,
         date: new Date().toISOString(),
@@ -243,12 +250,15 @@ const BuyersListPage = () => {
 
       setStrikeModal(false);
       setReason("");
-      setDuration("");
+      setSelectedBuyerForAction(null);
       alert(
         `Strike issued! (${newStrikeCount}/3)${
           newStrikeCount >= 3 ? " - Buyer suspended" : ""
         }`
       );
+
+      // Refresh the list
+      refetch();
     } catch (err) {
       console.error("Error issuing strike:", err);
       alert("Failed to issue strike");
@@ -256,21 +266,6 @@ const BuyersListPage = () => {
       setActionLoading(false);
     }
   };
-
-  // Handle form changes
-  const handleReasonChange = (newReason: string) => setReason(newReason);
-  const handleDurationChange = (newDuration: string) =>
-    setDuration(newDuration);
-
-  // Buyer Profile View
-  if (selectedBuyer) {
-    return (
-      <BuyerProfileView
-        selectedBuyer={selectedBuyer}
-        onBack={() => setSelectedBuyer(null)}
-      />
-    );
-  }
 
   // Loading state
   if (isLoading) {
@@ -288,11 +283,9 @@ const BuyersListPage = () => {
       <AnimatedWrapper animation="fadeIn" delay={0.1}>
         <BuyersListLayout
           buyers={buyers}
-          activeActionMenu={activeActionMenu}
           currentPage={currentPage}
           hasNext={hasNext}
           isLoading={isLoading}
-          onToggleActionMenu={toggleActionMenu}
           onViewBuyer={handleViewBuyer}
           onSuspendBuyer={openSuspendModal}
           onStrikeBuyer={openStrikeModal}
@@ -310,8 +303,8 @@ const BuyersListPage = () => {
           duration={duration}
           actionLoading={actionLoading}
           onOpenChange={setSuspendModal}
-          onReasonChange={handleReasonChange}
-          onDurationChange={handleDurationChange}
+          onReasonChange={setReason}
+          onDurationChange={setDuration}
           onSuspend={handleSuspend}
         />
 
@@ -319,11 +312,9 @@ const BuyersListPage = () => {
           isOpen={strikeModal}
           selectedBuyer={selectedBuyerForAction}
           reason={reason}
-          duration={duration}
           actionLoading={actionLoading}
           onOpenChange={setStrikeModal}
-          onReasonChange={handleReasonChange}
-          onDurationChange={handleDurationChange}
+          onReasonChange={setReason}
           onIssueStrike={handleStrike}
         />
       </AnimatedWrapper>

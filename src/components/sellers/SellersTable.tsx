@@ -36,7 +36,8 @@ interface SellersTableProps {
   fetchingSellers: boolean;
   error: string | null;
   onViewSeller: (seller: DisplaySeller) => void;
-  onSuspend?: () => void;
+  onSuspendSeller: (seller: DisplaySeller) => void;
+  onStrikeSeller: (seller: DisplaySeller) => void;
 }
 
 const SellersTable: React.FC<SellersTableProps> = ({
@@ -44,7 +45,8 @@ const SellersTable: React.FC<SellersTableProps> = ({
   fetchingSellers,
   error,
   onViewSeller,
-  onSuspend,
+  onSuspendSeller,
+  onStrikeSeller,
 }) => {
   // Show skeleton loader when fetching data
   if (fetchingSellers) {
@@ -101,7 +103,8 @@ const SellersTable: React.FC<SellersTableProps> = ({
                 key={seller.id}
                 seller={seller}
                 onViewSeller={onViewSeller}
-                onSuspend={onSuspend}
+                onSuspendSeller={onSuspendSeller}
+                onStrikeSeller={onStrikeSeller}
               />
             ))
           )}

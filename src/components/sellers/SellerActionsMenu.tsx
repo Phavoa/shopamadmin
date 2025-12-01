@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React from "react";
 import { TableCell } from "@/components/ui/table";
 import {
   DropdownMenu,
@@ -7,9 +7,8 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Button } from "@/components/ui/button";
-import { Eye, Key, Ban } from "lucide-react";
+import { Eye, AlertTriangle, Ban } from "lucide-react";
 import ActionIcon from "./ActionIcon";
-import { suspendSeller } from "@/api/sellerApi";
 
 interface DisplaySeller {
   id: string;
@@ -35,28 +34,16 @@ interface DisplaySeller {
 interface SellerActionsMenuProps {
   seller: DisplaySeller;
   onViewSeller: (seller: DisplaySeller) => void;
-  onSuspend?: () => void;
+  onSuspendSeller: (seller: DisplaySeller) => void;
+  onStrikeSeller: (seller: DisplaySeller) => void;
 }
 
 const SellerActionsMenu: React.FC<SellerActionsMenuProps> = ({
   seller,
   onViewSeller,
-  onSuspend,
+  onSuspendSeller,
+  onStrikeSeller,
 }) => {
-  const [suspending, setSuspending] = useState(false);
-
-  const handleSuspend = async () => {
-    try {
-      setSuspending(true);
-      await suspendSeller(seller.id);
-      onSuspend?.();
-    } catch (error) {
-      console.error("Failed to suspend seller:", error);
-      // You might want to show a toast notification here
-    } finally {
-      setSuspending(false);
-    }
-  };
   return (
     <TableCell className="py-4 px-6">
       <DropdownMenu>
@@ -77,16 +64,18 @@ const SellerActionsMenu: React.FC<SellerActionsMenuProps> = ({
             <span>View</span>
             <Eye className="w-4 h-4" />
           </DropdownMenuItem>
-          <DropdownMenuItem className="flex items-center justify-between cursor-pointer">
-            <span>Override</span>
-            <Key className="w-4 h-4" />
-          </DropdownMenuItem>
           <DropdownMenuItem
-            onClick={handleSuspend}
-            disabled={suspending}
+            onClick={() => onStrikeSeller(seller)}
             className="flex items-center justify-between cursor-pointer"
           >
-            <span>{suspending ? "Suspending..." : "Suspend"}</span>
+            <span>Strike</span>
+            <AlertTriangle className="w-4 h-4" />
+          </DropdownMenuItem>
+          <DropdownMenuItem
+            onClick={() => onSuspendSeller(seller)}
+            className="flex items-center justify-between cursor-pointer text-red-600"
+          >
+            <span>Suspend</span>
             <Ban className="w-4 h-4" />
           </DropdownMenuItem>
         </DropdownMenuContent>

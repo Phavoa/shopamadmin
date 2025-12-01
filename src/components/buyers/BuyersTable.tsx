@@ -15,8 +15,6 @@ import BuyerActionsMenu from "./BuyerActionsMenu";
 
 interface BuyersTableProps {
   buyers: Buyer[];
-  activeActionMenu: string | null;
-  onToggleActionMenu: (buyerId: string) => void;
   onViewBuyer: (buyer: Buyer) => void;
   onSuspendBuyer: (buyer: Buyer) => void;
   onStrikeBuyer: (buyer: Buyer) => void;
@@ -24,8 +22,6 @@ interface BuyersTableProps {
 
 const BuyersTable: React.FC<BuyersTableProps> = ({
   buyers,
-  activeActionMenu,
-  onToggleActionMenu,
   onViewBuyer,
   onSuspendBuyer,
   onStrikeBuyer,
@@ -136,8 +132,6 @@ const BuyersTable: React.FC<BuyersTableProps> = ({
                 </TableCell>
                 <BuyerActionsMenu
                   buyer={buyer}
-                  activeActionMenu={activeActionMenu}
-                  onToggleMenu={onToggleActionMenu}
                   onViewBuyer={onViewBuyer}
                   onSuspendBuyer={onSuspendBuyer}
                   onStrikeBuyer={onStrikeBuyer}

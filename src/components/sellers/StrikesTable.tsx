@@ -25,6 +25,7 @@ interface StrikesTableProps {
   error: string | null;
   searchQuery: string;
   onSearchChange: (value: string) => void;
+  onExtendSuspension: (strike: StrikeRecord) => void;
 }
 
 export const StrikesTable: React.FC<StrikesTableProps> = ({
@@ -33,6 +34,7 @@ export const StrikesTable: React.FC<StrikesTableProps> = ({
   error,
   searchQuery,
   onSearchChange,
+  onExtendSuspension,
 }) => {
   return (
     <div className="bg-white rounded-lg shadow-sm border border-[#E5E7EB] mb-8">
@@ -107,7 +109,7 @@ export const StrikesTable: React.FC<StrikesTableProps> = ({
                 </tr>
               ) : (
                 strikes.map((strike) => (
-                  <StrikeRow key={strike.id} strike={strike} />
+                  <StrikeRow key={strike.id} strike={strike} onExtendSuspension={onExtendSuspension} />
                 ))
               )}
             </tbody>

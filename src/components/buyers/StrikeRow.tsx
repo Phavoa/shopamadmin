@@ -17,6 +17,10 @@ interface StrikeRecord {
 
 interface StrikeRowProps {
   strike: StrikeRecord;
+  onUpgradeToSuspension?: (strike: StrikeRecord) => void;
+  onExtendSuspension?: (strike: StrikeRecord) => void;
+  onRevoke?: (strike: StrikeRecord) => Promise<void>;
+  onContact?: (strike: StrikeRecord) => void;
 }
 
 const getStatusBadgeStyles = (status: string) => {
@@ -29,7 +33,7 @@ const getStatusBadgeStyles = (status: string) => {
   }
 };
 
-export const StrikeRow: React.FC<StrikeRowProps> = ({ strike }) => {
+export const StrikeRow: React.FC<StrikeRowProps> = ({ strike, onUpgradeToSuspension, onExtendSuspension, onRevoke, onContact }) => {
   return (
     <tr className="border-b border-[#E5E7EB] bg-white hover:bg-[#F9FAFB]">
       <td className="py-4 px-4 text-sm font-medium text-[#111827]">
@@ -67,12 +71,14 @@ export const StrikeRow: React.FC<StrikeRowProps> = ({ strike }) => {
           {strike.status === "Suspended" ? (
             <>
               <Button
+                onClick={() => onRevoke?.(strike)}
                 size="sm"
                 className="bg-[#E67E22] hover:bg-[#D4731F] text-white px-3 py-1 h-8 text-xs flex-1"
               >
                 Reinstate
               </Button>
               <Button
+                onClick={() => onExtendSuspension?.(strike)}
                 size="sm"
                 variant="outline"
                 className="border-[#E67E22] text-[#E67E22] hover:bg-[#FFF5EB] px-3 py-1 h-8 text-xs flex-1"
@@ -80,6 +86,7 @@ export const StrikeRow: React.FC<StrikeRowProps> = ({ strike }) => {
                 Extend
               </Button>
               <Button
+                onClick={() => onContact?.(strike)}
                 size="sm"
                 variant="outline"
                 className="border-[#E67E22] text-[#E67E22] hover:bg-[#FFF5EB] px-3 py-1 h-8 text-xs flex-1"
@@ -90,12 +97,14 @@ export const StrikeRow: React.FC<StrikeRowProps> = ({ strike }) => {
           ) : strike.status.includes("Strike") ? (
             <>
               <Button
+                onClick={() => onRevoke?.(strike)}
                 size="sm"
                 className="bg-[#E67E22] hover:bg-[#D4731F] text-white px-3 py-1 h-8 text-xs flex-1"
               >
                 Clear
               </Button>
               <Button
+                onClick={() => onUpgradeToSuspension?.(strike)}
                 size="sm"
                 variant="outline"
                 className="border-[#E67E22] text-[#E67E22] hover:bg-[#FFF5EB] px-3 py-1 h-8 text-xs flex-1"

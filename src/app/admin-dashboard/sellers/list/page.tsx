@@ -14,10 +14,11 @@ import { selectSearchQuery } from "@/features/search";
 import { getTierDisplayName } from "@/lib/tierUtils";
 import SellersTable from "@/components/sellers/SellersTable";
 import SellersPagination from "@/components/sellers/SellersPagination";
+import SuspendSellerModal from "@/components/sellers/SuspendSellerModal";
+import IssueStrikeModal from "@/components/sellers/IssueStrikeModal";
 import {
   AnimatedWrapper,
   PageWrapper,
-  StaggerContainer,
 } from "@/components/shared/AnimatedWrapper";
 
 interface DisplaySeller {
@@ -41,6 +42,28 @@ interface DisplaySeller {
   nextSlot?: string;
 }
 
+interface StrikeData {
+  sellerId: string;
+  sellerName: string;
+  sellerEmail: string;
+  shopName: string;
+  reason: string;
+  strikeCount: number;
+  status: string;
+  date: string;
+}
+
+interface SuspensionData {
+  sellerId: string;
+  sellerName: string;
+  sellerEmail: string;
+  shopName: string;
+  reason: string;
+  duration: string;
+  status: string;
+  date: string;
+}
+
 const Page = () => {
   const router = useRouter();
   const dispatch = useDispatch();
@@ -55,6 +78,16 @@ const Page = () => {
   const [hasPrev, setHasPrev] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
 
+  // Modal states
+  const [suspendModal, setSuspendModal] = useState(false);
+  const [strikeModal, setStrikeModal] = useState(false);
+  const [selectedSeller, setSelectedSeller] = useState<DisplaySeller | null>(null);
+  
+  // Form states
+  const [reason, setReason] = useState("");
+  const [duration, setDuration] = useState("");
+  const [actionLoading, setActionLoading] = useState(false);
+
   useEffect(() => {
     dispatch(setHeaderTitle("Seller List"));
   }, [dispatch]);
@@ -66,7 +99,7 @@ const Page = () => {
 
       const response = await getSellers({
         ...params,
-        limit: 9, // Match the previous sellersPerPage
+        limit: 9,
       });
       const sellersData = response.data.items;
 
@@ -84,7 +117,7 @@ const Page = () => {
           const user = userProfiles[index];
           return {
             id: seller.userId,
-            name: user ? `${user.firstName} ${user.lastName}` : "Unknown User",
+            name: user ? `${user.firstName} ${user.lastName}` : seller.shopName,
             email: user ? user.email : seller.userEmail,
             status: seller.status.toLowerCase(),
             tier: getTierDisplayName(seller.tier),
@@ -93,14 +126,14 @@ const Page = () => {
             location: `${seller.locationCity}, ${seller.locationState}`,
             totalSales: seller.totalSales,
             createdAt: seller.createdAt,
-            reliability: "95%", // Dummy, as not in API
-            strikes: 0, // Dummy
-            lastLive: "Aug 30 (Bronze, 210 viewers)", // Dummy
-            walletBalance: "₦340,000", // Dummy
-            totalOrders: 452, // Dummy
-            completedOrders: 400, // Dummy
-            activeListings: 35, // Dummy
-            nextSlot: "Sep 6, 2025 14:00 (Bronze)", // Dummy
+            reliability: "95%",
+            strikes: 0,
+            lastLive: "Aug 30 (Bronze, 210 viewers)",
+            walletBalance: "₦340,000",
+            totalOrders: 452,
+            completedOrders: 400,
+            activeListings: 35,
+            nextSlot: "Sep 6, 2025 14:00 (Bronze)",
           };
         }
       );
@@ -122,9 +155,7 @@ const Page = () => {
   }, []);
 
   useEffect(() => {
-    // Reset page number when search changes
     setCurrentPage(1);
-    // Reset cursors when search changes
     setNextCursor(undefined);
     setPrevCursor(undefined);
     fetchSellers({ q: searchQuery || undefined });
@@ -134,9 +165,141 @@ const Page = () => {
     router.push(`/admin-dashboard/sellers/${seller.id}`);
   };
 
+  // Open Suspend Modal
+  const openSuspendModal = (seller: DisplaySeller) => {
+    setSelectedSeller(seller);
+    setSuspendModal(true);
+  };
+
+  // Handle Suspend
   const handleSuspend = async () => {
-    // Refresh the seller list after suspending a seller
-    await fetchSellers();
+    if (!selectedSeller || !reason || !duration) {
+      alert("Please fill in all fields");
+      return;
+    }
+
+    try {
+      setActionLoading(true);
+
+      // TODO: Replace with actual API call when backend is ready
+      // await suspendSeller(selectedSeller.id, { reason, duration });
+
+      // Store suspension data (localStorage for now)
+      const suspensionData: SuspensionData = {
+        sellerId: selectedSeller.id,
+        sellerName: selectedSeller.name,
+        sellerEmail: selectedSeller.email,
+        shopName: selectedSeller.shopName,
+        reason,
+        duration,
+        status: "Suspended",
+        date: new Date().toISOString(),
+      };
+
+      console.log("Suspension Data:", suspensionData);
+
+      const existingData: SuspensionData[] = JSON.parse(
+        localStorage.getItem("seller_suspensions") || "[]"
+      );
+      localStorage.setItem(
+        "seller_suspensions",
+        JSON.stringify([...existingData, suspensionData])
+      );
+
+      setSuspendModal(false);
+      setReason("");
+      setDuration("");
+      setSelectedSeller(null);
+      alert("Seller suspended successfully!");
+      
+      // Refresh seller list
+      await fetchSellers();
+    } catch (err) {
+      console.error("Error suspending seller:", err);
+      alert("Failed to suspend seller");
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
+  // Open Strike Modal
+  const openStrikeModal = (seller: DisplaySeller) => {
+    setSelectedSeller(seller);
+    setStrikeModal(true);
+  };
+
+  // Handle Strike
+  const handleStrike = async () => {
+    if (!selectedSeller || !reason) {
+      alert("Please enter a reason");
+      return;
+    }
+
+    try {
+      setActionLoading(true);
+
+      // TODO: Replace with actual API call when backend is ready
+      // await issueSellerstrike(selectedSeller.id, { reason });
+
+      // Get existing strikes
+      const existingStrikes: StrikeData[] = JSON.parse(
+        localStorage.getItem("seller_strikes") || "[]"
+      );
+      const sellerStrikes = existingStrikes.filter(
+        (s: StrikeData) => s.sellerId === selectedSeller.id
+      );
+
+      const newStrikeCount = sellerStrikes.length + 1;
+      const status =
+        newStrikeCount >= 3 ? "Suspended" : `Strike(${newStrikeCount}/3)`;
+
+      const strikeData = {
+        sellerId: selectedSeller.id,
+        sellerName: selectedSeller.name,
+        sellerEmail: selectedSeller.email,
+        shopName: selectedSeller.shopName,
+        reason,
+        strikeCount: newStrikeCount,
+        status,
+        date: new Date().toISOString(),
+      };
+
+      console.log("Strike Data:", strikeData);
+
+      // Store strike
+      localStorage.setItem(
+        "seller_strikes",
+        JSON.stringify([...existingStrikes, strikeData])
+      );
+
+      // If 3 strikes, also add to suspensions
+      if (newStrikeCount >= 3) {
+        const existingSuspensions: SuspensionData[] = JSON.parse(
+          localStorage.getItem("seller_suspensions") || "[]"
+        );
+        localStorage.setItem(
+          "seller_suspensions",
+          JSON.stringify([...existingSuspensions, strikeData])
+        );
+      }
+
+      setStrikeModal(false);
+      setReason("");
+      setSelectedSeller(null);
+      alert(
+        `Strike issued! (${newStrikeCount}/3)${
+          newStrikeCount >= 3 ? " - Seller suspended" : ""
+        }`
+      );
+      
+      // Refresh seller list
+      await fetchSellers();
+    } catch (err) {
+      console.error("Error issuing strike:", err);
+      alert("Failed to issue strike");
+    } finally {
+      setActionLoading(false);
+    }
   };
 
   // Pagination functions
@@ -162,7 +325,8 @@ const Page = () => {
           fetchingSellers={fetchingSellers}
           error={error}
           onViewSeller={handleViewSeller}
-          onSuspend={handleSuspend}
+          onSuspendSeller={openSuspendModal}
+          onStrikeSeller={openStrikeModal}
         />
       </AnimatedWrapper>
 
@@ -176,6 +340,29 @@ const Page = () => {
           currentPage={currentPage}
         />
       </AnimatedWrapper>
+
+      {/* Modals */}
+      <SuspendSellerModal
+        isOpen={suspendModal}
+        selectedSeller={selectedSeller}
+        reason={reason}
+        duration={duration}
+        actionLoading={actionLoading}
+        onOpenChange={setSuspendModal}
+        onReasonChange={setReason}
+        onDurationChange={setDuration}
+        onSuspend={handleSuspend}
+      />
+
+      <IssueStrikeModal
+        isOpen={strikeModal}
+        selectedSeller={selectedSeller}
+        reason={reason}
+        actionLoading={actionLoading}
+        onOpenChange={setStrikeModal}
+        onReasonChange={setReason}
+        onIssueStrike={handleStrike}
+      />
     </PageWrapper>
   );
 };

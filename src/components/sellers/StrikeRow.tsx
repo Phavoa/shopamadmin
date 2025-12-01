@@ -20,6 +20,7 @@ interface StrikeRecord {
 
 interface StrikeRowProps {
   strike: StrikeRecord;
+  onExtendSuspension?: (strike: StrikeRecord) => void;
 }
 
 const getStatusBadgeStyles = (status: string) => {
@@ -32,7 +33,7 @@ const getStatusBadgeStyles = (status: string) => {
   }
 };
 
-export const StrikeRow: React.FC<StrikeRowProps> = ({ strike }) => {
+export const StrikeRow: React.FC<StrikeRowProps> = ({ strike, onExtendSuspension }) => {
   return (
     <tr className="border-b border-[#E5E7EB] bg-white hover:bg-[#F9FAFB]">
       <td className="py-4 px-4 text-sm font-medium text-[#111827]">
@@ -74,6 +75,7 @@ export const StrikeRow: React.FC<StrikeRowProps> = ({ strike }) => {
                 Reinstate
               </Button>
               <Button
+                onClick={() => onExtendSuspension?.(strike)}
                 size="sm"
                 variant="outline"
                 className="border-[#E67E22] text-[#E67E22] hover:bg-[#FFF5EB] px-3 py-1 h-8 text-xs flex-1"

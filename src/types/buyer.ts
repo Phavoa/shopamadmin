@@ -10,6 +10,14 @@ export interface Buyer extends User {
   followingCount?: number;
 }
 
+export interface SelectedBuyerForAction {
+  id: string;
+  name: string;
+  firstName: string;
+  lastName: string;
+  email: string;
+}
+
 export interface StrikeData {
   buyerId: string;
   buyerName: string;

@@ -7,7 +7,6 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import {
   Select,
@@ -19,83 +18,57 @@ import {
 import { Switch } from "@/components/ui/switch";
 import { SelectedBuyerForAction } from "@/types/buyer";
 
-interface SuspendBuyerModalProps {
+interface ExtendSuspensionModalProps {
   isOpen: boolean;
   selectedBuyer: SelectedBuyerForAction | null;
-  reason: string;
-  duration: string;
   actionLoading: boolean;
   onOpenChange: (open: boolean) => void;
-  onReasonChange: (reason: string) => void;
-  onDurationChange: (duration: string) => void;
-  onSuspend: () => void;
+  onExtend: (days: string, notify: boolean) => void;
 }
 
-const getBuyerName = (buyer: SelectedBuyerForAction | null) => {
-  if (!buyer) return "";
-  return buyer.name || `${buyer.firstName} ${buyer.lastName}`;
-};
-
-const SuspendBuyerModal: React.FC<SuspendBuyerModalProps> = ({
+const ExtendSuspensionModal: React.FC<ExtendSuspensionModalProps> = ({
   isOpen,
   selectedBuyer,
-  reason,
-  duration,
   actionLoading,
   onOpenChange,
-  onReasonChange,
-  onDurationChange,
-  onSuspend,
+  onExtend,
 }) => {
+  const [extensionDays, setExtensionDays] = useState("");
   const [notifyBuyer, setNotifyBuyer] = useState(true);
+
+  const handleExtend = () => {
+    if (extensionDays) {
+      onExtend(extensionDays, notifyBuyer);
+      setExtensionDays("");
+    }
+  };
 
   return (
     <Dialog open={isOpen} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-[480px] bg-white rounded-2xl p-6">
         <DialogHeader>
           <DialogTitle className="text-lg font-semibold text-gray-900">
-            Issue Suspension
+            Extend Suspension
           </DialogTitle>
         </DialogHeader>
 
         <div className="space-y-4 mt-4">
-          {/* Buyer Name (Read-only) */}
+          {/* Extension Days Dropdown */}
           <div>
             <Label className="text-sm text-gray-600 mb-2 block">
-              Buyer Name
+              Extend Suspension by:
             </Label>
-            <div className="w-full px-3 py-2 bg-gray-50 border border-gray-200 rounded-lg text-gray-900">
-              {getBuyerName(selectedBuyer)}
-            </div>
-          </div>
-
-          {/* Reason */}
-          <div>
-            <Label className="text-sm text-gray-600 mb-2 block">Reason</Label>
-            <Textarea
-              placeholder="Type the reason, e.g., Fraud, Chargeback, Abuse"
-              value={reason}
-              onChange={(e) => onReasonChange(e.target.value)}
-              className="w-full min-h-[80px] px-3 py-2 border border-gray-200 rounded-lg resize-none focus:outline-none focus:ring-2 focus:ring-orange-500"
-            />
-          </div>
-
-          {/* Cooldown Days Dropdown */}
-          <div>
-            <Label className="text-sm text-gray-600 mb-2 block">
-              Select Number of Cooldown days
-            </Label>
-            <Select value={duration} onValueChange={onDurationChange}>
+            <Select value={extensionDays} onValueChange={setExtensionDays}>
               <SelectTrigger className="w-full border-gray-200 rounded-lg">
                 <SelectValue placeholder="Select days" />
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="1">1 Day</SelectItem>
                 <SelectItem value="3">3 Days</SelectItem>
+                <SelectItem value="4">4 Days</SelectItem>
                 <SelectItem value="7">7 Days</SelectItem>
                 <SelectItem value="14">14 Days</SelectItem>
                 <SelectItem value="30">30 Days</SelectItem>
-                <SelectItem value="90">90 Days</SelectItem>
               </SelectContent>
             </Select>
           </div>
@@ -112,13 +85,13 @@ const SuspendBuyerModal: React.FC<SuspendBuyerModalProps> = ({
             />
           </div>
 
-          {/* Suspend Button */}
+          {/* Extend Button */}
           <Button
-            onClick={onSuspend}
-            disabled={actionLoading || !reason || !duration}
+            onClick={handleExtend}
+            disabled={actionLoading || !extensionDays}
             className="w-full bg-[#F97316] hover:bg-[#EA580C] text-white py-3 rounded-lg font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
           >
-            {actionLoading ? "Suspending..." : "Suspend"}
+            {actionLoading ? "Extending..." : "Extend"}
           </Button>
         </div>
       </DialogContent>
@@ -126,4 +99,4 @@ const SuspendBuyerModal: React.FC<SuspendBuyerModalProps> = ({
   );
 };
 
-export default SuspendBuyerModal;
+export default ExtendSuspensionModal;

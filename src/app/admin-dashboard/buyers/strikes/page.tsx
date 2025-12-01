@@ -3,10 +3,11 @@
 import React, { useState, useEffect } from "react";
 import { StrikesTable, StrikeRecord } from "@/components/buyers/StrikesTable";
 import { StrikeForm } from "@/components/buyers/StrikeForm";
-
+import SuspendBuyerModal from "@/components/buyers/SuspendBuyerModal";
+import ExtendSuspensionModal from "@/components/buyers/ExtendSuspensionModal";
+import { Buyer, SelectedBuyerForAction } from "@/types/buyer";
 
 // Mock data for strikes - in a real app, this would come from an API
-
 const mockStrikeData: StrikeRecord[] = [
   {
     id: "1",
@@ -130,29 +131,21 @@ const mockStrikeData: StrikeRecord[] = [
   },
 ];
 
-const getStatusBadgeStyles = (status: string) => {
-  if (status.includes("Strike")) {
-    return "bg-[#D4F4DD] text-[#2E7D32] border-none";
-  } else if (status === "Suspended") {
-    return "bg-[#FFD4D4] text-[#D32F2F] border-none";
-  } else {
-    return "bg-[#E8F5E9] text-[#43A047] border-none";
-  }
-};
-
 const Page = () => {
   const [strikes, setStrikes] = useState<StrikeRecord[]>([]);
-  const [loading, setLoading] = useState(false);
   const [fetchingStrikes, setFetchingStrikes] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
-  const [statusFilter, setStatusFilter] = useState<string>("all");
   const [selectedBuyer, setSelectedBuyer] = useState<string>("");
   const [reason, setReason] = useState<string>("");
   const [cooldownDays, setCooldownDays] = useState<string>("");
-  const [selectedStrike, setSelectedStrike] = useState<StrikeRecord | null>(
-    null
-  );
+
+  // Modal states
+  const [upgradeModal, setUpgradeModal] = useState(false);
+  const [extendModal, setExtendModal] = useState(false);
+  const [selectedBuyerForAction, setSelectedBuyerForAction] = useState<SelectedBuyerForAction | null>(null);
+  const [actionLoading, setActionLoading] = useState(false);
+  const [upgradeDuration, setUpgradeDuration] = useState("");
 
   // Fetch strikes with filters
   const fetchStrikes = async () => {
@@ -176,12 +169,6 @@ const Page = () => {
         );
       }
 
-      if (statusFilter && statusFilter !== "all") {
-        filteredStrikes = filteredStrikes.filter(
-          (strike) => strike.status === statusFilter
-        );
-      }
-
       setStrikes(filteredStrikes);
     } catch (error) {
       console.error("Failed to fetch strikes:", error);
@@ -196,13 +183,168 @@ const Page = () => {
     fetchStrikes();
   }, []);
 
-  // Handle search and filters
-  const handleSearch = () => {
-    fetchStrikes();
+  // Handle Upgrade to Suspension
+  const openUpgradeModal = (strike: StrikeRecord) => {
+    setSelectedBuyerForAction({
+      id: strike.buyerId,
+      name: strike.buyerName,
+      firstName: strike.buyerName.split(" ")[0],
+      lastName: strike.buyerName.split(" ")[1] || "",
+      email: strike.buyerEmail,
+    });
+    setUpgradeModal(true);
   };
 
-  const handleViewDetails = (strike: StrikeRecord) => {
-    setSelectedStrike(strike);
+  const handleUpgradeToSuspension = async () => {
+    if (!selectedBuyerForAction || !reason || !upgradeDuration) {
+      alert("Please fill in all fields");
+      return;
+    }
+
+    try {
+      setActionLoading(true);
+
+      // TODO: Replace with actual API call when backend is ready
+      // await upgradeBuyerToSuspension(selectedBuyerForAction.id, { reason, duration });
+
+      const suspensionData = {
+        buyerId: selectedBuyerForAction.id,
+        buyerName: selectedBuyerForAction.name,
+        buyerEmail: selectedBuyerForAction.email,
+        reason,
+        duration: upgradeDuration,
+        status: "Suspended",
+        upgradedFrom: "Strike",
+        date: new Date().toISOString(),
+      };
+
+      console.log("Upgrade to Suspension Data:", suspensionData);
+
+      // Store in localStorage for now
+      const existingSuspensions = JSON.parse(
+        localStorage.getItem("suspensions") || "[]"
+      );
+      localStorage.setItem(
+        "suspensions",
+        JSON.stringify([...existingSuspensions, suspensionData])
+      );
+
+      setUpgradeModal(false);
+      setReason("");
+      setUpgradeDuration("");
+      setSelectedBuyerForAction(null);
+      alert("Buyer upgraded to suspension!");
+
+      // Refresh strikes
+      await fetchStrikes();
+    } catch (err) {
+      console.error("Error upgrading to suspension:", err);
+      alert("Failed to upgrade to suspension");
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
+  // Handle Extend Suspension
+  const openExtendModal = (strike: StrikeRecord) => {
+    setSelectedBuyerForAction({
+      id: strike.buyerId,
+      name: strike.buyerName,
+      firstName: strike.buyerName.split(" ")[0],
+      lastName: strike.buyerName.split(" ")[1] || "",
+      email: strike.buyerEmail,
+    });
+    setExtendModal(true);
+  };
+
+  const handleExtendSuspension = async (days: string, notify: boolean) => {
+    if (!selectedBuyerForAction || !days) {
+      alert("Please select extension days");
+      return;
+    }
+
+    try {
+      setActionLoading(true);
+
+      // TODO: Replace with actual API call when backend is ready
+      // await extendBuyerSuspension(selectedBuyerForAction.id, { days, notify });
+
+      const extensionData = {
+        buyerId: selectedBuyerForAction.id,
+        buyerName: selectedBuyerForAction.name,
+        buyerEmail: selectedBuyerForAction.email,
+        extensionDays: days,
+        notifyBuyer: notify,
+        date: new Date().toISOString(),
+      };
+
+      console.log("Extension Data:", extensionData);
+
+      // Store in localStorage for now
+      const existingExtensions = JSON.parse(
+        localStorage.getItem("buyer_suspension_extensions") || "[]"
+      );
+      localStorage.setItem(
+        "buyer_suspension_extensions",
+        JSON.stringify([...existingExtensions, extensionData])
+      );
+
+      setExtendModal(false);
+      setSelectedBuyerForAction(null);
+      alert(`Suspension extended by ${days} days!`);
+
+      // Refresh strikes
+      await fetchStrikes();
+    } catch (err) {
+      console.error("Error extending suspension:", err);
+      alert("Failed to extend suspension");
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
+  // Handle Revoke/Reinstate
+  const handleRevoke = async (strike: StrikeRecord) => {
+    if (!confirm(`Are you sure you want to revoke ${strike.status} for ${strike.buyerName}?`)) {
+      return;
+    }
+
+    try {
+      // TODO: Replace with actual API call when backend is ready
+      // await revokeBuyerStrikeOrSuspension(strike.buyerId);
+
+      const revokeData = {
+        buyerId: strike.buyerId,
+        buyerName: strike.buyerName,
+        buyerEmail: strike.buyerEmail,
+        previousStatus: strike.status,
+        date: new Date().toISOString(),
+      };
+
+      console.log("Revoke Data:", revokeData);
+
+      // Store in localStorage for now
+      const existingRevokes = JSON.parse(
+        localStorage.getItem("buyer_revokes") || "[]"
+      );
+      localStorage.setItem(
+        "buyer_revokes",
+        JSON.stringify([...existingRevokes, revokeData])
+      );
+
+      alert(`${strike.status} revoked for ${strike.buyerName}!`);
+
+      // Refresh strikes
+      await fetchStrikes();
+    } catch (err) {
+      console.error("Error revoking:", err);
+      alert("Failed to revoke");
+    }
+  };
+
+  // Handle Contact
+  const handleContact = (strike: StrikeRecord) => {
+    window.location.href = `mailto:${strike.buyerEmail}`;
   };
 
   return (
@@ -214,6 +356,10 @@ const Page = () => {
           error={error}
           searchQuery={searchQuery}
           onSearchChange={setSearchQuery}
+          onUpgradeToSuspension={openUpgradeModal}
+          onExtendSuspension={openExtendModal}
+          onRevoke={handleRevoke}
+          onContact={handleContact}
         />
 
         <StrikeForm
@@ -225,6 +371,28 @@ const Page = () => {
           onCooldownDaysChange={setCooldownDays}
         />
       </div>
+
+      {/* Upgrade to Suspension Modal */}
+      <SuspendBuyerModal
+        isOpen={upgradeModal}
+        selectedBuyer={selectedBuyerForAction}
+        reason={reason}
+        duration={upgradeDuration}
+        actionLoading={actionLoading}
+        onOpenChange={setUpgradeModal}
+        onReasonChange={setReason}
+        onDurationChange={setUpgradeDuration}
+        onSuspend={handleUpgradeToSuspension}
+      />
+
+      {/* Extend Suspension Modal */}
+      <ExtendSuspensionModal
+        isOpen={extendModal}
+        selectedBuyer={selectedBuyerForAction}
+        actionLoading={actionLoading}
+        onOpenChange={setExtendModal}
+        onExtend={handleExtendSuspension}
+      />
     </div>
   );
 };

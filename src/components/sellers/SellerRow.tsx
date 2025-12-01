@@ -28,13 +28,15 @@ interface DisplaySeller {
 interface SellerRowProps {
   seller: DisplaySeller;
   onViewSeller: (seller: DisplaySeller) => void;
-  onSuspend?: () => void;
+  onSuspendSeller: (seller: DisplaySeller) => void;
+  onStrikeSeller: (seller: DisplaySeller) => void;
 }
 
 const SellerRow: React.FC<SellerRowProps> = ({
   seller,
   onViewSeller,
-  onSuspend,
+  onSuspendSeller,
+  onStrikeSeller,
 }) => {
   return (
     <TableRow>
@@ -68,7 +70,8 @@ const SellerRow: React.FC<SellerRowProps> = ({
       <SellerActionsMenu
         seller={seller}
         onViewSeller={onViewSeller}
-        onSuspend={onSuspend}
+        onSuspendSeller={onSuspendSeller}
+        onStrikeSeller={onStrikeSeller}
       />
     </TableRow>
   );
