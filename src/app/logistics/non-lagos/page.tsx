@@ -84,6 +84,7 @@ export default function LagosHubDashboard() {
     pickup: true,
     populate: ["buyer", "seller", "shipment"],
     sortBy: "createdAt",
+    IsNonLagosOrder: true,
     sortDir: "desc",
     limit: 50,
   });
@@ -96,6 +97,8 @@ export default function LagosHubDashboard() {
   } = useGetOrdersQuery({
     delivery: true,
     populate: ["buyer", "seller", "shipment"],
+    IsNonLagosOrder: true,
+
     sortBy: "createdAt",
     sortDir: "desc",
     limit: 50,

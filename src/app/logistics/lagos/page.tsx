@@ -154,7 +154,7 @@ export default function LagosHubDashboard() {
       limit: 50,
       sortBy: "createdAt",
       sortDir: "desc",
-      populate: ["buyer", "seller"],
+      populate: ["buyer", "seller", "order"],
     },
   });
 
