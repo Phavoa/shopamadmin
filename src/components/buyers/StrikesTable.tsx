@@ -25,10 +25,11 @@ interface StrikesTableProps {
   error: string | null;
   searchQuery: string;
   onSearchChange: (value: string) => void;
-  onUpgradeToSuspension?: (strike: StrikeRecord) => void;
-  onExtendSuspension?: (strike: StrikeRecord) => void;
-  onRevoke?: (strike: StrikeRecord) => Promise<void>;
-  onContact?: (strike: StrikeRecord) => void;
+  onClearStrike: (strike: StrikeRecord) => void;
+  onUpgradeToSuspension: (strike: StrikeRecord) => void;
+  onReinstate: (strike: StrikeRecord) => void;
+  onExtendSuspension: (strike: StrikeRecord) => void;
+  onContact: (strike: StrikeRecord) => void;
 }
 
 export const StrikesTable: React.FC<StrikesTableProps> = ({
@@ -37,9 +38,10 @@ export const StrikesTable: React.FC<StrikesTableProps> = ({
   error,
   searchQuery,
   onSearchChange,
+  onClearStrike,
   onUpgradeToSuspension,
+  onReinstate,
   onExtendSuspension,
-  onRevoke,
   onContact,
 }) => {
   return (
@@ -115,12 +117,12 @@ export const StrikesTable: React.FC<StrikesTableProps> = ({
                 </tr>
               ) : (
                 strikes.map((strike) => (
-                  <StrikeRow
-                    key={strike.id}
-                    strike={strike}
+                  <StrikeRow 
+                    key={strike.id} 
+                    strike={strike} 
                     onUpgradeToSuspension={onUpgradeToSuspension}
                     onExtendSuspension={onExtendSuspension}
-                    onRevoke={onRevoke}
+                    onRevoke={strike.status === "Suspended" ? onReinstate : onClearStrike}
                     onContact={onContact}
                   />
                 ))
