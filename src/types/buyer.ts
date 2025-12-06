@@ -6,8 +6,17 @@ export interface Buyer extends User {
   totalSpend?: string;
   lastActivity?: string;
   strikes?: number;
+  status?: string;
   followersCount?: number;
   followingCount?: number;
+}
+
+export interface SelectedBuyerForAction {
+  id: string;
+  name: string;
+  firstName: string;
+  lastName: string;
+  email: string;
 }
 
 export interface StrikeData {

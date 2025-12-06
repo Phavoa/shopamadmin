@@ -17,11 +17,23 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
-import { SelectedBuyerForAction } from "@/types/buyer";
 
-interface SuspendBuyerModalProps {
+interface DisplaySeller {
+  id: string;
+  name: string;
+  email: string;
+  shopName: string;
+  status: string;
+  tier: string;
+  businessCategory: string;
+  location: string;
+  totalSales: string;
+  createdAt: string;
+}
+
+interface SuspendSellerModalProps {
   isOpen: boolean;
-  selectedBuyer: SelectedBuyerForAction | null;
+  selectedSeller: DisplaySeller | null;
   reason: string;
   duration: string;
   actionLoading: boolean;
@@ -31,14 +43,14 @@ interface SuspendBuyerModalProps {
   onSuspend: () => void;
 }
 
-const getBuyerName = (buyer: SelectedBuyerForAction | null) => {
-  if (!buyer) return "";
-  return buyer.name || `${buyer.firstName} ${buyer.lastName}`;
+const getSellerName = (seller: DisplaySeller | null) => {
+  if (!seller) return "";
+  return seller.name || seller.shopName;
 };
 
-const SuspendBuyerModal: React.FC<SuspendBuyerModalProps> = ({
+const SuspendSellerModal: React.FC<SuspendSellerModalProps> = ({
   isOpen,
-  selectedBuyer,
+  selectedSeller,
   reason,
   duration,
   actionLoading,
@@ -47,7 +59,7 @@ const SuspendBuyerModal: React.FC<SuspendBuyerModalProps> = ({
   onDurationChange,
   onSuspend,
 }) => {
-  const [notifyBuyer, setNotifyBuyer] = useState(true);
+  const [notifySeller, setNotifySeller] = useState(true);
 
   return (
     <Dialog open={isOpen} onOpenChange={onOpenChange}>
@@ -59,13 +71,13 @@ const SuspendBuyerModal: React.FC<SuspendBuyerModalProps> = ({
         </DialogHeader>
 
         <div className="space-y-4 mt-4">
-          {/* Buyer Name (Read-only) */}
+          {/* Seller Name (Read-only) */}
           <div>
             <Label className="text-sm text-gray-600 mb-2 block">
-              Buyer Name
+              Seller Name
             </Label>
             <div className="w-full px-3 py-2 bg-gray-50 border border-gray-200 rounded-lg text-gray-900">
-              {getBuyerName(selectedBuyer)}
+              {getSellerName(selectedSeller)}
             </div>
           </div>
 
@@ -103,11 +115,11 @@ const SuspendBuyerModal: React.FC<SuspendBuyerModalProps> = ({
           {/* Notify Toggle */}
           <div className="flex items-center justify-between py-2">
             <Label className="text-sm text-gray-900">
-              Notify Buyer (email/sms)
+              Notify Seller (email/sms)
             </Label>
             <Switch
-              checked={notifyBuyer}
-              onCheckedChange={setNotifyBuyer}
+              checked={notifySeller}
+              onCheckedChange={setNotifySeller}
               className="data-[state=checked]:bg-green-500"
             />
           </div>
@@ -126,4 +138,4 @@ const SuspendBuyerModal: React.FC<SuspendBuyerModalProps> = ({
   );
 };
 
-export default SuspendBuyerModal;
+export default SuspendSellerModal;

@@ -2,231 +2,298 @@
 
 import React, { useState, useEffect } from "react";
 import { StrikesTable, StrikeRecord } from "@/components/buyers/StrikesTable";
-import { StrikeForm } from "@/components/buyers/StrikeForm";
+import SuspendBuyerModal from "@/components/buyers/SuspendBuyerModal";
+import ExtendSuspensionModal from "@/components/buyers/ExtendSuspensionModal";
+import { getGroupedDisciplineRecords, getUserStrikeCount, revokeDisciplineAction, extendSuspension, issueSuspension } from "@/api/disciplineApi";
+import toast from 'react-hot-toast';
 
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "https://shapam-ecomerce-backend.onrender.com/api";
 
-// Mock data for strikes - in a real app, this would come from an API
-
-const mockStrikeData: StrikeRecord[] = [
-  {
-    id: "1",
-    buyerId: "buyer-1",
-    buyerName: "John Doe",
-    buyerEmail: "john@example.com",
-    reason: "Late delivery",
-    date: "2024-01-15T10:00:00Z",
-    status: "Strike(1/3)",
-    cooldownEnds: null,
-    issuedBy: "Admin User",
-    description: "Buyer failed to deliver order within promised timeframe",
-  },
-  {
-    id: "2",
-    buyerId: "buyer-2",
-    buyerName: "Jane Smith",
-    buyerEmail: "jane@example.com",
-    reason: "Product quality issue",
-    date: "2024-01-10T14:30:00Z",
-    status: "Strike(2/3)",
-    cooldownEnds: "2024-01-25T10:00:00Z",
-    issuedBy: "Admin User",
-    description: "Multiple customer complaints about product quality",
-  },
-  {
-    id: "3",
-    buyerId: "buyer-3",
-    buyerName: "Bob Johnson",
-    buyerEmail: "bob@example.com",
-    reason: "Policy violation",
-    date: "2024-01-05T16:45:00Z",
-    status: "Suspended",
-    cooldownEnds: "2024-02-05T16:45:00Z",
-    issuedBy: "Admin User",
-    description: "Violation of platform policies regarding prohibited items",
-  },
-  {
-    id: "4",
-    buyerId: "buyer-4",
-    buyerName: "Alice Brown",
-    buyerEmail: "alice@example.com",
-    reason: "Fake product",
-    date: "2024-01-20T09:15:00Z",
-    status: "Strike(1/3)",
-    cooldownEnds: null,
-    issuedBy: "Admin User",
-    description: "Buyer listed counterfeit products",
-  },
-  {
-    id: "5",
-    buyerId: "buyer-5",
-    buyerName: "Charlie Wilson",
-    buyerEmail: "charlie@example.com",
-    reason: "No show",
-    date: "2024-01-18T11:30:00Z",
-    status: "Strike(2/3)",
-    cooldownEnds: "2024-01-28T11:30:00Z",
-    issuedBy: "Admin User",
-    description: "Buyer did not show up for scheduled delivery",
-  },
-  {
-    id: "6",
-    buyerId: "buyer-6",
-    buyerName: "Diana Prince",
-    buyerEmail: "diana@example.com",
-    reason: "Abusive behavior",
-    date: "2024-01-12T14:20:00Z",
-    status: "Suspended",
-    cooldownEnds: "2024-02-12T14:20:00Z",
-    issuedBy: "Admin User",
-    description: "Buyer engaged in abusive communication with customers",
-  },
-  {
-    id: "7",
-    buyerId: "buyer-7",
-    buyerName: "Edward Norton",
-    buyerEmail: "edward@example.com",
-    reason: "Late delivery",
-    date: "2024-01-08T16:45:00Z",
-    status: "Strike(1/3)",
-    cooldownEnds: null,
-    issuedBy: "Admin User",
-    description: "Multiple instances of delayed deliveries",
-  },
-  {
-    id: "8",
-    buyerId: "buyer-8",
-    buyerName: "Fiona Green",
-    buyerEmail: "fiona@example.com",
-    reason: "Product quality issue",
-    date: "2024-01-22T08:00:00Z",
-    status: "Strike(3/3)",
-    cooldownEnds: "2024-02-01T08:00:00Z",
-    issuedBy: "Admin User",
-    description: "Consistent quality issues with products",
-  },
-  {
-    id: "9",
-    buyerId: "buyer-9",
-    buyerName: "George Miller",
-    buyerEmail: "george@example.com",
-    reason: "Policy violation",
-    date: "2024-01-14T13:10:00Z",
-    status: "Suspended",
-    cooldownEnds: "2024-02-14T13:10:00Z",
-    issuedBy: "Admin User",
-    description: "Violation of marketplace policies",
-  },
-  {
-    id: "10",
-    buyerId: "buyer-10",
-    buyerName: "Helen Davis",
-    buyerEmail: "helen@example.com",
-    reason: "Fake product",
-    date: "2024-01-25T10:30:00Z",
-    status: "Strike(1/3)",
-    cooldownEnds: null,
-    issuedBy: "Admin User",
-    description: "Listed unauthorized counterfeit items",
-  },
-];
-
-const getStatusBadgeStyles = (status: string) => {
-  if (status.includes("Strike")) {
-    return "bg-[#D4F4DD] text-[#2E7D32] border-none";
-  } else if (status === "Suspended") {
-    return "bg-[#FFD4D4] text-[#D32F2F] border-none";
-  } else {
-    return "bg-[#E8F5E9] text-[#43A047] border-none";
-  }
+const getAuthToken = (): string | null => {
+  if (typeof window === 'undefined') return null;
+  const localToken = localStorage.getItem("authToken");
+  const sessionToken = sessionStorage.getItem("authToken");
+  return localToken || sessionToken;
 };
 
-const Page = () => {
+const getUserById = async (userId: string) => {
+  const token = getAuthToken();
+  const response = await fetch(`${API_BASE_URL}/user/${userId}`, {
+    method: "GET",
+    headers: {
+      "Content-Type": "application/json",
+      ...(token && { Authorization: `Bearer ${token}` }),
+    },
+  });
+
+  if (!response.ok) {
+    throw new Error(`Failed to fetch user: ${response.statusText}`);
+  }
+
+  const data = await response.json();
+  return data.data;
+};
+
+interface UserCache {
+  [userId: string]: {
+    firstName: string;
+    lastName: string;
+    email: string;
+  };
+}
+
+interface SelectedBuyerForAction {
+  id: string;
+  name: string;
+  firstName: string;
+  lastName: string;
+  email: string;
+}
+
+const BuyerStrikesPage: React.FC = () => {
   const [strikes, setStrikes] = useState<StrikeRecord[]>([]);
-  const [loading, setLoading] = useState(false);
-  const [fetchingStrikes, setFetchingStrikes] = useState(true);
+  const [fetchingStrikes, setFetchingStrikes] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
-  const [statusFilter, setStatusFilter] = useState<string>("all");
-  const [selectedBuyer, setSelectedBuyer] = useState<string>("");
-  const [reason, setReason] = useState<string>("");
-  const [cooldownDays, setCooldownDays] = useState<string>("");
-  const [selectedStrike, setSelectedStrike] = useState<StrikeRecord | null>(
-    null
-  );
+  const [userCache, setUserCache] = useState<UserCache>({});
+  const [selectedStrike, setSelectedStrike] = useState<StrikeRecord | null>(null);
+  const [isExtendModalOpen, setIsExtendModalOpen] = useState(false);
+  const [isSuspendModalOpen, setIsSuspendModalOpen] = useState(false);
+  const [actionLoading, setActionLoading] = useState(false);
+  const [suspensionReason, setSuspensionReason] = useState("");
+  const [suspensionDuration, setSuspensionDuration] = useState("7");
 
-  // Fetch strikes with filters
+  const fetchUserDetails = async (userId: string) => {
+    if (userCache[userId]) {
+      return userCache[userId];
+    }
+
+    try {
+      const user = await getUserById(userId);
+      const userDetails = {
+        firstName: user.firstName || "Unknown",
+        lastName: user.lastName || "User",
+        email: user.email || "N/A",
+      };
+      
+      setUserCache(prev => ({ ...prev, [userId]: userDetails }));
+      return userDetails;
+    } catch (err) {
+      console.error("Failed to fetch user:", err);
+      return {
+        firstName: "Unknown",
+        lastName: "User",
+        email: "N/A",
+      };
+    }
+  };
+
   const fetchStrikes = async () => {
     try {
       setFetchingStrikes(true);
       setError(null);
-      // Simulate API call delay
-      await new Promise((resolve) => setTimeout(resolve, 500));
-      let filteredStrikes = mockStrikeData;
 
-      if (searchQuery) {
-        filteredStrikes = filteredStrikes.filter(
-          (strike) =>
-            strike.buyerName
-              .toLowerCase()
-              .includes(searchQuery.toLowerCase()) ||
-            strike.buyerEmail
-              .toLowerCase()
-              .includes(searchQuery.toLowerCase()) ||
-            strike.reason.toLowerCase().includes(searchQuery.toLowerCase())
-        );
+      const records = await getGroupedDisciplineRecords("BUYER");
+      
+      if (!Array.isArray(records)) {
+        setStrikes([]);
+        return;
       }
 
-      if (statusFilter && statusFilter !== "all") {
-        filteredStrikes = filteredStrikes.filter(
-          (strike) => strike.status === statusFilter
-        );
-      }
+      // Get strike counts for each user
+      const strikeCounts = await Promise.all(
+        records.map(async (record) => ({
+          recordId: record.id,
+          userId: record.userId,
+          count: await getUserStrikeCount(record.userId, "BUYER")
+        }))
+      );
 
-      setStrikes(filteredStrikes);
-    } catch (error) {
-      console.error("Failed to fetch strikes:", error);
-      setError("Failed to load strikes. Please try again.");
+      const strikeCountMap = Object.fromEntries(
+        strikeCounts.map(sc => [sc.recordId, sc.count])
+      );
+
+      // Transform to StrikeRecord format
+      const transformedStrikes: StrikeRecord[] = await Promise.all(
+        records.map(async (record) => {
+          const user = await fetchUserDetails(record.userId);
+          const strikeCount = strikeCountMap[record.id] || 0;
+          
+          let status = "";
+          if (record.type === "SUSPENSION") {
+            status = "Suspended";
+          } else if (record.type === "STRIKE") {
+            status = `${strikeCount}/3 Strike${strikeCount > 1 ? 's' : ''}`;
+          }
+
+          return {
+            id: record.id,
+            buyerId: record.userId,
+            buyerName: `${user.firstName} ${user.lastName}`,
+            reason: record.reason,
+            date: record.createdAt,
+            status: status,
+            cooldownEnds: record.suspendedUntil,
+            buyerEmail: user.email,
+            issuedBy: "Admin",
+            description: record.reason,
+          };
+        })
+      );
+
+      setStrikes(transformedStrikes);
+    } catch (err: any) {
+      console.error("Error fetching strikes:", err);
+      setError(err.message || "Failed to fetch strikes");
+      toast.error("Failed to load strikes");
     } finally {
       setFetchingStrikes(false);
     }
   };
 
-  // Initial fetch
   useEffect(() => {
     fetchStrikes();
   }, []);
 
-  // Handle search and filters
-  const handleSearch = () => {
-    fetchStrikes();
+  const handleClearStrike = async (strike: StrikeRecord) => {
+    const confirmed = window.confirm(`Are you sure you want to clear this strike for ${strike.buyerName}?`);
+    if (!confirmed) return;
+
+    setActionLoading(true);
+    try {
+      await revokeDisciplineAction(strike.id);
+      toast.success("Strike cleared successfully");
+      await fetchStrikes();
+    } catch (err: any) {
+      toast.error(err.message || "Failed to clear strike");
+    } finally {
+      setActionLoading(false);
+    }
   };
 
-  const handleViewDetails = (strike: StrikeRecord) => {
+  const handleUpgradeToSuspension = (strike: StrikeRecord) => {
     setSelectedStrike(strike);
+    setSuspensionReason("");
+    setSuspensionDuration("7");
+    setIsSuspendModalOpen(true);
   };
+
+  const handleSuspend = async () => {
+    if (!selectedStrike || !suspensionReason || !suspensionDuration) {
+      toast.error("Please provide reason and duration");
+      return;
+    }
+
+    setActionLoading(true);
+    try {
+      await issueSuspension(selectedStrike.buyerId, suspensionReason, parseInt(suspensionDuration), "BUYER");
+      toast.success(`${selectedStrike.buyerName} suspended for ${suspensionDuration} days`);
+      setIsSuspendModalOpen(false);
+      setSuspensionReason("");
+      setSuspensionDuration("7");
+      await fetchStrikes();
+    } catch (err: any) {
+      toast.error(err.message || "Failed to issue suspension");
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
+  const handleReinstate = async (strike: StrikeRecord) => {
+    const confirmed = window.confirm(`Are you sure you want to reinstate ${strike.buyerName}?`);
+    if (!confirmed) return;
+
+    setActionLoading(true);
+    try {
+      await revokeDisciplineAction(strike.id);
+      toast.success("Buyer reinstated successfully");
+      await fetchStrikes();
+    } catch (err: any) {
+      toast.error(err.message || "Failed to reinstate buyer");
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
+  const handleExtendSuspension = (strike: StrikeRecord) => {
+    setSelectedStrike(strike);
+    setIsExtendModalOpen(true);
+  };
+
+  const handleExtend = async (days: string, notify: boolean) => {
+    if (!selectedStrike) return;
+
+    setActionLoading(true);
+    try {
+      await extendSuspension(selectedStrike.buyerId, parseInt(days), "Suspension extended", "BUYER");
+      toast.success(`Suspension extended by ${days} days`);
+      setIsExtendModalOpen(false);
+      await fetchStrikes();
+    } catch (err: any) {
+      toast.error(err.message || "Failed to extend suspension");
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
+  const handleContact = (strike: StrikeRecord) => {
+    window.location.href = `mailto:${strike.buyerEmail}`;
+  };
+
+  const filteredStrikes = strikes.filter(strike => {
+    const searchLower = searchQuery.toLowerCase();
+    return (
+      strike.buyerName.toLowerCase().includes(searchLower) ||
+      strike.buyerId.toLowerCase().includes(searchLower) ||
+      strike.reason.toLowerCase().includes(searchLower)
+    );
+  });
+
+  // Convert selectedStrike to SelectedBuyerForAction format
+  const selectedBuyerForAction: SelectedBuyerForAction | null = selectedStrike ? {
+    id: selectedStrike.buyerId,
+    name: selectedStrike.buyerName,
+    firstName: selectedStrike.buyerName.split(' ')[0] || "Unknown",
+    lastName: selectedStrike.buyerName.split(' ').slice(1).join(' ') || "User",
+    email: selectedStrike.buyerEmail,
+  } : null;
 
   return (
-    <div className="bg-[#F9FAFB] min-h-screen py-8">
-      <div className="max-w-[1400px] mx-auto px-8">
-        <StrikesTable
-          strikes={strikes}
-          fetchingStrikes={fetchingStrikes}
-          error={error}
-          searchQuery={searchQuery}
-          onSearchChange={setSearchQuery}
-        />
+    <div className="p-8 bg-[#F9FAFB] min-h-screen">
+      <StrikesTable
+        strikes={filteredStrikes}
+        fetchingStrikes={fetchingStrikes}
+        error={error}
+        searchQuery={searchQuery}
+        onSearchChange={setSearchQuery}
+        onClearStrike={handleClearStrike}
+        onUpgradeToSuspension={handleUpgradeToSuspension}
+        onReinstate={handleReinstate}
+        onExtendSuspension={handleExtendSuspension}
+        onContact={handleContact}
+      />
 
-        <StrikeForm
-          selectedBuyer={selectedBuyer}
-          reason={reason}
-          cooldownDays={cooldownDays}
-          onBuyerChange={setSelectedBuyer}
-          onReasonChange={setReason}
-          onCooldownDaysChange={setCooldownDays}
-        />
-      </div>
+      <SuspendBuyerModal
+        isOpen={isSuspendModalOpen}
+        selectedBuyer={selectedBuyerForAction}
+        reason={suspensionReason}
+        duration={suspensionDuration}
+        actionLoading={actionLoading}
+        onOpenChange={setIsSuspendModalOpen}
+        onReasonChange={setSuspensionReason}
+        onDurationChange={setSuspensionDuration}
+        onSuspend={handleSuspend}
+      />
+
+      <ExtendSuspensionModal
+        isOpen={isExtendModalOpen}
+        selectedBuyer={selectedBuyerForAction}
+        actionLoading={actionLoading}
+        onOpenChange={setIsExtendModalOpen}
+        onExtend={handleExtend}
+      />
     </div>
   );
 };
 
-export default Page;
+export default BuyerStrikesPage;

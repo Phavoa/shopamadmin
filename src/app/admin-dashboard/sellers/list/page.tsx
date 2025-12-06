@@ -8,17 +8,21 @@ import {
   SellerProfileVM,
   SellerListParams,
 } from "@/api/sellerApi";
+import { issueStrike, issueSuspension, getUserDisciplineSummary } from "@/api/disciplineApi";
 import { useDispatch, useSelector } from "react-redux";
 import { setHeaderTitle } from "@/features/shared/headerSice";
 import { selectSearchQuery } from "@/features/search";
 import { getTierDisplayName } from "@/lib/tierUtils";
 import SellersTable from "@/components/sellers/SellersTable";
 import SellersPagination from "@/components/sellers/SellersPagination";
+import SuspendSellerModal from "@/components/sellers/SuspendSellerModal";
+import IssueStrikeModal from "@/components/sellers/IssueStrikeModal";
 import {
   AnimatedWrapper,
   PageWrapper,
-  StaggerContainer,
 } from "@/components/shared/AnimatedWrapper";
+import { ConfirmationDialog } from "@/components/ui/confirmation-dialog";
+import { toast } from "react-hot-toast";
 
 interface DisplaySeller {
   id: string;
@@ -55,6 +59,22 @@ const Page = () => {
   const [hasPrev, setHasPrev] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
 
+  // Modal states
+  const [suspendModal, setSuspendModal] = useState(false);
+  const [strikeModal, setStrikeModal] = useState(false);
+  const [selectedSeller, setSelectedSeller] = useState<DisplaySeller | null>(null);
+
+  // Confirmation dialog states
+  const [confirmDialog, setConfirmDialog] = useState(false);
+  const [confirmAction, setConfirmAction] = useState<(() => void) | null>(null);
+  const [confirmTitle, setConfirmTitle] = useState("");
+  const [confirmDescription, setConfirmDescription] = useState("");
+
+  // Form states
+  const [reason, setReason] = useState("");
+  const [duration, setDuration] = useState("");
+  const [actionLoading, setActionLoading] = useState(false);
+
   useEffect(() => {
     dispatch(setHeaderTitle("Seller List"));
   }, [dispatch]);
@@ -66,7 +86,7 @@ const Page = () => {
 
       const response = await getSellers({
         ...params,
-        limit: 9, // Match the previous sellersPerPage
+        limit: 9,
       });
       const sellersData = response.data.items;
 
@@ -79,30 +99,57 @@ const Page = () => {
         result.status === "fulfilled" ? result.value : null
       );
 
-      const displaySellers: DisplaySeller[] = sellersData.map(
-        (seller: SellerProfileVM, index: number) => {
+      const displaySellers: DisplaySeller[] = await Promise.all(
+        sellersData.map(async (seller: SellerProfileVM, index: number) => {
           const user = userProfiles[index];
+          let strikes = 0;
+          let status = seller.status.toLowerCase();
+          let activeSuspensions = 0;
+
+          try {
+            const disciplineResponse = await getUserDisciplineSummary(seller.userId);
+            strikes = disciplineResponse.data.activeStrikes;
+            activeSuspensions = disciplineResponse.data.activeSuspensions;
+
+            // Determine status based on discipline data
+            if (activeSuspensions > 0) {
+              status = "suspended";
+            } else if (strikes >= 3) {
+              status = "suspended"; // Auto-suspended due to 3 strikes
+            } else if (strikes > 0) {
+              status = `${strikes}/3 strike${strikes > 1 ? 's' : ''}`;
+            } else {
+              // Use the original seller status if no strikes/suspensions
+              status = seller.status.toLowerCase();
+            }
+          } catch (error) {
+            console.error("Failed to fetch discipline summary for seller:", seller.userId);
+            // If fetching discipline fails, use original status
+            status = seller.status.toLowerCase();
+            strikes = 0;
+          }
+
           return {
             id: seller.userId,
-            name: user ? `${user.firstName} ${user.lastName}` : "Unknown User",
+            name: user ? `${user.firstName} ${user.lastName}` : seller.shopName,
             email: user ? user.email : seller.userEmail,
-            status: seller.status.toLowerCase(),
+            status,
             tier: getTierDisplayName(seller.tier),
             shopName: seller.shopName,
             businessCategory: seller.businessCategory,
             location: `${seller.locationCity}, ${seller.locationState}`,
             totalSales: seller.totalSales,
             createdAt: seller.createdAt,
-            reliability: "95%", // Dummy, as not in API
-            strikes: 0, // Dummy
-            lastLive: "Aug 30 (Bronze, 210 viewers)", // Dummy
-            walletBalance: "₦340,000", // Dummy
-            totalOrders: 452, // Dummy
-            completedOrders: 400, // Dummy
-            activeListings: 35, // Dummy
-            nextSlot: "Sep 6, 2025 14:00 (Bronze)", // Dummy
+            reliability: "95%",
+            strikes,
+            lastLive: "Aug 30 (Bronze, 210 viewers)",
+            walletBalance: "₦340,000",
+            totalOrders: 452,
+            completedOrders: 400,
+            activeListings: 35,
+            nextSlot: "Sep 6, 2025 14:00 (Bronze)",
           };
-        }
+        })
       );
       setSellers(displaySellers);
       setNextCursor(response.data.nextCursor);
@@ -112,6 +159,7 @@ const Page = () => {
     } catch (error) {
       console.error("Failed to fetch sellers:", error);
       setError("Failed to load sellers. Please try again.");
+      toast.error("Failed to load sellers");
     } finally {
       setFetchingSellers(false);
     }
@@ -122,9 +170,7 @@ const Page = () => {
   }, []);
 
   useEffect(() => {
-    // Reset page number when search changes
     setCurrentPage(1);
-    // Reset cursors when search changes
     setNextCursor(undefined);
     setPrevCursor(undefined);
     fetchSellers({ q: searchQuery || undefined });
@@ -134,9 +180,92 @@ const Page = () => {
     router.push(`/admin-dashboard/sellers/${seller.id}`);
   };
 
+  // Open Suspend Modal
+  const openSuspendModal = (seller: DisplaySeller) => {
+    setSelectedSeller(seller);
+    setSuspendModal(true);
+  };
+
+  // Handle Suspend
   const handleSuspend = async () => {
-    // Refresh the seller list after suspending a seller
-    await fetchSellers();
+    if (!selectedSeller || !reason || !duration) {
+      toast.error("Please fill in all fields");
+      return;
+    }
+
+    setConfirmTitle("Confirm Suspension");
+    setConfirmDescription(`Are you sure you want to suspend ${selectedSeller.name} for ${duration} days?`);
+    setConfirmAction(() => async () => {
+      try {
+        setActionLoading(true);
+        setConfirmDialog(false);
+
+        await issueSuspension(selectedSeller.id, {
+          role: "SELLER",
+          durationDays: parseInt(duration),
+          reason,
+        });
+
+        setSuspendModal(false);
+        setReason("");
+        setDuration("");
+        setSelectedSeller(null);
+
+        toast.success("Seller suspended successfully!");
+
+        // Refresh seller list
+        await fetchSellers();
+      } catch (err: unknown) {
+        console.error("Error suspending seller:", err);
+        toast.error(err instanceof Error ? err.message : "Failed to suspend seller");
+      } finally {
+        setActionLoading(false);
+      }
+    });
+    setConfirmDialog(true);
+  };
+
+  // Open Strike Modal
+  const openStrikeModal = (seller: DisplaySeller) => {
+    setSelectedSeller(seller);
+    setStrikeModal(true);
+  };
+
+  // Handle Strike
+  const handleStrike = async () => {
+    if (!selectedSeller || !reason) {
+      toast.error("Please enter a reason");
+      return;
+    }
+
+    setConfirmTitle("Confirm Strike");
+    setConfirmDescription(`Are you sure you want to issue a strike to ${selectedSeller.name}?`);
+    setConfirmAction(() => async () => {
+      try {
+        setActionLoading(true);
+        setConfirmDialog(false);
+
+        const response = await issueStrike(selectedSeller.id, {
+          role: "SELLER",
+          reason,
+        });
+
+        setStrikeModal(false);
+        setReason("");
+        setSelectedSeller(null);
+
+        toast.success(response.message || "Strike issued successfully!");
+
+        // Refresh seller list
+        await fetchSellers();
+      } catch (err: unknown) {
+        console.error("Error issuing strike:", err);
+        toast.error(err instanceof Error ? err.message : "Failed to issue strike");
+      } finally {
+        setActionLoading(false);
+      }
+    });
+    setConfirmDialog(true);
   };
 
   // Pagination functions
@@ -162,7 +291,8 @@ const Page = () => {
           fetchingSellers={fetchingSellers}
           error={error}
           onViewSeller={handleViewSeller}
-          onSuspend={handleSuspend}
+          onSuspendSeller={openSuspendModal}
+          onStrikeSeller={openStrikeModal}
         />
       </AnimatedWrapper>
 
@@ -176,6 +306,40 @@ const Page = () => {
           currentPage={currentPage}
         />
       </AnimatedWrapper>
+
+      {/* Modals */}
+      <SuspendSellerModal
+        isOpen={suspendModal}
+        selectedSeller={selectedSeller}
+        reason={reason}
+        duration={duration}
+        actionLoading={actionLoading}
+        onOpenChange={setSuspendModal}
+        onReasonChange={setReason}
+        onDurationChange={setDuration}
+        onSuspend={handleSuspend}
+      />
+
+      <IssueStrikeModal
+        isOpen={strikeModal}
+        selectedSeller={selectedSeller}
+        reason={reason}
+        actionLoading={actionLoading}
+        onOpenChange={setStrikeModal}
+        onReasonChange={setReason}
+        onIssueStrike={handleStrike}
+      />
+
+      <ConfirmationDialog
+        isOpen={confirmDialog}
+        onClose={() => setConfirmDialog(false)}
+        onConfirm={confirmAction || (() => setConfirmDialog(false))}
+        title={confirmTitle}
+        description={confirmDescription}
+        confirmText={confirmAction ? "Confirm" : "OK"}
+        cancelText={confirmAction ? "Cancel" : undefined}
+        isLoading={actionLoading}
+      />
     </PageWrapper>
   );
 };

@@ -156,7 +156,9 @@ export const getBuyers = async (
   if (!response.ok) {
     const errorText = await response.text();
     console.error("❌ API Error Response:", errorText);
-    throw new Error(`Failed to fetch buyers: ${response.statusText} - ${errorText}`);
+    throw new Error(
+      `Failed to fetch buyers: ${response.statusText} - ${errorText}`
+    );
   }
 
   const responseData = await response.json();
@@ -197,7 +199,9 @@ export const getBuyerById = async (
 
   if (!response.ok) {
     const errorText = await response.text();
-    throw new Error(`Failed to fetch buyer: ${response.statusText} - ${errorText}`);
+    throw new Error(
+      `Failed to fetch buyer: ${response.statusText} - ${errorText}`
+    );
   }
 
   const responseData = await response.json();
@@ -212,7 +216,9 @@ export const getBuyerById = async (
 };
 
 // Get user details by ID
-export const getUserById = async (userId: string): Promise<ApiResponse<UserProfileVM>> => {
+export const getUserById = async (
+  userId: string
+): Promise<ApiResponse<UserProfileVM>> => {
   const token = getAuthToken();
   const response = await fetch(`${API_BASE_URL}/user/${userId}`, {
     method: "GET",
@@ -224,7 +230,9 @@ export const getUserById = async (userId: string): Promise<ApiResponse<UserProfi
 
   if (!response.ok) {
     const errorText = await response.text();
-    throw new Error(`Failed to fetch user: ${response.statusText} - ${errorText}`);
+    throw new Error(
+      `Failed to fetch user: ${response.statusText} - ${errorText}`
+    );
   }
 
   return response.json();
@@ -245,7 +253,9 @@ export const suspendBuyer = async (
 
   if (!response.ok) {
     const errorText = await response.text();
-    throw new Error(`Failed to suspend buyer: ${response.statusText} - ${errorText}`);
+    throw new Error(
+      `Failed to suspend buyer: ${response.statusText} - ${errorText}`
+    );
   }
 
   return response.json();
@@ -257,7 +267,7 @@ export const verifyBuyer = async (
   userId: string
 ): Promise<ApiResponse<unknown>> => {
   const token = getAuthToken();
-  
+
   // This endpoint needs to be created on your backend
   // It should be something like POST /api/admin/user/{userId}/verify
   const response = await fetch(`${API_BASE_URL}/user/${userId}/verify`, {
@@ -270,7 +280,9 @@ export const verifyBuyer = async (
 
   if (!response.ok) {
     const errorText = await response.text();
-    throw new Error(`Failed to verify buyer: ${response.statusText} - ${errorText}`);
+    throw new Error(
+      `Failed to verify buyer: ${response.statusText} - ${errorText}`
+    );
   }
 
   return response.json();

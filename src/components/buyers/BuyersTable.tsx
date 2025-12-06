@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-unused-vars */
 "use client";
 
 import React from "react";
@@ -15,8 +16,6 @@ import BuyerActionsMenu from "./BuyerActionsMenu";
 
 interface BuyersTableProps {
   buyers: Buyer[];
-  activeActionMenu: string | null;
-  onToggleActionMenu: (buyerId: string) => void;
   onViewBuyer: (buyer: Buyer) => void;
   onSuspendBuyer: (buyer: Buyer) => void;
   onStrikeBuyer: (buyer: Buyer) => void;
@@ -24,8 +23,6 @@ interface BuyersTableProps {
 
 const BuyersTable: React.FC<BuyersTableProps> = ({
   buyers,
-  activeActionMenu,
-  onToggleActionMenu,
   onViewBuyer,
   onSuspendBuyer,
   onStrikeBuyer,
@@ -78,6 +75,7 @@ const BuyersTable: React.FC<BuyersTableProps> = ({
             <TableHead>Total Orders</TableHead>
             <TableHead>Total Spent</TableHead>
             <TableHead>Last Activity</TableHead>
+            <TableHead>Strikes</TableHead>
             <TableHead>Status</TableHead>
             <TableHead>Actions</TableHead>
           </TableRow>
@@ -85,7 +83,7 @@ const BuyersTable: React.FC<BuyersTableProps> = ({
         <TableBody>
           {buyers.length === 0 ? (
             <TableRow>
-              <TableCell colSpan={9} className="py-8 text-center text-gray-500">
+              <TableCell colSpan={10} className="py-8 text-center text-gray-500">
                 No buyers found
               </TableCell>
             </TableRow>
@@ -115,29 +113,30 @@ const BuyersTable: React.FC<BuyersTableProps> = ({
                 <TableCell className="text-sm text-black">
                   {buyer.lastActivity}
                 </TableCell>
+                <TableCell className="text-sm text-black">
+                  {buyer.strikes && buyer.strikes > 0 ? `Strike(${buyer.strikes}/3)` : "0"}
+                </TableCell>
                 <TableCell>
                   <div
                     className="inline-flex justify-center items-center rounded-xl"
                     style={{
-                      padding: "7px 10px",
+                      padding: "5px 8px",
                       ...getStatusStyle(buyer),
                     }}
                   >
                     <span
                       style={{
                         textAlign: "center",
-                        fontSize: "12px",
-                        fontWeight: 400,
+                        fontSize: "10px",
+                        fontWeight: 600,
                       }}
                     >
-                      {getStatus(buyer)}
+                      {buyer.status || getStatus(buyer)}
                     </span>
                   </div>
                 </TableCell>
                 <BuyerActionsMenu
                   buyer={buyer}
-                  activeActionMenu={activeActionMenu}
-                  onToggleMenu={onToggleActionMenu}
                   onViewBuyer={onViewBuyer}
                   onSuspendBuyer={onSuspendBuyer}
                   onStrikeBuyer={onStrikeBuyer}
