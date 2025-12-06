@@ -8,6 +8,7 @@ import {
   SellerProfileVM,
   SellerListParams,
 } from "@/api/sellerApi";
+import { issueStrike, issueSuspension, getUserDisciplineSummary } from "@/api/disciplineApi";
 import { useDispatch, useSelector } from "react-redux";
 import { setHeaderTitle } from "@/features/shared/headerSice";
 import { selectSearchQuery } from "@/features/search";
@@ -20,6 +21,8 @@ import {
   AnimatedWrapper,
   PageWrapper,
 } from "@/components/shared/AnimatedWrapper";
+import { ConfirmationDialog } from "@/components/ui/confirmation-dialog";
+import { toast } from "react-hot-toast";
 
 interface DisplaySeller {
   id: string;
@@ -42,28 +45,6 @@ interface DisplaySeller {
   nextSlot?: string;
 }
 
-interface StrikeData {
-  sellerId: string;
-  sellerName: string;
-  sellerEmail: string;
-  shopName: string;
-  reason: string;
-  strikeCount: number;
-  status: string;
-  date: string;
-}
-
-interface SuspensionData {
-  sellerId: string;
-  sellerName: string;
-  sellerEmail: string;
-  shopName: string;
-  reason: string;
-  duration: string;
-  status: string;
-  date: string;
-}
-
 const Page = () => {
   const router = useRouter();
   const dispatch = useDispatch();
@@ -82,7 +63,13 @@ const Page = () => {
   const [suspendModal, setSuspendModal] = useState(false);
   const [strikeModal, setStrikeModal] = useState(false);
   const [selectedSeller, setSelectedSeller] = useState<DisplaySeller | null>(null);
-  
+
+  // Confirmation dialog states
+  const [confirmDialog, setConfirmDialog] = useState(false);
+  const [confirmAction, setConfirmAction] = useState<(() => void) | null>(null);
+  const [confirmTitle, setConfirmTitle] = useState("");
+  const [confirmDescription, setConfirmDescription] = useState("");
+
   // Form states
   const [reason, setReason] = useState("");
   const [duration, setDuration] = useState("");
@@ -112,14 +99,41 @@ const Page = () => {
         result.status === "fulfilled" ? result.value : null
       );
 
-      const displaySellers: DisplaySeller[] = sellersData.map(
-        (seller: SellerProfileVM, index: number) => {
+      const displaySellers: DisplaySeller[] = await Promise.all(
+        sellersData.map(async (seller: SellerProfileVM, index: number) => {
           const user = userProfiles[index];
+          let strikes = 0;
+          let status = seller.status.toLowerCase();
+          let activeSuspensions = 0;
+
+          try {
+            const disciplineResponse = await getUserDisciplineSummary(seller.userId);
+            strikes = disciplineResponse.data.activeStrikes;
+            activeSuspensions = disciplineResponse.data.activeSuspensions;
+
+            // Determine status based on discipline data
+            if (activeSuspensions > 0) {
+              status = "suspended";
+            } else if (strikes >= 3) {
+              status = "suspended"; // Auto-suspended due to 3 strikes
+            } else if (strikes > 0) {
+              status = `${strikes}/3 strike${strikes > 1 ? 's' : ''}`;
+            } else {
+              // Use the original seller status if no strikes/suspensions
+              status = seller.status.toLowerCase();
+            }
+          } catch (error) {
+            console.error("Failed to fetch discipline summary for seller:", seller.userId);
+            // If fetching discipline fails, use original status
+            status = seller.status.toLowerCase();
+            strikes = 0;
+          }
+
           return {
             id: seller.userId,
             name: user ? `${user.firstName} ${user.lastName}` : seller.shopName,
             email: user ? user.email : seller.userEmail,
-            status: seller.status.toLowerCase(),
+            status,
             tier: getTierDisplayName(seller.tier),
             shopName: seller.shopName,
             businessCategory: seller.businessCategory,
@@ -127,7 +141,7 @@ const Page = () => {
             totalSales: seller.totalSales,
             createdAt: seller.createdAt,
             reliability: "95%",
-            strikes: 0,
+            strikes,
             lastLive: "Aug 30 (Bronze, 210 viewers)",
             walletBalance: "₦340,000",
             totalOrders: 452,
@@ -135,7 +149,7 @@ const Page = () => {
             activeListings: 35,
             nextSlot: "Sep 6, 2025 14:00 (Bronze)",
           };
-        }
+        })
       );
       setSellers(displaySellers);
       setNextCursor(response.data.nextCursor);
@@ -145,6 +159,7 @@ const Page = () => {
     } catch (error) {
       console.error("Failed to fetch sellers:", error);
       setError("Failed to load sellers. Please try again.");
+      toast.error("Failed to load sellers");
     } finally {
       setFetchingSellers(false);
     }
@@ -174,52 +189,40 @@ const Page = () => {
   // Handle Suspend
   const handleSuspend = async () => {
     if (!selectedSeller || !reason || !duration) {
-      alert("Please fill in all fields");
+      toast.error("Please fill in all fields");
       return;
     }
 
-    try {
-      setActionLoading(true);
+    setConfirmTitle("Confirm Suspension");
+    setConfirmDescription(`Are you sure you want to suspend ${selectedSeller.name} for ${duration} days?`);
+    setConfirmAction(() => async () => {
+      try {
+        setActionLoading(true);
+        setConfirmDialog(false);
 
-      // TODO: Replace with actual API call when backend is ready
-      // await suspendSeller(selectedSeller.id, { reason, duration });
+        await issueSuspension(selectedSeller.id, {
+          role: "SELLER",
+          durationDays: parseInt(duration),
+          reason,
+        });
 
-      // Store suspension data (localStorage for now)
-      const suspensionData: SuspensionData = {
-        sellerId: selectedSeller.id,
-        sellerName: selectedSeller.name,
-        sellerEmail: selectedSeller.email,
-        shopName: selectedSeller.shopName,
-        reason,
-        duration,
-        status: "Suspended",
-        date: new Date().toISOString(),
-      };
+        setSuspendModal(false);
+        setReason("");
+        setDuration("");
+        setSelectedSeller(null);
 
-      console.log("Suspension Data:", suspensionData);
+        toast.success("Seller suspended successfully!");
 
-      const existingData: SuspensionData[] = JSON.parse(
-        localStorage.getItem("seller_suspensions") || "[]"
-      );
-      localStorage.setItem(
-        "seller_suspensions",
-        JSON.stringify([...existingData, suspensionData])
-      );
-
-      setSuspendModal(false);
-      setReason("");
-      setDuration("");
-      setSelectedSeller(null);
-      alert("Seller suspended successfully!");
-      
-      // Refresh seller list
-      await fetchSellers();
-    } catch (err) {
-      console.error("Error suspending seller:", err);
-      alert("Failed to suspend seller");
-    } finally {
-      setActionLoading(false);
-    }
+        // Refresh seller list
+        await fetchSellers();
+      } catch (err: unknown) {
+        console.error("Error suspending seller:", err);
+        toast.error(err instanceof Error ? err.message : "Failed to suspend seller");
+      } finally {
+        setActionLoading(false);
+      }
+    });
+    setConfirmDialog(true);
   };
 
   // Open Strike Modal
@@ -231,75 +234,38 @@ const Page = () => {
   // Handle Strike
   const handleStrike = async () => {
     if (!selectedSeller || !reason) {
-      alert("Please enter a reason");
+      toast.error("Please enter a reason");
       return;
     }
 
-    try {
-      setActionLoading(true);
+    setConfirmTitle("Confirm Strike");
+    setConfirmDescription(`Are you sure you want to issue a strike to ${selectedSeller.name}?`);
+    setConfirmAction(() => async () => {
+      try {
+        setActionLoading(true);
+        setConfirmDialog(false);
 
-      // TODO: Replace with actual API call when backend is ready
-      // await issueSellerstrike(selectedSeller.id, { reason });
+        const response = await issueStrike(selectedSeller.id, {
+          role: "SELLER",
+          reason,
+        });
 
-      // Get existing strikes
-      const existingStrikes: StrikeData[] = JSON.parse(
-        localStorage.getItem("seller_strikes") || "[]"
-      );
-      const sellerStrikes = existingStrikes.filter(
-        (s: StrikeData) => s.sellerId === selectedSeller.id
-      );
+        setStrikeModal(false);
+        setReason("");
+        setSelectedSeller(null);
 
-      const newStrikeCount = sellerStrikes.length + 1;
-      const status =
-        newStrikeCount >= 3 ? "Suspended" : `Strike(${newStrikeCount}/3)`;
+        toast.success(response.message || "Strike issued successfully!");
 
-      const strikeData = {
-        sellerId: selectedSeller.id,
-        sellerName: selectedSeller.name,
-        sellerEmail: selectedSeller.email,
-        shopName: selectedSeller.shopName,
-        reason,
-        strikeCount: newStrikeCount,
-        status,
-        date: new Date().toISOString(),
-      };
-
-      console.log("Strike Data:", strikeData);
-
-      // Store strike
-      localStorage.setItem(
-        "seller_strikes",
-        JSON.stringify([...existingStrikes, strikeData])
-      );
-
-      // If 3 strikes, also add to suspensions
-      if (newStrikeCount >= 3) {
-        const existingSuspensions: SuspensionData[] = JSON.parse(
-          localStorage.getItem("seller_suspensions") || "[]"
-        );
-        localStorage.setItem(
-          "seller_suspensions",
-          JSON.stringify([...existingSuspensions, strikeData])
-        );
+        // Refresh seller list
+        await fetchSellers();
+      } catch (err: unknown) {
+        console.error("Error issuing strike:", err);
+        toast.error(err instanceof Error ? err.message : "Failed to issue strike");
+      } finally {
+        setActionLoading(false);
       }
-
-      setStrikeModal(false);
-      setReason("");
-      setSelectedSeller(null);
-      alert(
-        `Strike issued! (${newStrikeCount}/3)${
-          newStrikeCount >= 3 ? " - Seller suspended" : ""
-        }`
-      );
-      
-      // Refresh seller list
-      await fetchSellers();
-    } catch (err) {
-      console.error("Error issuing strike:", err);
-      alert("Failed to issue strike");
-    } finally {
-      setActionLoading(false);
-    }
+    });
+    setConfirmDialog(true);
   };
 
   // Pagination functions
@@ -362,6 +328,17 @@ const Page = () => {
         onOpenChange={setStrikeModal}
         onReasonChange={setReason}
         onIssueStrike={handleStrike}
+      />
+
+      <ConfirmationDialog
+        isOpen={confirmDialog}
+        onClose={() => setConfirmDialog(false)}
+        onConfirm={confirmAction || (() => setConfirmDialog(false))}
+        title={confirmTitle}
+        description={confirmDescription}
+        confirmText={confirmAction ? "Confirm" : "OK"}
+        cancelText={confirmAction ? "Cancel" : undefined}
+        isLoading={actionLoading}
       />
     </PageWrapper>
   );

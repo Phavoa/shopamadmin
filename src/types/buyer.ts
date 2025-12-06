@@ -6,6 +6,7 @@ export interface Buyer extends User {
   totalSpend?: string;
   lastActivity?: string;
   strikes?: number;
+  status?: string;
   followersCount?: number;
   followingCount?: number;
 }

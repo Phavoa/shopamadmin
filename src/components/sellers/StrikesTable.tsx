@@ -26,6 +26,9 @@ interface StrikesTableProps {
   searchQuery: string;
   onSearchChange: (value: string) => void;
   onExtendSuspension: (strike: StrikeRecord) => void;
+  onClearStrike?: (strike: StrikeRecord) => void;
+  onUpgradeToSuspension?: (strike: StrikeRecord) => void;
+  onReinstate?: (strike: StrikeRecord) => void;
 }
 
 export const StrikesTable: React.FC<StrikesTableProps> = ({
@@ -35,6 +38,9 @@ export const StrikesTable: React.FC<StrikesTableProps> = ({
   searchQuery,
   onSearchChange,
   onExtendSuspension,
+  onClearStrike,
+  onUpgradeToSuspension,
+  onReinstate,
 }) => {
   return (
     <div className="bg-white rounded-lg shadow-sm border border-[#E5E7EB] mb-8">
@@ -109,7 +115,13 @@ export const StrikesTable: React.FC<StrikesTableProps> = ({
                 </tr>
               ) : (
                 strikes.map((strike) => (
-                  <StrikeRow key={strike.id} strike={strike} onExtendSuspension={onExtendSuspension} />
+                  <StrikeRow 
+                    key={strike.id} 
+                    strike={strike} 
+                    onExtendSuspension={onExtendSuspension}
+                    onRevoke={strike.status === "Suspended" ? onReinstate : onClearStrike}
+                    onUpgradeToSuspension={onUpgradeToSuspension}
+                  />
                 ))
               )}
             </tbody>

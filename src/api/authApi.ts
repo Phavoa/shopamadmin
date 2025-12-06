@@ -77,11 +77,16 @@ const baseQueryWithReauth = async (
             refreshToken?: string;
           };
 
-          // Store new tokens in localStorage
+          // Store new tokens
           authStorage.setTokens(
             refreshData.accessToken,
             refreshData.refreshToken
           );
+          // Also set in localStorage for compatibility with other APIs
+          localStorage.setItem("authToken", refreshData.accessToken);
+          if (refreshData.refreshToken) {
+            localStorage.setItem("refreshToken", refreshData.refreshToken);
+          }
 
           // Update Redux state
           api.dispatch(
@@ -130,6 +135,11 @@ export const authApi = createApi({
               data.data.accessToken,
               data.data.refreshToken
             );
+            // Also set in localStorage for compatibility with other APIs
+            localStorage.setItem("authToken", data.data.accessToken);
+            if (data.data.refreshToken) {
+              localStorage.setItem("refreshToken", data.data.refreshToken);
+            }
             dispatch(
               setCredentials({
                 accessToken: data.data.accessToken,
@@ -186,6 +196,11 @@ export const authApi = createApi({
                 responseData.accessToken,
                 responseData.refreshToken
               );
+              // Also set in localStorage for compatibility with other APIs
+              localStorage.setItem("authToken", responseData.accessToken);
+              if (responseData.refreshToken) {
+                localStorage.setItem("refreshToken", responseData.refreshToken);
+              }
               dispatch(
                 setCredentials({
                   accessToken: responseData.accessToken,

@@ -62,7 +62,7 @@ const SellerRow: React.FC<SellerRowProps> = ({
         {seller.reliability}
       </TableCell>
       <TableCell className="py-4 px-6 text-sm text-black">
-        {seller.strikes}
+        {seller.strikes && seller.strikes > 0 ? `Strike(${seller.strikes}/3)` : "0"}
       </TableCell>
       <TableCell className="py-4 px-6 text-sm text-black">
         ₦{parseFloat(seller.totalSales).toLocaleString()}

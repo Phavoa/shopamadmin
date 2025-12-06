@@ -3,8 +3,8 @@
 import React, { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useGetUsersQuery } from "@/api/userApi";
-import type { User } from "@/types/auth";
-import type { Buyer, StrikeData, SelectedBuyerForAction } from "@/types/buyer";
+import { issueStrike, issueSuspension, getUserDisciplineSummary, getUserStrikeCount } from "@/api/disciplineApi";
+import type { Buyer, SelectedBuyerForAction } from "@/types/buyer";
 import { useSelector, useDispatch } from "react-redux";
 import { selectSearchQuery } from "@/features/search";
 
@@ -19,9 +19,10 @@ import {
 import {
   AnimatedWrapper,
   PageWrapper,
-  StaggerContainer,
 } from "@/components/shared/AnimatedWrapper";
 import { setHeaderTitle } from "@/features/shared/headerSice";
+import { ConfirmationDialog } from "@/components/ui/confirmation-dialog";
+import { toast } from "react-hot-toast";
 
 const BuyersListPage = () => {
   const router = useRouter();
@@ -36,6 +37,12 @@ const BuyersListPage = () => {
   const [strikeModal, setStrikeModal] = useState(false);
   const [selectedBuyerForAction, setSelectedBuyerForAction] =
     useState<SelectedBuyerForAction | null>(null);
+
+  // Confirmation dialog states
+  const [confirmDialog, setConfirmDialog] = useState(false);
+  const [confirmAction, setConfirmAction] = useState<(() => void) | null>(null);
+  const [confirmTitle, setConfirmTitle] = useState("");
+  const [confirmDescription, setConfirmDescription] = useState("");
 
   // Form state
   const [reason, setReason] = useState("");
@@ -69,19 +76,83 @@ const BuyersListPage = () => {
     ...(searchQuery && { q: searchQuery }),
   });
 
-  // Transform users to buyers format
-  const buyers: Buyer[] =
-    usersData?.data?.items?.map((user) => ({
-      ...user,
-      name: `${user.firstName} ${user.lastName}`,
-      verified: user.isVerified || true,
-      totalOrders: 0,
-      totalSpend: "₦0",
-      lastActivity: new Date(user.updatedAt).toLocaleDateString(),
-      strikes: 0,
-      followersCount: user.followersCount || 0,
-      followingCount: user.followingCount || 0,
-    })) || [];
+  // State for buyers with discipline data
+  const [buyers, setBuyers] = useState<Buyer[]>([]);
+
+  // Transform users to buyers format with discipline data
+  React.useEffect(() => {
+    const transformBuyers = async () => {
+      if (!usersData?.data?.items) {
+        setBuyers([]);
+        return;
+      }
+
+      const transformedBuyers = await Promise.all(
+        usersData.data.items.map(async (user) => {
+          let strikes = 0;
+          let status = "Active";
+          let activeSuspensions = 0;
+
+          try {
+            const disciplineSummary = await getUserDisciplineSummary(user.id);
+            strikes = disciplineSummary.activeStrikes || 0;
+            activeSuspensions = disciplineSummary.activeSuspensions || 0;
+            const isSuspended = disciplineSummary.isSuspended || false;
+
+            // Determine status based on discipline data
+            if (isSuspended || activeSuspensions > 0) {
+              status = "Suspended";
+            } else if (strikes >= 3) {
+              status = "Suspended"; // Auto-suspended due to 3 strikes
+            } else if (strikes > 0) {
+              status = `Strike (${strikes}/3)`;
+            } else {
+              status = "Active";
+            }
+          } catch (error) {
+            console.error("Failed to fetch discipline summary for user:", user.id);
+            // If API fails, default to Active
+            status = "Active";
+            strikes = 0;
+          }
+
+          // Format last activity date
+          let lastActivity = "N/A";
+          try {
+            if (user.updatedAt) {
+              const date = new Date(user.updatedAt);
+              if (!isNaN(date.getTime())) {
+                lastActivity = date.toLocaleDateString('en-US', {
+                  year: 'numeric',
+                  month: 'short',
+                  day: 'numeric'
+                });
+              }
+            }
+          } catch (err) {
+            lastActivity = "N/A";
+          }
+
+          return {
+            ...user,
+            name: `${user.firstName} ${user.lastName}`,
+            verified: user.isVerified || false,
+            totalOrders: 0, // These will be from orders API when available
+            totalSpend: "₦0", // These will be from orders API when available
+            lastActivity,
+            strikes,
+            status,
+            followersCount: user.followersCount || 0,
+            followingCount: user.followingCount || 0,
+          };
+        })
+      );
+
+      setBuyers(transformedBuyers);
+    };
+
+    transformBuyers();
+  }, [usersData]);
 
   // Update pagination data
   React.useEffect(() => {
@@ -136,51 +207,41 @@ const BuyersListPage = () => {
 
   const handleSuspend = async () => {
     if (!selectedBuyerForAction || !reason || !duration) {
-      alert("Please fill in all fields");
+      toast.error("Please fill in all fields");
       return;
     }
 
-    try {
-      setActionLoading(true);
+    setConfirmTitle("Confirm Suspension");
+    setConfirmDescription(`Are you sure you want to suspend ${selectedBuyerForAction.name} for ${duration} days?`);
+    setConfirmAction(() => async () => {
+      try {
+        setActionLoading(true);
+        setConfirmDialog(false);
 
-      // Store suspension data (will connect to backend later)
-      const suspensionData = {
-        buyerId: selectedBuyerForAction.id,
-        buyerName:
-          selectedBuyerForAction.name ||
-          `${selectedBuyerForAction.firstName} ${selectedBuyerForAction.lastName}`,
-        buyerEmail: selectedBuyerForAction.email,
-        reason,
-        duration,
-        status: "Suspended",
-        date: new Date().toISOString(),
-      };
+        await issueSuspension(
+          selectedBuyerForAction.id,
+          reason,
+          parseInt(duration),
+          "BUYER"
+        );
 
-      console.log("Suspension Data:", suspensionData);
+        setSuspendModal(false);
+        setReason("");
+        setDuration("");
+        setSelectedBuyerForAction(null);
 
-      // Store in localStorage for now (will use API later)
-      const existingData = JSON.parse(
-        localStorage.getItem("suspensions") || "[]"
-      );
-      localStorage.setItem(
-        "suspensions",
-        JSON.stringify([...existingData, suspensionData])
-      );
+        toast.success("Buyer suspended successfully!");
 
-      setSuspendModal(false);
-      setReason("");
-      setDuration("");
-      setSelectedBuyerForAction(null);
-      alert("Buyer suspended successfully!");
-
-      // Refresh the list
-      refetch();
-    } catch (err) {
-      console.error("Error suspending buyer:", err);
-      alert("Failed to suspend buyer");
-    } finally {
-      setActionLoading(false);
-    }
+        // Refresh the list
+        await refetch();
+      } catch (err: unknown) {
+        console.error("Error suspending buyer:", err);
+        toast.error(err instanceof Error ? err.message : "Failed to suspend buyer");
+      } finally {
+        setActionLoading(false);
+      }
+    });
+    setConfirmDialog(true);
   };
 
   // Handle Strike
@@ -197,74 +258,43 @@ const BuyersListPage = () => {
 
   const handleStrike = async () => {
     if (!selectedBuyerForAction || !reason) {
-      alert("Please enter a reason");
+      toast.error("Please enter a reason");
       return;
     }
 
-    try {
-      setActionLoading(true);
+    setConfirmTitle("Confirm Strike");
+    setConfirmDescription(`Are you sure you want to issue a strike to ${selectedBuyerForAction.name}?`);
+    setConfirmAction(() => async () => {
+      try {
+        setActionLoading(true);
+        setConfirmDialog(false);
 
-      // Get existing strikes
-      const existingStrikes = JSON.parse(
-        localStorage.getItem("strikes") || "[]"
-      );
-      const buyerStrikes = existingStrikes.filter(
-        (s: StrikeData) => s.buyerId === selectedBuyerForAction.id
-      );
+        // Check current strike count
+        const currentStrikeCount = await getUserStrikeCount(selectedBuyerForAction.id, "BUYER");
+        
+        // If this will be the 3rd strike, issue suspension instead
+        if (currentStrikeCount >= 2) {
+          await issueSuspension(selectedBuyerForAction.id, reason, 30, "BUYER"); // 30 days for 3rd strike
+          toast.success(`${selectedBuyerForAction.name} has been suspended (3rd strike)`);
+        } else {
+          await issueStrike(selectedBuyerForAction.id, reason, "BUYER");
+          toast.success(`Strike ${currentStrikeCount + 1}/3 issued to ${selectedBuyerForAction.name}`);
+        }
 
-      const newStrikeCount = buyerStrikes.length + 1;
-      const status =
-        newStrikeCount >= 3 ? "Suspended" : `Strike(${newStrikeCount}/3)`;
+        setStrikeModal(false);
+        setReason("");
+        setSelectedBuyerForAction(null);
 
-      const strikeData: StrikeData = {
-        buyerId: selectedBuyerForAction.id,
-        buyerName:
-          selectedBuyerForAction.name ||
-          `${selectedBuyerForAction.firstName} ${selectedBuyerForAction.lastName}`,
-        buyerEmail: selectedBuyerForAction.email,
-        reason,
-        duration: "",
-        strikeCount: newStrikeCount,
-        status,
-        date: new Date().toISOString(),
-      };
-
-      console.log("Strike Data:", strikeData);
-
-      // Store strike
-      localStorage.setItem(
-        "strikes",
-        JSON.stringify([...existingStrikes, strikeData])
-      );
-
-      // If 3 strikes, also add to suspensions
-      if (newStrikeCount >= 3) {
-        const existingSuspensions = JSON.parse(
-          localStorage.getItem("suspensions") || "[]"
-        );
-        localStorage.setItem(
-          "suspensions",
-          JSON.stringify([...existingSuspensions, strikeData])
-        );
+        // Refresh the list
+        await refetch();
+      } catch (err: unknown) {
+        console.error("Error issuing strike:", err);
+        toast.error(err instanceof Error ? err.message : "Failed to issue strike");
+      } finally {
+        setActionLoading(false);
       }
-
-      setStrikeModal(false);
-      setReason("");
-      setSelectedBuyerForAction(null);
-      alert(
-        `Strike issued! (${newStrikeCount}/3)${
-          newStrikeCount >= 3 ? " - Buyer suspended" : ""
-        }`
-      );
-
-      // Refresh the list
-      refetch();
-    } catch (err) {
-      console.error("Error issuing strike:", err);
-      alert("Failed to issue strike");
-    } finally {
-      setActionLoading(false);
-    }
+    });
+    setConfirmDialog(true);
   };
 
   // Loading state
@@ -316,6 +346,17 @@ const BuyersListPage = () => {
           onOpenChange={setStrikeModal}
           onReasonChange={setReason}
           onIssueStrike={handleStrike}
+        />
+
+        <ConfirmationDialog
+          isOpen={confirmDialog}
+          onClose={() => setConfirmDialog(false)}
+          onConfirm={confirmAction || (() => setConfirmDialog(false))}
+          title={confirmTitle}
+          description={confirmDescription}
+          confirmText={confirmAction ? "Confirm" : "OK"}
+          cancelText={confirmAction ? "Cancel" : undefined}
+          isLoading={actionLoading}
         />
       </AnimatedWrapper>
     </PageWrapper>
