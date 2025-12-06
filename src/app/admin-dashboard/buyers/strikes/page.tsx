@@ -4,8 +4,9 @@ import React, { useState, useEffect } from "react";
 import { StrikesTable, StrikeRecord } from "@/components/buyers/StrikesTable";
 import SuspendBuyerModal from "@/components/buyers/SuspendBuyerModal";
 import ExtendSuspensionModal from "@/components/buyers/ExtendSuspensionModal";
-import { getGroupedDisciplineRecords, getUserStrikeCount, revokeDisciplineAction, extendSuspension, issueSuspension } from "@/api/disciplineApi";
+import { getGroupedDisciplineRecords, getUserStrikeCount, clearStrike, reinstateSuspension, extendSuspension, issueSuspension } from "@/api/disciplineApi";
 import toast from 'react-hot-toast';
+import { ConfirmationDialog } from "@/components/ui/confirmation-dialog";
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "https://shapam-ecomerce-backend.onrender.com/api";
 
@@ -62,6 +63,12 @@ const BuyerStrikesPage: React.FC = () => {
   const [actionLoading, setActionLoading] = useState(false);
   const [suspensionReason, setSuspensionReason] = useState("");
   const [suspensionDuration, setSuspensionDuration] = useState("7");
+
+  // Confirmation dialog states
+  const [confirmDialog, setConfirmDialog] = useState(false);
+  const [confirmAction, setConfirmAction] = useState<(() => void) | null>(null);
+  const [confirmTitle, setConfirmTitle] = useState("");
+  const [confirmDescription, setConfirmDescription] = useState("");
 
   const fetchUserDetails = async (userId: string) => {
     if (userCache[userId]) {
@@ -155,20 +162,46 @@ const BuyerStrikesPage: React.FC = () => {
     fetchStrikes();
   }, []);
 
-  const handleClearStrike = async (strike: StrikeRecord) => {
-    const confirmed = window.confirm(`Are you sure you want to clear this strike for ${strike.buyerName}?`);
-    if (!confirmed) return;
+  const handleClearStrike = (strike: StrikeRecord) => {
+    setConfirmTitle("Clear Strike");
+    setConfirmDescription(`Are you sure you want to clear this strike for ${strike.buyerName}?`);
+    setConfirmAction(() => async () => {
+      try {
+        setActionLoading(true);
+        setConfirmDialog(false);
 
-    setActionLoading(true);
-    try {
-      await revokeDisciplineAction(strike.id);
-      toast.success("Strike cleared successfully");
-      await fetchStrikes();
-    } catch (err: any) {
-      toast.error(err.message || "Failed to clear strike");
-    } finally {
-      setActionLoading(false);
-    }
+        await clearStrike(strike.id);
+        toast.success("Strike cleared successfully");
+        await fetchStrikes();
+      } catch (err: unknown) {
+        console.error("Error clearing strike:", err);
+        toast.error(err instanceof Error ? err.message : "Failed to clear strike");
+      } finally {
+        setActionLoading(false);
+      }
+    });
+    setConfirmDialog(true);
+  };
+
+  const handleReinstate = (strike: StrikeRecord) => {
+    setConfirmTitle("Reinstate Buyer");
+    setConfirmDescription(`Are you sure you want to reinstate ${strike.buyerName}?`);
+    setConfirmAction(() => async () => {
+      try {
+        setActionLoading(true);
+        setConfirmDialog(false);
+
+        await reinstateSuspension(strike.id);
+        toast.success("Buyer reinstated successfully");
+        await fetchStrikes();
+      } catch (err: unknown) {
+        console.error("Error reinstating buyer:", err);
+        toast.error(err instanceof Error ? err.message : "Failed to reinstate buyer");
+      } finally {
+        setActionLoading(false);
+      }
+    });
+    setConfirmDialog(true);
   };
 
   const handleUpgradeToSuspension = (strike: StrikeRecord) => {
@@ -199,21 +232,6 @@ const BuyerStrikesPage: React.FC = () => {
     }
   };
 
-  const handleReinstate = async (strike: StrikeRecord) => {
-    const confirmed = window.confirm(`Are you sure you want to reinstate ${strike.buyerName}?`);
-    if (!confirmed) return;
-
-    setActionLoading(true);
-    try {
-      await revokeDisciplineAction(strike.id);
-      toast.success("Buyer reinstated successfully");
-      await fetchStrikes();
-    } catch (err: any) {
-      toast.error(err.message || "Failed to reinstate buyer");
-    } finally {
-      setActionLoading(false);
-    }
-  };
 
   const handleExtendSuspension = (strike: StrikeRecord) => {
     setSelectedStrike(strike);
@@ -291,6 +309,17 @@ const BuyerStrikesPage: React.FC = () => {
         actionLoading={actionLoading}
         onOpenChange={setIsExtendModalOpen}
         onExtend={handleExtend}
+      />
+
+      <ConfirmationDialog
+        isOpen={confirmDialog}
+        onClose={() => setConfirmDialog(false)}
+        onConfirm={confirmAction || (() => setConfirmDialog(false))}
+        title={confirmTitle}
+        description={confirmDescription}
+        confirmText="Confirm"
+        cancelText="Cancel"
+        isLoading={actionLoading}
       />
     </div>
   );

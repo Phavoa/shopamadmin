@@ -325,7 +325,7 @@ export const appealDecision = async (
   reason?: string
 ): Promise<ApiResponse<string>> => {
   const token = getAuthToken();
-  
+
   const response = await fetch(`${API_BASE_URL}/discipline/${actionId}/appeal/decision`, {
     method: "POST",
     headers: {
@@ -338,6 +338,46 @@ export const appealDecision = async (
   if (!response.ok) {
     const errorData = await response.json().catch(() => ({}));
     throw new Error(errorData.message || "Failed to process appeal");
+  }
+
+  return response.json();
+};
+
+// Reinstate suspension - NEW
+export const reinstateSuspension = async (actionId: string): Promise<ApiResponse<string>> => {
+  const token = getAuthToken();
+
+  const response = await fetch(`${API_BASE_URL}/discipline/${actionId}/suspension/reinstate`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      ...(token && { Authorization: `Bearer ${token}` }),
+    },
+  });
+
+  if (!response.ok) {
+    const errorData = await response.json().catch(() => ({}));
+    throw new Error(errorData.message || "Failed to reinstate suspension");
+  }
+
+  return response.json();
+};
+
+// Clear strike - NEW
+export const clearStrike = async (actionId: string): Promise<ApiResponse<string>> => {
+  const token = getAuthToken();
+
+  const response = await fetch(`${API_BASE_URL}/discipline/${actionId}/strike/clear`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      ...(token && { Authorization: `Bearer ${token}` }),
+    },
+  });
+
+  if (!response.ok) {
+    const errorData = await response.json().catch(() => ({}));
+    throw new Error(errorData.message || "Failed to clear strike");
   }
 
   return response.json();
