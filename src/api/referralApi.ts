@@ -21,15 +21,27 @@ export interface Referral {
   id: string;
   referrerId: string;
   refereeId: string;
-  refereeFirstName: string;
-  refereeLastName: string;
-  refereeEmail: string;
-  refereePhone: string;
-  totalSpentKobo: string;
-  rewardsKobo: string;
-  status: string;
+  code?: string;
+  totalSpendKobo: string;
+  isValid?: boolean;
   createdAt: string;
   updatedAt: string;
+  referee?: {
+    id: string;
+    firstName: string;
+    lastName: string;
+    email: string;
+    phone: string;
+    imageUrl: string | null;
+  };
+  referrer?: {
+    id: string;
+    firstName: string;
+    lastName: string;
+    email: string;
+    phone: string;
+    imageUrl: string | null;
+  };
 }
 
 export interface ReferralReward {

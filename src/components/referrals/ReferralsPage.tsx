@@ -28,11 +28,13 @@ const transformReferralData = (apiReferrals: Referral[]): TableReferral[] => {
 
   return apiReferrals.map((ref, index) => ({
     id: ref.id,
-    name: `${ref.refereeFirstName} ${ref.refereeLastName}`,
-    email: ref.refereeEmail,
-    referrals: 1, // This would need to be calculated based on actual data
-    amountPaid: parseInt(ref.totalSpentKobo) / 100, // Convert from kobo to naira
-    bonus: parseInt(ref.rewardsKobo) / 100, // Convert from kobo to naira
+    name: ref.referee
+      ? `${ref.referee.firstName} ${ref.referee.lastName}`
+      : "Unknown User",
+    email: ref.referee?.email || "N/A",
+    referrals: 1, // Each item represents one referral
+    amountPaid: parseInt(ref.totalSpendKobo) / 100, // Convert from kobo to naira
+    bonus: 1000, // Fixed bonus amount
     joinedDate: formatDate(ref.createdAt),
     isTop: index < 3, // Mark first 3 as top performers
   }));
@@ -50,6 +52,7 @@ const ReferralsPage: React.FC = () => {
     limit,
     sortBy: "createdAt",
     sortDir: "desc",
+    populate: ["referee", "referrer"],
   });
 
   // Transform API data to table format
