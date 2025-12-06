@@ -4,14 +4,23 @@ import React, { useState, useEffect } from "react";
 import { StrikesTable, StrikeRecord } from "@/components/buyers/StrikesTable";
 import SuspendBuyerModal from "@/components/buyers/SuspendBuyerModal";
 import ExtendSuspensionModal from "@/components/buyers/ExtendSuspensionModal";
-import { getGroupedDisciplineRecords, getUserStrikeCount, clearStrike, reinstateSuspension, extendSuspension, issueSuspension } from "@/api/disciplineApi";
-import toast from 'react-hot-toast';
+import {
+  getGroupedDisciplineRecords,
+  getUserStrikeCount,
+  clearStrike,
+  reinstateSuspension,
+  extendSuspension,
+  issueSuspension,
+} from "@/api/disciplineApi";
+import toast from "react-hot-toast";
 import { ConfirmationDialog } from "@/components/ui/confirmation-dialog";
 
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "https://shapam-ecomerce-backend.onrender.com/api";
+const API_BASE_URL =
+  process.env.NEXT_PUBLIC_API_URL ||
+  "https://shapam-ecomerce-backend.onrender.com/api";
 
 const getAuthToken = (): string | null => {
-  if (typeof window === 'undefined') return null;
+  if (typeof window === "undefined") return null;
   const localToken = localStorage.getItem("authToken");
   const sessionToken = sessionStorage.getItem("authToken");
   return localToken || sessionToken;
@@ -57,7 +66,9 @@ const BuyerStrikesPage: React.FC = () => {
   const [error, setError] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
   const [userCache, setUserCache] = useState<UserCache>({});
-  const [selectedStrike, setSelectedStrike] = useState<StrikeRecord | null>(null);
+  const [selectedStrike, setSelectedStrike] = useState<StrikeRecord | null>(
+    null
+  );
   const [isExtendModalOpen, setIsExtendModalOpen] = useState(false);
   const [isSuspendModalOpen, setIsSuspendModalOpen] = useState(false);
   const [actionLoading, setActionLoading] = useState(false);
@@ -82,8 +93,8 @@ const BuyerStrikesPage: React.FC = () => {
         lastName: user.lastName || "User",
         email: user.email || "N/A",
       };
-      
-      setUserCache(prev => ({ ...prev, [userId]: userDetails }));
+
+      setUserCache((prev) => ({ ...prev, [userId]: userDetails }));
       return userDetails;
     } catch (err) {
       console.error("Failed to fetch user:", err);
@@ -101,7 +112,7 @@ const BuyerStrikesPage: React.FC = () => {
       setError(null);
 
       const records = await getGroupedDisciplineRecords("BUYER");
-      
+
       if (!Array.isArray(records)) {
         setStrikes([]);
         return;
@@ -112,12 +123,12 @@ const BuyerStrikesPage: React.FC = () => {
         records.map(async (record) => ({
           recordId: record.id,
           userId: record.userId,
-          count: await getUserStrikeCount(record.userId, "BUYER")
+          count: await getUserStrikeCount(record.userId, "BUYER"),
         }))
       );
 
       const strikeCountMap = Object.fromEntries(
-        strikeCounts.map(sc => [sc.recordId, sc.count])
+        strikeCounts.map((sc) => [sc.recordId, sc.count])
       );
 
       // Transform to StrikeRecord format
@@ -125,12 +136,12 @@ const BuyerStrikesPage: React.FC = () => {
         records.map(async (record) => {
           const user = await fetchUserDetails(record.userId);
           const strikeCount = strikeCountMap[record.id] || 0;
-          
+
           let status = "";
           if (record.type === "SUSPENSION") {
             status = "Suspended";
           } else if (record.type === "STRIKE") {
-            status = `${strikeCount}/3 Strike${strikeCount > 1 ? 's' : ''}`;
+            status = `${strikeCount}/3 Strike${strikeCount > 1 ? "s" : ""}`;
           }
 
           return {
@@ -149,22 +160,25 @@ const BuyerStrikesPage: React.FC = () => {
       );
 
       setStrikes(transformedStrikes);
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error("Error fetching strikes:", err);
-      setError(err.message || "Failed to fetch strikes");
+      setError(err instanceof Error ? err.message : "Failed to fetch strikes");
       toast.error("Failed to load strikes");
     } finally {
       setFetchingStrikes(false);
     }
   };
 
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => {
     fetchStrikes();
   }, []);
 
   const handleClearStrike = (strike: StrikeRecord) => {
     setConfirmTitle("Clear Strike");
-    setConfirmDescription(`Are you sure you want to clear this strike for ${strike.buyerName}?`);
+    setConfirmDescription(
+      `Are you sure you want to clear this strike for ${strike.buyerName}?`
+    );
     setConfirmAction(() => async () => {
       try {
         setActionLoading(true);
@@ -175,7 +189,9 @@ const BuyerStrikesPage: React.FC = () => {
         await fetchStrikes();
       } catch (err: unknown) {
         console.error("Error clearing strike:", err);
-        toast.error(err instanceof Error ? err.message : "Failed to clear strike");
+        toast.error(
+          err instanceof Error ? err.message : "Failed to clear strike"
+        );
       } finally {
         setActionLoading(false);
       }
@@ -185,7 +201,9 @@ const BuyerStrikesPage: React.FC = () => {
 
   const handleReinstate = (strike: StrikeRecord) => {
     setConfirmTitle("Reinstate Buyer");
-    setConfirmDescription(`Are you sure you want to reinstate ${strike.buyerName}?`);
+    setConfirmDescription(
+      `Are you sure you want to reinstate ${strike.buyerName}?`
+    );
     setConfirmAction(() => async () => {
       try {
         setActionLoading(true);
@@ -196,7 +214,9 @@ const BuyerStrikesPage: React.FC = () => {
         await fetchStrikes();
       } catch (err: unknown) {
         console.error("Error reinstating buyer:", err);
-        toast.error(err instanceof Error ? err.message : "Failed to reinstate buyer");
+        toast.error(
+          err instanceof Error ? err.message : "Failed to reinstate buyer"
+        );
       } finally {
         setActionLoading(false);
       }
@@ -219,19 +239,27 @@ const BuyerStrikesPage: React.FC = () => {
 
     setActionLoading(true);
     try {
-      await issueSuspension(selectedStrike.buyerId, suspensionReason, parseInt(suspensionDuration), "BUYER");
-      toast.success(`${selectedStrike.buyerName} suspended for ${suspensionDuration} days`);
+      await issueSuspension(
+        selectedStrike.buyerId,
+        suspensionReason,
+        parseInt(suspensionDuration),
+        "BUYER"
+      );
+      toast.success(
+        `${selectedStrike.buyerName} suspended for ${suspensionDuration} days`
+      );
       setIsSuspendModalOpen(false);
       setSuspensionReason("");
       setSuspensionDuration("7");
       await fetchStrikes();
-    } catch (err: any) {
-      toast.error(err.message || "Failed to issue suspension");
+    } catch (err: unknown) {
+      toast.error(
+        err instanceof Error ? err.message : "Failed to issue suspension"
+      );
     } finally {
       setActionLoading(false);
     }
   };
-
 
   const handleExtendSuspension = (strike: StrikeRecord) => {
     setSelectedStrike(strike);
@@ -243,12 +271,19 @@ const BuyerStrikesPage: React.FC = () => {
 
     setActionLoading(true);
     try {
-      await extendSuspension(selectedStrike.buyerId, parseInt(days), "Suspension extended", "BUYER");
+      await extendSuspension(
+        selectedStrike.buyerId,
+        parseInt(days),
+        "Suspension extended",
+        "BUYER"
+      );
       toast.success(`Suspension extended by ${days} days`);
       setIsExtendModalOpen(false);
       await fetchStrikes();
-    } catch (err: any) {
-      toast.error(err.message || "Failed to extend suspension");
+    } catch (err: unknown) {
+      toast.error(
+        err instanceof Error ? err.message : "Failed to extend suspension"
+      );
     } finally {
       setActionLoading(false);
     }
@@ -258,7 +293,7 @@ const BuyerStrikesPage: React.FC = () => {
     window.location.href = `mailto:${strike.buyerEmail}`;
   };
 
-  const filteredStrikes = strikes.filter(strike => {
+  const filteredStrikes = strikes.filter((strike) => {
     const searchLower = searchQuery.toLowerCase();
     return (
       strike.buyerName.toLowerCase().includes(searchLower) ||
@@ -268,13 +303,16 @@ const BuyerStrikesPage: React.FC = () => {
   });
 
   // Convert selectedStrike to SelectedBuyerForAction format
-  const selectedBuyerForAction: SelectedBuyerForAction | null = selectedStrike ? {
-    id: selectedStrike.buyerId,
-    name: selectedStrike.buyerName,
-    firstName: selectedStrike.buyerName.split(' ')[0] || "Unknown",
-    lastName: selectedStrike.buyerName.split(' ').slice(1).join(' ') || "User",
-    email: selectedStrike.buyerEmail,
-  } : null;
+  const selectedBuyerForAction: SelectedBuyerForAction | null = selectedStrike
+    ? {
+        id: selectedStrike.buyerId,
+        name: selectedStrike.buyerName,
+        firstName: selectedStrike.buyerName.split(" ")[0] || "Unknown",
+        lastName:
+          selectedStrike.buyerName.split(" ").slice(1).join(" ") || "User",
+        email: selectedStrike.buyerEmail,
+      }
+    : null;
 
   return (
     <div className="p-8 bg-[#F9FAFB] min-h-screen">

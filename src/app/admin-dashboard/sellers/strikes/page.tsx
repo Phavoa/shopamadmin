@@ -4,14 +4,23 @@ import React, { useState, useEffect } from "react";
 import { StrikesTable, StrikeRecord } from "@/components/sellers/StrikesTable";
 import ExtendSuspensionModal from "@/components/sellers/ExtendSuspensionModal";
 import SuspendSellerModal from "@/components/sellers/SuspendSellerModal";
-import { getGroupedDisciplineRecords, getUserStrikeCount, clearStrike, reinstateSuspension, extendSuspension, issueSuspension } from "@/api/disciplineApi";
-import toast from 'react-hot-toast';
+import {
+  getGroupedDisciplineRecords,
+  getUserStrikeCount,
+  clearStrike,
+  reinstateSuspension,
+  extendSuspension,
+  issueSuspension,
+} from "@/api/disciplineApi";
+import toast from "react-hot-toast";
 import { ConfirmationDialog } from "@/components/ui/confirmation-dialog";
 
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "https://shapam-ecomerce-backend.onrender.com/api";
+const API_BASE_URL =
+  process.env.NEXT_PUBLIC_API_URL ||
+  "https://shapam-ecomerce-backend.onrender.com/api";
 
 const getAuthToken = (): string | null => {
-  if (typeof window === 'undefined') return null;
+  if (typeof window === "undefined") return null;
   const localToken = localStorage.getItem("authToken");
   const sessionToken = sessionStorage.getItem("authToken");
   return localToken || sessionToken;
@@ -62,7 +71,9 @@ const SellerStrikesPage: React.FC = () => {
   const [error, setError] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
   const [userCache, setUserCache] = useState<UserCache>({});
-  const [selectedStrike, setSelectedStrike] = useState<StrikeRecord | null>(null);
+  const [selectedStrike, setSelectedStrike] = useState<StrikeRecord | null>(
+    null
+  );
   const [isExtendModalOpen, setIsExtendModalOpen] = useState(false);
   const [isSuspendModalOpen, setIsSuspendModalOpen] = useState(false);
   const [actionLoading, setActionLoading] = useState(false);
@@ -87,8 +98,8 @@ const SellerStrikesPage: React.FC = () => {
         lastName: user.lastName || "Seller",
         email: user.email || "N/A",
       };
-      
-      setUserCache(prev => ({ ...prev, [userId]: userDetails }));
+
+      setUserCache((prev) => ({ ...prev, [userId]: userDetails }));
       return userDetails;
     } catch (err) {
       console.error("Failed to fetch user:", err);
@@ -117,12 +128,12 @@ const SellerStrikesPage: React.FC = () => {
         records.map(async (record) => ({
           recordId: record.id,
           userId: record.userId,
-          count: await getUserStrikeCount(record.userId, "SELLER")
+          count: await getUserStrikeCount(record.userId, "SELLER"),
         }))
       );
 
       const strikeCountMap = Object.fromEntries(
-        strikeCounts.map(sc => [sc.recordId, sc.count])
+        strikeCounts.map((sc) => [sc.recordId, sc.count])
       );
 
       // Transform to StrikeRecord format
@@ -135,7 +146,7 @@ const SellerStrikesPage: React.FC = () => {
           if (record.type === "SUSPENSION") {
             status = "Suspended";
           } else if (record.type === "STRIKE") {
-            status = `${strikeCount}/3 Strike${strikeCount > 1 ? 's' : ''}`;
+            status = `${strikeCount}/3 Strike${strikeCount > 1 ? "s" : ""}`;
           }
 
           return {
@@ -154,22 +165,25 @@ const SellerStrikesPage: React.FC = () => {
       );
 
       setStrikes(transformedStrikes);
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error("Error fetching strikes:", err);
-      setError(err.message || "Failed to fetch strikes");
+      setError(err instanceof Error ? err.message : "Failed to fetch strikes");
       toast.error("Failed to load strikes");
     } finally {
       setFetchingStrikes(false);
     }
   };
 
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => {
     fetchStrikes();
   }, []);
 
   const handleClearStrike = (strike: StrikeRecord) => {
     setConfirmTitle("Clear Strike");
-    setConfirmDescription(`Are you sure you want to clear this strike for ${strike.sellerName}?`);
+    setConfirmDescription(
+      `Are you sure you want to clear this strike for ${strike.sellerName}?`
+    );
     setConfirmAction(() => async () => {
       try {
         setActionLoading(true);
@@ -180,7 +194,9 @@ const SellerStrikesPage: React.FC = () => {
         await fetchStrikes();
       } catch (err: unknown) {
         console.error("Error clearing strike:", err);
-        toast.error(err instanceof Error ? err.message : "Failed to clear strike");
+        toast.error(
+          err instanceof Error ? err.message : "Failed to clear strike"
+        );
       } finally {
         setActionLoading(false);
       }
@@ -203,14 +219,23 @@ const SellerStrikesPage: React.FC = () => {
 
     setActionLoading(true);
     try {
-      await issueSuspension(selectedStrike.sellerId, suspensionReason, parseInt(suspensionDuration), "SELLER");
-      toast.success(`${selectedStrike.sellerName} suspended for ${suspensionDuration} days`);
+      await issueSuspension(
+        selectedStrike.sellerId,
+        suspensionReason,
+        parseInt(suspensionDuration),
+        "SELLER"
+      );
+      toast.success(
+        `${selectedStrike.sellerName} suspended for ${suspensionDuration} days`
+      );
       setIsSuspendModalOpen(false);
       setSuspensionReason("");
       setSuspensionDuration("7");
       await fetchStrikes();
-    } catch (err: any) {
-      toast.error(err.message || "Failed to issue suspension");
+    } catch (err: unknown) {
+      toast.error(
+        err instanceof Error ? err.message : "Failed to issue suspension"
+      );
     } finally {
       setActionLoading(false);
     }
@@ -218,7 +243,9 @@ const SellerStrikesPage: React.FC = () => {
 
   const handleReinstate = (strike: StrikeRecord) => {
     setConfirmTitle("Reinstate Seller");
-    setConfirmDescription(`Are you sure you want to reinstate ${strike.sellerName}?`);
+    setConfirmDescription(
+      `Are you sure you want to reinstate ${strike.sellerName}?`
+    );
     setConfirmAction(() => async () => {
       try {
         setActionLoading(true);
@@ -229,7 +256,9 @@ const SellerStrikesPage: React.FC = () => {
         await fetchStrikes();
       } catch (err: unknown) {
         console.error("Error reinstating seller:", err);
-        toast.error(err instanceof Error ? err.message : "Failed to reinstate seller");
+        toast.error(
+          err instanceof Error ? err.message : "Failed to reinstate seller"
+        );
       } finally {
         setActionLoading(false);
       }
@@ -247,12 +276,19 @@ const SellerStrikesPage: React.FC = () => {
 
     setActionLoading(true);
     try {
-      await extendSuspension(selectedStrike.sellerId, parseInt(days), "Suspension extended", "SELLER");
+      await extendSuspension(
+        selectedStrike.sellerId,
+        parseInt(days),
+        "Suspension extended",
+        "SELLER"
+      );
       toast.success(`Suspension extended by ${days} days`);
       setIsExtendModalOpen(false);
       await fetchStrikes();
-    } catch (err: any) {
-      toast.error(err.message || "Failed to extend suspension");
+    } catch (err: unknown) {
+      toast.error(
+        err instanceof Error ? err.message : "Failed to extend suspension"
+      );
     } finally {
       setActionLoading(false);
     }
@@ -262,7 +298,7 @@ const SellerStrikesPage: React.FC = () => {
     window.location.href = `mailto:${strike.sellerEmail}`;
   };
 
-  const filteredStrikes = strikes.filter(strike => {
+  const filteredStrikes = strikes.filter((strike) => {
     const searchLower = searchQuery.toLowerCase();
     return (
       strike.sellerName.toLowerCase().includes(searchLower) ||
@@ -272,18 +308,20 @@ const SellerStrikesPage: React.FC = () => {
   });
 
   // Convert selectedStrike to DisplaySeller format
-  const selectedSellerForModal: DisplaySeller | null = selectedStrike ? {
-    id: selectedStrike.sellerId,
-    name: selectedStrike.sellerName,
-    email: selectedStrike.sellerEmail,
-    shopName: selectedStrike.sellerName,
-    status: selectedStrike.status,
-    tier: "N/A",
-    businessCategory: "N/A",
-    location: "N/A",
-    totalSales: "N/A",
-    createdAt: selectedStrike.date,
-  } : null;
+  const selectedSellerForModal: DisplaySeller | null = selectedStrike
+    ? {
+        id: selectedStrike.sellerId,
+        name: selectedStrike.sellerName,
+        email: selectedStrike.sellerEmail,
+        shopName: selectedStrike.sellerName,
+        status: selectedStrike.status,
+        tier: "N/A",
+        businessCategory: "N/A",
+        location: "N/A",
+        totalSales: "N/A",
+        createdAt: selectedStrike.date,
+      }
+    : null;
 
   return (
     <div className="p-8 bg-[#F9FAFB] min-h-screen">
@@ -297,7 +335,6 @@ const SellerStrikesPage: React.FC = () => {
         onClearStrike={handleClearStrike}
         onUpgradeToSuspension={handleUpgradeToSuspension}
         onReinstate={handleReinstate}
-        onContact={handleContact}
       />
 
       <SuspendSellerModal
