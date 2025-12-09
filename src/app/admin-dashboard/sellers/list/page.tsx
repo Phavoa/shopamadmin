@@ -8,7 +8,12 @@ import {
   SellerProfileVM,
   SellerListParams,
 } from "@/api/sellerApi";
-import { issueStrike, issueSuspension, getUserDisciplineSummary } from "@/api/disciplineApi";
+import {
+  issueStrike,
+  issueSuspension,
+  getUserDisciplineSummary,
+  getUserStrikeCount,
+} from "@/api/disciplineApi";
 import { useDispatch, useSelector } from "react-redux";
 import { setHeaderTitle } from "@/features/shared/headerSice";
 import { selectSearchQuery } from "@/features/search";
@@ -62,7 +67,9 @@ const Page = () => {
   // Modal states
   const [suspendModal, setSuspendModal] = useState(false);
   const [strikeModal, setStrikeModal] = useState(false);
-  const [selectedSeller, setSelectedSeller] = useState<DisplaySeller | null>(null);
+  const [selectedSeller, setSelectedSeller] = useState<DisplaySeller | null>(
+    null
+  );
 
   // Confirmation dialog states
   const [confirmDialog, setConfirmDialog] = useState(false);
@@ -107,9 +114,18 @@ const Page = () => {
           let activeSuspensions = 0;
 
           try {
-            const disciplineResponse = await getUserDisciplineSummary(seller.userId);
-            strikes = disciplineResponse.data.activeStrikes;
-            activeSuspensions = disciplineResponse.data.activeSuspensions;
+            const disciplineResponse = await getUserDisciplineSummary(
+              seller.userId,
+              "SELLER"
+            );
+
+            // ✅ ADD THESE DEBUG LOGS
+            console.log("🔍 Seller ID:", seller.userId);
+            console.log("🔍 Discipline Response:", disciplineResponse);
+            console.log("🔍 Active Strikes:", disciplineResponse.activeStrikes);
+
+            strikes = disciplineResponse.activeStrikes;
+            activeSuspensions = disciplineResponse.activeSuspensions;
 
             // Determine status based on discipline data
             if (activeSuspensions > 0) {
@@ -117,13 +133,16 @@ const Page = () => {
             } else if (strikes >= 3) {
               status = "suspended"; // Auto-suspended due to 3 strikes
             } else if (strikes > 0) {
-              status = `${strikes}/3 strike${strikes > 1 ? 's' : ''}`;
+              status = `${strikes}/3 strike${strikes > 1 ? "s" : ""}`;
             } else {
               // Use the original seller status if no strikes/suspensions
               status = seller.status.toLowerCase();
             }
           } catch (error) {
-            console.error("Failed to fetch discipline summary for seller:", seller.userId);
+            console.error(
+              "Failed to fetch discipline summary for seller:",
+              seller.userId
+            );
             // If fetching discipline fails, use original status
             status = seller.status.toLowerCase();
             strikes = 0;
@@ -131,7 +150,10 @@ const Page = () => {
 
           return {
             id: seller.userId,
-            name: user ? `${user.firstName} ${user.lastName}` : seller.shopName,
+            name:
+              user && user.firstName && user.lastName
+                ? `${user.firstName} ${user.lastName}`
+                : seller.shopName || "Unknown Seller",
             email: user ? user.email : seller.userEmail,
             status,
             tier: getTierDisplayName(seller.tier),
@@ -165,6 +187,16 @@ const Page = () => {
     }
   };
 
+  // Add this useEffect to refetch when window regains focus
+  useEffect(() => {
+    const handleFocus = () => {
+      fetchSellers(); // Refetch sellers when user comes back to the page
+    };
+
+    window.addEventListener("focus", handleFocus);
+    return () => window.removeEventListener("focus", handleFocus);
+  }, []);
+
   useEffect(() => {
     fetchSellers();
   }, []);
@@ -194,17 +226,29 @@ const Page = () => {
     }
 
     setConfirmTitle("Confirm Suspension");
-    setConfirmDescription(`Are you sure you want to suspend ${selectedSeller.name} for ${duration} days?`);
+    setConfirmDescription(
+      `Are you sure you want to suspend ${selectedSeller.name} for ${duration} days?`
+    );
     setConfirmAction(() => async () => {
       try {
         setActionLoading(true);
         setConfirmDialog(false);
 
-        await issueSuspension(selectedSeller.id, {
-          role: "SELLER",
-          durationDays: parseInt(duration),
+        await issueSuspension(
+          selectedSeller.id,
           reason,
-        });
+          parseInt(duration),
+          "SELLER"
+        );
+
+        // Update local state immediately for suspension
+        setSellers((prevSellers) =>
+          prevSellers.map((seller) =>
+            seller.id === selectedSeller.id
+              ? { ...seller, status: "suspended" }
+              : seller
+          )
+        );
 
         setSuspendModal(false);
         setReason("");
@@ -213,11 +257,12 @@ const Page = () => {
 
         toast.success("Seller suspended successfully!");
 
-        // Refresh seller list
-        await fetchSellers();
+        // Refresh seller list in background (don't await to avoid blocking UI)
       } catch (err: unknown) {
         console.error("Error suspending seller:", err);
-        toast.error(err instanceof Error ? err.message : "Failed to suspend seller");
+        toast.error(
+          err instanceof Error ? err.message : "Failed to suspend seller"
+        );
       } finally {
         setActionLoading(false);
       }
@@ -239,28 +284,75 @@ const Page = () => {
     }
 
     setConfirmTitle("Confirm Strike");
-    setConfirmDescription(`Are you sure you want to issue a strike to ${selectedSeller.name}?`);
+    setConfirmDescription(
+      `Are you sure you want to issue a strike to ${selectedSeller.name}?`
+    );
     setConfirmAction(() => async () => {
       try {
         setActionLoading(true);
         setConfirmDialog(false);
 
-        const response = await issueStrike(selectedSeller.id, {
-          role: "SELLER",
-          reason,
-        });
+        // Check current strike count
+        const currentStrikeCount = await getUserStrikeCount(
+          selectedSeller.id,
+          "SELLER"
+        );
+
+        // If this will be the 3rd strike, issue suspension instead
+        if (currentStrikeCount >= 2) {
+          await issueSuspension(selectedSeller.id, reason, 30, "SELLER"); // 30 days for 3rd strike
+          toast.success(
+            `${selectedSeller.name} has been suspended (3rd strike)`
+          );
+
+          // Update local state immediately for 3rd strike suspension
+          setSellers((prevSellers) =>
+            prevSellers.map((seller) =>
+              seller.id === selectedSeller.id
+                ? { ...seller, status: "suspended", strikes: 3 }
+                : seller
+            )
+          );
+        } else {
+          const response = await issueStrike(
+            selectedSeller.id,
+            reason,
+            "SELLER"
+          );
+          const newStrikeCount = currentStrikeCount + 1;
+          toast.success(
+            `Strike ${newStrikeCount}/3 issued to ${selectedSeller.name}`
+          );
+
+          // Update local state immediately for strike
+          setSellers((prevSellers) =>
+            prevSellers.map((seller) =>
+              seller.id === selectedSeller.id
+                ? {
+                    ...seller,
+                    status:
+                      newStrikeCount >= 3
+                        ? "suspended"
+                        : `${newStrikeCount}/3 strike${
+                            newStrikeCount > 1 ? "s" : ""
+                          }`,
+                    strikes: newStrikeCount,
+                  }
+                : seller
+            )
+          );
+        }
 
         setStrikeModal(false);
         setReason("");
         setSelectedSeller(null);
 
-        toast.success(response.message || "Strike issued successfully!");
-
-        // Refresh seller list
-        await fetchSellers();
+        // Refresh seller list in background (don't await to avoid blocking UI)
       } catch (err: unknown) {
         console.error("Error issuing strike:", err);
-        toast.error(err instanceof Error ? err.message : "Failed to issue strike");
+        toast.error(
+          err instanceof Error ? err.message : "Failed to issue strike"
+        );
       } finally {
         setActionLoading(false);
       }

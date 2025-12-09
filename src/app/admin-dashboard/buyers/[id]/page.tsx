@@ -1,17 +1,30 @@
 "use client";
-
 import React from "react";
 import { useParams, useRouter } from "next/navigation";
-import { ChevronLeft } from "lucide-react";
 import { useGetUserByIdQuery } from "@/api/userApi";
 import { useDispatch } from "react-redux";
 import { setHeaderTitle } from "@/features/shared/headerSice";
-import {
-  AnimatedWrapper,
-  PageWrapper,
-} from "@/components/shared/AnimatedWrapper";
+import { PageWrapper } from "@/components/shared/AnimatedWrapper";
 import BuyerProfileView from "@/components/buyers/BuyerProfileView";
-import { BuyerLoadingState, BuyerErrorState } from "@/components/buyers";
+import { BuyerLoadingState } from "@/components/buyers";
+
+// Extended User type to handle all possible fields
+interface ExtendedUser {
+  id: string;
+  firstName?: string;
+  lastName?: string;
+  email?: string;
+  phone?: string;
+  phoneNumber?: string;
+  isVerified?: boolean;
+  status?: string;
+  createdAt: string;
+  updatedAt: string;
+  profileImage?: string;
+  imageUrl?: string;
+  followersCount?: number;
+  followingCount?: number;
+}
 
 const BuyerProfilePage = () => {
   const params = useParams();
@@ -31,22 +44,26 @@ const BuyerProfilePage = () => {
   }, [dispatch]);
 
   // Process user data for display
-  const user = userResponse?.data;
+  const user = userResponse?.data as ExtendedUser | undefined;
 
-  // Create buyer object from user
+  // Create buyer object from user - BuyerProfileView will fetch orders, wallet, etc.
   const buyer = user ? {
-    ...user,
-    name: `${user.firstName} ${user.lastName}`,
-    totalOrders: 0, // Dummy - would need separate API
-    totalSpend: "₦0", // Dummy - would need separate API
-    lastActivity: new Date(user.updatedAt).toLocaleDateString(),
-    strikes: 0, // Dummy - would need separate API
+    id: user.id,
+    firstName: user.firstName || '',
+    lastName: user.lastName || '',
+    email: user.email || '',
+    phone: user.phoneNumber || user.phone || '',
+    isVerified: true, // All registered buyers are automatically verified
+    status: user.status || 'active',
+    createdAt: user.createdAt,
+    updatedAt: user.updatedAt,
+    profileImage: user.profileImage || user.imageUrl || '',
     followersCount: user.followersCount || 0,
     followingCount: user.followingCount || 0,
   } : null;
 
   const handleBack = () => {
-    router.back();
+    router.push('/admin-dashboard/buyers/list'); // Navigate back to buyers list
   };
 
   // Loading state
@@ -59,18 +76,10 @@ const BuyerProfilePage = () => {
     const errorMessage = queryError
       ? "Failed to load buyer profile. Please try again."
       : "Buyer not found";
-
+    
     return (
       <PageWrapper className="min-h-screen bg-white">
         <div className="px-6 py-4">
-          <button
-            onClick={handleBack}
-            className="text-sm text-gray-600 hover:text-gray-900 flex items-center gap-2 mb-4"
-          >
-            <ChevronLeft className="w-4 h-4" />
-            Back to Buyers List
-          </button>
-
           <div className="flex items-center justify-center h-64">
             <div className="text-red-600">{errorMessage}</div>
           </div>

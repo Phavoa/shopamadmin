@@ -53,15 +53,31 @@ const BuyersTable: React.FC<BuyersTableProps> = ({
       : buyer.seller.status;
   };
 
-  const getStatusStyle = (buyer: Buyer) => {
-    const status = getStatus(buyer);
-    const isActive = !buyer.seller || buyer.seller.status === "ACTIVE";
-
+const getStatusStyle = (buyer: Buyer) => {
+  const status = buyer.status || getStatus(buyer);
+  
+  // Check if suspended
+  if (status === "Suspended" || status.toLowerCase() === "suspended") {
     return {
-      background: isActive ? "#D7FDD9" : "#FFE9D5",
-      color: isActive ? "#008D3F" : "#E67E22",
+      background: "#FFD4D4",  // Light red background
+      color: "#D32F2F",        // Dark red text
     };
+  }
+  
+  // Check if has strikes
+  if (status.includes("Strike")) {
+    return {
+      background: "#FFF4E5",   // Light orange background
+      color: "#E67E22",        // Orange text
+    };
+  }
+  
+  // Default active status
+  return {
+    background: "#D7FDD9",
+    color: "#008D3F",
   };
+};
 
   return (
     <div className="overflow-x-auto">
