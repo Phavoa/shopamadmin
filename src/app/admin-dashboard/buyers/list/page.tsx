@@ -3,7 +3,12 @@
 import React, { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useGetUsersQuery } from "@/api/userApi";
-import { issueStrike, issueSuspension, getUserDisciplineSummary, getUserStrikeCount } from "@/api/disciplineApi";
+import {
+  issueStrike,
+  issueSuspension,
+  getUserDisciplineSummary,
+  getUserStrikeCount,
+} from "@/api/disciplineApi";
 import type { Buyer, SelectedBuyerForAction } from "@/types/buyer";
 import { useSelector, useDispatch } from "react-redux";
 import { selectSearchQuery } from "@/features/search";
@@ -49,6 +54,10 @@ const BuyersListPage = () => {
   const [duration, setDuration] = useState("");
   const [actionLoading, setActionLoading] = useState(false);
 
+  // State for buyers with discipline data
+  const [buyers, setBuyers] = useState<Buyer[]>([]);
+  const [transforming, setTransforming] = useState(true); // ✅ Loading state for transformation
+
   useEffect(() => {
     dispatch(setHeaderTitle("Buyer List"));
   }, [dispatch]);
@@ -76,14 +85,14 @@ const BuyersListPage = () => {
     ...(searchQuery && { q: searchQuery }),
   });
 
-  // State for buyers with discipline data
-  const [buyers, setBuyers] = useState<Buyer[]>([]);
-
   // Transform users to buyers format with discipline data
   React.useEffect(() => {
     const transformBuyers = async () => {
+      setTransforming(true); // ✅ Start loading
+      
       if (!usersData?.data?.items) {
         setBuyers([]);
+        setTransforming(false); // ✅ Stop loading
         return;
       }
 
@@ -94,7 +103,11 @@ const BuyersListPage = () => {
           let activeSuspensions = 0;
 
           try {
-            const disciplineSummary = await getUserDisciplineSummary(user.id);
+            const disciplineSummary = await getUserDisciplineSummary(
+              user.id,
+              "BUYER"
+            );
+
             strikes = disciplineSummary.activeStrikes || 0;
             activeSuspensions = disciplineSummary.activeSuspensions || 0;
             const isSuspended = disciplineSummary.isSuspended || false;
@@ -105,12 +118,15 @@ const BuyersListPage = () => {
             } else if (strikes >= 3) {
               status = "Suspended"; // Auto-suspended due to 3 strikes
             } else if (strikes > 0) {
-              status = `Strike (${strikes}/3)`;
+              status = `Strike ${strikes}/3`;
             } else {
               status = "Active";
             }
           } catch (error) {
-            console.error("Failed to fetch discipline summary for user:", user.id);
+            console.error(
+              "Failed to fetch discipline summary for user:",
+              user.id
+            );
             // If API fails, default to Active
             status = "Active";
             strikes = 0;
@@ -122,10 +138,10 @@ const BuyersListPage = () => {
             if (user.updatedAt) {
               const date = new Date(user.updatedAt);
               if (!isNaN(date.getTime())) {
-                lastActivity = date.toLocaleDateString('en-US', {
-                  year: 'numeric',
-                  month: 'short',
-                  day: 'numeric'
+                lastActivity = date.toLocaleDateString("en-US", {
+                  year: "numeric",
+                  month: "short",
+                  day: "numeric",
                 });
               }
             }
@@ -137,8 +153,8 @@ const BuyersListPage = () => {
             ...user,
             name: `${user.firstName} ${user.lastName}`,
             verified: user.isVerified || false,
-            totalOrders: 0, // These will be from orders API when available
-            totalSpend: "₦0", // These will be from orders API when available
+            totalOrders: 0,
+            totalSpend: "₦0",
             lastActivity,
             strikes,
             status,
@@ -149,10 +165,21 @@ const BuyersListPage = () => {
       );
 
       setBuyers(transformedBuyers);
+      setTransforming(false); // ✅ Stop loading
     };
 
     transformBuyers();
   }, [usersData]);
+
+  // Add this useEffect to refetch when window regains focus
+  React.useEffect(() => {
+    const handleFocus = () => {
+      refetch();
+    };
+
+    window.addEventListener("focus", handleFocus);
+    return () => window.removeEventListener("focus", handleFocus);
+  }, [refetch]);
 
   // Update pagination data
   React.useEffect(() => {
@@ -212,7 +239,9 @@ const BuyersListPage = () => {
     }
 
     setConfirmTitle("Confirm Suspension");
-    setConfirmDescription(`Are you sure you want to suspend ${selectedBuyerForAction.name} for ${duration} days?`);
+    setConfirmDescription(
+      `Are you sure you want to suspend ${selectedBuyerForAction.name} for ${duration} days?`
+    );
     setConfirmAction(() => async () => {
       try {
         setActionLoading(true);
@@ -225,18 +254,27 @@ const BuyersListPage = () => {
           "BUYER"
         );
 
+        // Update local state immediately for suspension
+        setBuyers((prevBuyers) =>
+          prevBuyers.map((buyer) =>
+            buyer.id === selectedBuyerForAction.id
+              ? { ...buyer, status: "Suspended" }
+              : buyer
+          )
+        );
+
         setSuspendModal(false);
         setReason("");
         setDuration("");
         setSelectedBuyerForAction(null);
 
         toast.success("Buyer suspended successfully!");
-
-        // Refresh the list
-        await refetch();
       } catch (err: unknown) {
         console.error("Error suspending buyer:", err);
-        toast.error(err instanceof Error ? err.message : "Failed to suspend buyer");
+        toast.error(
+          err instanceof Error ? err.message : "Failed to suspend buyer"
+        );
+        refetch();
       } finally {
         setActionLoading(false);
       }
@@ -263,33 +301,68 @@ const BuyersListPage = () => {
     }
 
     setConfirmTitle("Confirm Strike");
-    setConfirmDescription(`Are you sure you want to issue a strike to ${selectedBuyerForAction.name}?`);
+    setConfirmDescription(
+      `Are you sure you want to issue a strike to ${selectedBuyerForAction.name}?`
+    );
     setConfirmAction(() => async () => {
       try {
         setActionLoading(true);
         setConfirmDialog(false);
 
         // Check current strike count
-        const currentStrikeCount = await getUserStrikeCount(selectedBuyerForAction.id, "BUYER");
-        
+        const currentStrikeCount = await getUserStrikeCount(
+          selectedBuyerForAction.id,
+          "BUYER"
+        );
+
         // If this will be the 3rd strike, issue suspension instead
         if (currentStrikeCount >= 2) {
-          await issueSuspension(selectedBuyerForAction.id, reason, 30, "BUYER"); // 30 days for 3rd strike
-          toast.success(`${selectedBuyerForAction.name} has been suspended (3rd strike)`);
+          await issueSuspension(selectedBuyerForAction.id, reason, 30, "BUYER");
+          toast.success(
+            `${selectedBuyerForAction.name} has been suspended (3rd strike)`
+          );
+
+          // Update local state immediately for 3rd strike suspension
+          setBuyers((prevBuyers) =>
+            prevBuyers.map((buyer) =>
+              buyer.id === selectedBuyerForAction.id
+                ? { ...buyer, status: "Suspended", strikes: 3 }
+                : buyer
+            )
+          );
         } else {
           await issueStrike(selectedBuyerForAction.id, reason, "BUYER");
-          toast.success(`Strike ${currentStrikeCount + 1}/3 issued to ${selectedBuyerForAction.name}`);
+          const newStrikeCount = currentStrikeCount + 1;
+          toast.success(
+            `Strike ${newStrikeCount}/3 issued to ${selectedBuyerForAction.name}`
+          );
+
+          // Update local state immediately for strike
+          setBuyers((prevBuyers) =>
+            prevBuyers.map((buyer) =>
+              buyer.id === selectedBuyerForAction.id
+                ? {
+                    ...buyer,
+                    status:
+                      newStrikeCount >= 3
+                        ? "Suspended"
+                        : `Strike ${newStrikeCount}/3`,
+                    strikes: newStrikeCount,
+                  }
+                : buyer
+            )
+          );
         }
 
         setStrikeModal(false);
         setReason("");
         setSelectedBuyerForAction(null);
-
-        // Refresh the list
-        await refetch();
       } catch (err: unknown) {
         console.error("Error issuing strike:", err);
-        toast.error(err instanceof Error ? err.message : "Failed to issue strike");
+        toast.error(
+          err instanceof Error ? err.message : "Failed to issue strike"
+        );
+        refetch();
       } finally {
         setActionLoading(false);
       }
@@ -297,8 +370,8 @@ const BuyersListPage = () => {
     setConfirmDialog(true);
   };
 
-  // Loading state
-  if (isLoading) {
+  // ✅ Show loading state while fetching OR transforming data
+  if (isLoading || transforming) {
     return <BuyerLoadingState />;
   }
 

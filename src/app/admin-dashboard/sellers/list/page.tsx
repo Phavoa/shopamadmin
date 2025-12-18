@@ -12,6 +12,7 @@ import {
   issueStrike,
   issueSuspension,
   getUserDisciplineSummary,
+  getUserStrikeCount,
 } from "@/api/disciplineApi";
 import { useDispatch, useSelector } from "react-redux";
 import { setHeaderTitle } from "@/features/shared/headerSice";
@@ -114,8 +115,15 @@ const Page = () => {
 
           try {
             const disciplineResponse = await getUserDisciplineSummary(
-              seller.userId
+              seller.userId,
+              "SELLER"
             );
+
+            // ✅ ADD THESE DEBUG LOGS
+            console.log("🔍 Seller ID:", seller.userId);
+            console.log("🔍 Discipline Response:", disciplineResponse);
+            console.log("🔍 Active Strikes:", disciplineResponse.activeStrikes);
+
             strikes = disciplineResponse.activeStrikes;
             activeSuspensions = disciplineResponse.activeSuspensions;
 
@@ -142,7 +150,10 @@ const Page = () => {
 
           return {
             id: seller.userId,
-            name: user ? `${user.firstName} ${user.lastName}` : seller.shopName,
+            name:
+              user && user.firstName && user.lastName
+                ? `${user.firstName} ${user.lastName}`
+                : seller.shopName || "Unknown Seller",
             email: user ? user.email : seller.userEmail,
             status,
             tier: getTierDisplayName(seller.tier),
@@ -175,6 +186,16 @@ const Page = () => {
       setFetchingSellers(false);
     }
   };
+
+  // Add this useEffect to refetch when window regains focus
+  useEffect(() => {
+    const handleFocus = () => {
+      fetchSellers(); // Refetch sellers when user comes back to the page
+    };
+
+    window.addEventListener("focus", handleFocus);
+    return () => window.removeEventListener("focus", handleFocus);
+  }, []);
 
   useEffect(() => {
     fetchSellers();
@@ -220,6 +241,15 @@ const Page = () => {
           "SELLER"
         );
 
+        // Update local state immediately for suspension
+        setSellers((prevSellers) =>
+          prevSellers.map((seller) =>
+            seller.id === selectedSeller.id
+              ? { ...seller, status: "suspended" }
+              : seller
+          )
+        );
+
         setSuspendModal(false);
         setReason("");
         setDuration("");
@@ -227,8 +257,7 @@ const Page = () => {
 
         toast.success("Seller suspended successfully!");
 
-        // Refresh seller list
-        await fetchSellers();
+        // Refresh seller list in background (don't await to avoid blocking UI)
       } catch (err: unknown) {
         console.error("Error suspending seller:", err);
         toast.error(
@@ -263,16 +292,62 @@ const Page = () => {
         setActionLoading(true);
         setConfirmDialog(false);
 
-        const response = await issueStrike(selectedSeller.id, reason, "SELLER");
+        // Check current strike count
+        const currentStrikeCount = await getUserStrikeCount(
+          selectedSeller.id,
+          "SELLER"
+        );
+
+        // If this will be the 3rd strike, issue suspension instead
+        if (currentStrikeCount >= 2) {
+          await issueSuspension(selectedSeller.id, reason, 30, "SELLER"); // 30 days for 3rd strike
+          toast.success(
+            `${selectedSeller.name} has been suspended (3rd strike)`
+          );
+
+          // Update local state immediately for 3rd strike suspension
+          setSellers((prevSellers) =>
+            prevSellers.map((seller) =>
+              seller.id === selectedSeller.id
+                ? { ...seller, status: "suspended", strikes: 3 }
+                : seller
+            )
+          );
+        } else {
+          const response = await issueStrike(
+            selectedSeller.id,
+            reason,
+            "SELLER"
+          );
+          const newStrikeCount = currentStrikeCount + 1;
+          toast.success(
+            `Strike ${newStrikeCount}/3 issued to ${selectedSeller.name}`
+          );
+
+          // Update local state immediately for strike
+          setSellers((prevSellers) =>
+            prevSellers.map((seller) =>
+              seller.id === selectedSeller.id
+                ? {
+                    ...seller,
+                    status:
+                      newStrikeCount >= 3
+                        ? "suspended"
+                        : `${newStrikeCount}/3 strike${
+                            newStrikeCount > 1 ? "s" : ""
+                          }`,
+                    strikes: newStrikeCount,
+                  }
+                : seller
+            )
+          );
+        }
 
         setStrikeModal(false);
         setReason("");
         setSelectedSeller(null);
 
-        toast.success(response.message || "Strike issued successfully!");
-
-        // Refresh seller list
-        await fetchSellers();
+        // Refresh seller list in background (don't await to avoid blocking UI)
       } catch (err: unknown) {
         console.error("Error issuing strike:", err);
         toast.error(

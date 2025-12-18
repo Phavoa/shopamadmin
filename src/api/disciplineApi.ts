@@ -112,20 +112,26 @@ export const SuspendSeller = async (
 };
 
 // Get user discipline summary - FIXED: Proper error handling
-export const getUserDisciplineSummary = async (userId: string): Promise<DisciplineSummary> => {
+export const getUserDisciplineSummary = async (
+  userId: string,
+  role?: "BUYER" | "SELLER"
+): Promise<DisciplineSummary> => {
   const token = getAuthToken();
-  
+
   try {
-    const response = await fetch(`${API_BASE_URL}/discipline/summary?userId=${userId}`, {
-      method: "GET",
-      headers: {
-        "Content-Type": "application/json",
-        ...(token && { Authorization: `Bearer ${token}` }),
-      },
-    });
+    // ✅ Fetch all discipline records and filter for this user's ACTIVE strikes
+    const response = await fetch(
+      `${API_BASE_URL}/discipline?role=${role || "BUYER"}&limit=100`,
+      {
+        method: "GET",
+        headers: {
+          "Content-Type": "application/json",
+          ...(token && { Authorization: `Bearer ${token}` }),
+        },
+      }
+    );
 
     if (!response.ok) {
-      // Return default values if request fails
       return {
         totalStrikes: 0,
         activeStrikes: 0,
@@ -136,11 +142,34 @@ export const getUserDisciplineSummary = async (userId: string): Promise<Discipli
       };
     }
 
-    const data = await response.json();
-    return data.data || data;
+    const result = await response.json();
+    const allRecords = result.data?.items || [];
+    
+    // Filter for this specific user's records
+    const userRecords = allRecords.filter((r: DisciplineRecord) => r.userId === userId);
+    
+    // Count ACTIVE strikes only (not RESOLVED)
+    const activeStrikes = userRecords.filter(
+      (r: DisciplineRecord) => r.type === "STRIKE" && r.status === "ACTIVE"
+    ).length;
+    
+    // Check for ACTIVE suspension
+    const activeSuspension = userRecords.find(
+      (r: DisciplineRecord) => r.type === "SUSPENSION" && r.status === "ACTIVE"
+    );
+    
+    const isSuspended = !!activeSuspension;
+
+    return {
+      totalStrikes: activeStrikes,
+      activeStrikes: activeStrikes,
+      totalSuspensions: isSuspended ? 1 : 0,
+      activeSuspensions: isSuspended ? 1 : 0,
+      isSuspended: isSuspended,
+      suspensionEndsAt: activeSuspension?.suspendedUntil || null,
+    };
   } catch (error) {
     console.error("Error fetching discipline summary:", error);
-    // Return default values on error
     return {
       totalStrikes: 0,
       activeStrikes: 0,
