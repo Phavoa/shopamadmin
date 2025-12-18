@@ -89,11 +89,10 @@ const BuyerProfileView: React.FC<BuyerProfileViewProps> = ({
             o.status.toLowerCase() === "completed" ||
             o.status.toLowerCase() === "delivered"
         ).length;
-        const pending = fetchedOrders.filter(
-          (o: Order) =>
-            o.status.toLowerCase() === "pending" ||
-            o.status.toLowerCase() === "processing"
-        ).length;
+        const pending = fetchedOrders.filter((o: Order) => {
+          const statusLower = o.status.toLowerCase();
+          return statusLower !== "completed" && statusLower !== "refunded";
+        }).length;
         const refunded = fetchedOrders.filter(
           (o: Order) =>
             o.status.toLowerCase() === "refunded" ||
@@ -257,14 +256,13 @@ const BuyerProfileView: React.FC<BuyerProfileViewProps> = ({
 
   const getStatusBadgeColor = (status: string) => {
     const statusLower = status.toLowerCase();
-    if (statusLower === "completed" || statusLower === "delivered") {
+    if (statusLower === "completed") {
       return "bg-green-50 text-green-700";
-    } else if (statusLower === "pending" || statusLower === "processing") {
-      return "bg-orange-50 text-orange-700";
-    } else if (statusLower === "refunded" || statusLower === "cancelled") {
+    } else if (statusLower === "refunded") {
       return "bg-red-50 text-red-700";
+    } else {
+      return "bg-orange-50 text-orange-700";
     }
-    return "bg-gray-50 text-gray-700";
   };
 
   const getDisplayStatus = (status: string) => {
@@ -553,7 +551,7 @@ const BuyerProfileView: React.FC<BuyerProfileViewProps> = ({
                     </tr>
                   </thead>
                   <tbody>
-                    {orders.slice(0, 5).map((order) => (
+                    {orders.map((order) => (
                       <tr
                         key={order.id}
                         className="border-b border-gray-100 hover:bg-gray-50"
