@@ -40,8 +40,8 @@ const BuyerProfileView: React.FC<BuyerProfileViewProps> = ({
       "items",
       "items.product",
       "buyer",
-      "sellerProfile",
-      "sellerProfile.user",
+      "seller",
+      "seller.user",
       "checkoutSession",
       "shipment",
       "shipment.events",
@@ -267,6 +267,17 @@ const BuyerProfileView: React.FC<BuyerProfileViewProps> = ({
     return "bg-gray-50 text-gray-700";
   };
 
+  const getDisplayStatus = (status: string) => {
+    const statusLower = status.toLowerCase();
+    if (statusLower === "completed") {
+      return "Completed";
+    } else if (statusLower === "refunded") {
+      return "Refunded";
+    } else {
+      return "Pending";
+    }
+  };
+
   const walletBalanceNaira = parseInt(wallet.balanceKobo) / 100;
 
   return (
@@ -358,9 +369,11 @@ const BuyerProfileView: React.FC<BuyerProfileViewProps> = ({
                   <p className="text-xs text-gray-500 mb-1">Status</p>
                   <span
                     className={`inline-block px-3 py-1 text-xs font-medium rounded ${
-                      disciplineData.status === 'Suspended' ? 'bg-red-50 text-red-700' :
-                      disciplineData.status.includes('Strike') ? 'bg-orange-50 text-orange-700' :
-                      'bg-green-50 text-green-700'
+                      disciplineData.status === "Suspended"
+                        ? "bg-red-50 text-red-700"
+                        : disciplineData.status.includes("Strike")
+                        ? "bg-orange-50 text-orange-700"
+                        : "bg-green-50 text-green-700"
                     }`}
                   >
                     {disciplineData.status}
@@ -562,7 +575,7 @@ const BuyerProfileView: React.FC<BuyerProfileViewProps> = ({
                         </td>
                         <td className="py-3 px-6">
                           {order.items?.[0] ? (
-                            <span className="text-sm text-blue-600 border border-blue-200 px-2 py-1 rounded inline-block truncate max-w-full">
+                            <span className="py-3 px-6 text-sm text-gray-900">
                               {order.items[0].title}
                             </span>
                           ) : (
@@ -578,11 +591,11 @@ const BuyerProfileView: React.FC<BuyerProfileViewProps> = ({
                         </td>
                         <td className="py-3 px-6">
                           <span
-                            className={`inline-block px-3 py-1 text-xs font-medium rounded ${getStatusBadgeColor(
+                            className={`inline-block px-3 py-1 text-xs font-medium rounded-full ${getStatusBadgeColor(
                               order.status
                             )}`}
                           >
-                            {order.status}
+                            {getDisplayStatus(order.status)}
                           </span>
                         </td>
                       </tr>
