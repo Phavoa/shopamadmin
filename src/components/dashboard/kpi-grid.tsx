@@ -14,13 +14,22 @@ import {
   Wallet,
   Banknote,
   TriangleAlert,
+  Percent,
+  Receipt,
+  Video,
 } from "lucide-react";
+import {
+  useGetShopAmRevenueQuery,
+  useGetVatRevenueQuery,
+  useGetLivestreamRevenueQuery,
+} from "@/api/revenueApi";
 
 type KPI = {
   title: string;
   value: string;
   meta?: string;
   icon?: React.ReactNode;
+  isLoading?: boolean;
 };
 
 const kpis: KPI[] = [
@@ -43,10 +52,10 @@ const kpis: KPI[] = [
     icon: <Radio className="w-5 h-5 text-[var(--sidebar-primary)]" />,
   },
   {
-    title: "Net Revenue (MTD)",
-    value: "₦3.2M",
-    meta: "-18% MoM",
-    icon: <Activity className="w-5 h-5 text-[var(--sidebar-primary)]" />,
+    title: "ShopAm Revenue",
+    value: "₦2.68M",
+    meta: "6%: ₦1.25M | 5%: ₦980K | 3%: ₦450K",
+    icon: <Percent className="w-5 h-5 text-[var(--sidebar-primary)]" />,
   },
 ];
 
@@ -64,21 +73,86 @@ const additionalKpis: KPI[] = [
     icon: <Banknote className="w-5 h-5 text-[var(--sidebar-primary)]" />,
   },
   {
-    title: "Disputes Open",
-    value: "2.1%",
-    meta: "-0.3% vs last month",
-    icon: <TriangleAlert className="w-5 h-5 text-[var(--sidebar-primary)]" />,
+    title: "VAT Revenue",
+    value: "₦850K",
+    meta: "7.5% VAT | 1,250 transactions",
+    icon: <Receipt className="w-5 h-5 text-[var(--sidebar-primary)]" />,
   },
   {
-    title: "Live Sessions Today",
-    value: "28",
-    meta: "Total duration: 4.2h",
-    icon: <Wifi className="w-5 h-5 text-[var(--sidebar-primary)]" />,
+    title: "Livestream Revenue",
+    value: "₦1.56M",
+    meta: "78 sellers | ₦20K avg fee",
+    icon: <Video className="w-5 h-5 text-[var(--sidebar-primary)]" />,
   },
 ];
 
 function KPIGrid() {
   const [showAdditional, setShowAdditional] = useState(false);
+
+  // Fetch revenue data
+  const { data: shopAmRevenue, isLoading: shopAmLoading } =
+    useGetShopAmRevenueQuery();
+  const { data: vatRevenue, isLoading: vatLoading } = useGetVatRevenueQuery();
+  const { data: livestreamRevenue, isLoading: livestreamLoading } =
+    useGetLivestreamRevenueQuery();
+
+  // Format currency helper
+  const formatCurrency = (amount: number): string => {
+    return new Intl.NumberFormat("en-NG", {
+      style: "currency",
+      currency: "NGN",
+      minimumFractionDigits: 0,
+      maximumFractionDigits: 0,
+    })
+      .format(amount)
+      .replace("NGN", "₦");
+  };
+
+  // Format number helper
+  const formatNumber = (num: number): string => {
+    return new Intl.NumberFormat("en-NG").format(num);
+  };
+
+  // Update KPI values with fetched data
+  const updatedKpis = kpis.map((kpi, index) => {
+    if (kpi.title === "ShopAm Revenue" && shopAmRevenue) {
+      return {
+        ...kpi,
+        value: formatCurrency(shopAmRevenue.total),
+        meta: `6%: ${formatCurrency(
+          shopAmRevenue.sixPercent
+        )} | 5%: ${formatCurrency(
+          shopAmRevenue.fivePercent
+        )} | 3%: ${formatCurrency(shopAmRevenue.threePercent)}`,
+        isLoading: shopAmLoading,
+      };
+    }
+    return kpi;
+  });
+
+  const updatedAdditionalKpis = additionalKpis.map((kpi) => {
+    if (kpi.title === "VAT Revenue" && vatRevenue) {
+      return {
+        ...kpi,
+        value: formatCurrency(vatRevenue.vatCollected),
+        meta: `${vatRevenue.vatRate}% VAT | ${formatNumber(
+          vatRevenue.applicableTransactions
+        )} transactions`,
+        isLoading: vatLoading,
+      };
+    }
+    if (kpi.title === "Livestream Revenue" && livestreamRevenue) {
+      return {
+        ...kpi,
+        value: formatCurrency(livestreamRevenue.totalFees),
+        meta: `${formatNumber(
+          livestreamRevenue.totalSellers
+        )} sellers | ${formatCurrency(livestreamRevenue.averageFee)} avg fee`,
+        isLoading: livestreamLoading,
+      };
+    }
+    return kpi;
+  });
 
   return (
     <div className="flex items-center relative">
@@ -87,7 +161,7 @@ function KPIGrid() {
           aria-label="Key metrics"
           className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-[var(--space-md)]"
         >
-          {kpis.map((k) => (
+          {updatedKpis.map((k) => (
             <div
               key={k.title}
               className="p-5  rounded-2xl border-l border-l-gray-200 border-t border-t-gray-200 border-b border-b-gray-200 border-r border-r-gray-100"
@@ -98,7 +172,11 @@ function KPIGrid() {
                     {k.title}
                   </h3>
                   <div className="mt-8 text-3xl font-bold text-balck">
-                    {k.value}
+                    {k.isLoading ? (
+                      <div className="h-8 bg-gray-200 rounded animate-pulse w-24"></div>
+                    ) : (
+                      k.value
+                    )}
                   </div>
                   {k.meta && (
                     <div className="text-sm  text-black/80 mt-1">{k.meta}</div>
@@ -120,7 +198,7 @@ function KPIGrid() {
             aria-label="Additional metrics"
             className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-[var(--space-md)]"
           >
-            {additionalKpis.map((k) => (
+            {updatedAdditionalKpis.map((k) => (
               <div
                 key={k.title}
                 className="p-5  rounded-2xl border-l border-l-gray-200 border-t border-t-gray-200 border-b border-b-gray-200 border-r border-r-gray-100"
@@ -131,7 +209,11 @@ function KPIGrid() {
                       {k.title}
                     </h3>
                     <div className="mt-8 text-3xl font-bold text-balck">
-                      {k.value}
+                      {k.isLoading ? (
+                        <div className="h-8 bg-gray-200 rounded animate-pulse w-24"></div>
+                      ) : (
+                        k.value
+                      )}
                     </div>
                     {k.meta && (
                       <div className="text-sm  text-black/80 mt-1">
