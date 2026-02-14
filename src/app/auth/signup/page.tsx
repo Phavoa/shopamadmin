@@ -20,14 +20,13 @@ export default function SignUpPage() {
   const [register, { isLoading: isRegistering }] = useRegisterMutation();
   const [apiError, setApiError] = React.useState<string | null>(null);
   const [successMessage, setSuccessMessage] = React.useState<string | null>(
-    null
+    null,
   );
 
   const {
     control,
     handleSubmit,
-    formState: { errors, isSubmitting },
-    reset,
+    formState: { isSubmitting },
   } = useForm<SignupFormData>({
     resolver: zodResolver(signupSchema),
     defaultValues: {
@@ -56,7 +55,7 @@ export default function SignUpPage() {
       // Store the email for the OTP verification step
       localStorage.setItem("pendingVerificationEmail", data.email);
       setSuccessMessage(
-        "Account created successfully! Redirecting to verification..."
+        "Account created successfully! Redirecting to verification...",
       );
 
       // Navigate to OTP verification page after a short delay

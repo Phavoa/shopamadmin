@@ -12,6 +12,10 @@ export interface Slot {
   tier?: "Beginner" | "Bronze" | "Gold" | "Pop-Up";
   category?: string;
   city?: string;
+  livestreamStatus?: string;
+  itemsCount?: number;
+  tierCap?: number;
+  realDuration?: number;
 }
 
 export interface Seller {

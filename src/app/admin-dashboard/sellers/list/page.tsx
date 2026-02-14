@@ -68,7 +68,7 @@ const Page = () => {
   const [suspendModal, setSuspendModal] = useState(false);
   const [strikeModal, setStrikeModal] = useState(false);
   const [selectedSeller, setSelectedSeller] = useState<DisplaySeller | null>(
-    null
+    null,
   );
 
   // Confirmation dialog states
@@ -99,11 +99,11 @@ const Page = () => {
 
       // Fetch user profiles for names
       const userPromises = sellersData.map((seller) =>
-        getUserById(seller.userId).catch(() => null)
+        getUserById(seller.userId).catch(() => null),
       );
       const userResults = await Promise.allSettled(userPromises);
       const userProfiles = userResults.map((result) =>
-        result.status === "fulfilled" ? result.value : null
+        result.status === "fulfilled" ? result.value : null,
       );
 
       const displaySellers: DisplaySeller[] = await Promise.all(
@@ -116,7 +116,7 @@ const Page = () => {
           try {
             const disciplineResponse = await getUserDisciplineSummary(
               seller.userId,
-              "SELLER"
+              "SELLER",
             );
 
             // ✅ ADD THESE DEBUG LOGS
@@ -138,10 +138,10 @@ const Page = () => {
               // Use the original seller status if no strikes/suspensions
               status = seller.status.toLowerCase();
             }
-          } catch (error) {
+          } catch {
             console.error(
               "Failed to fetch discipline summary for seller:",
-              seller.userId
+              seller.userId,
             );
             // If fetching discipline fails, use original status
             status = seller.status.toLowerCase();
@@ -171,7 +171,7 @@ const Page = () => {
             activeListings: 35,
             nextSlot: "Sep 6, 2025 14:00 (Bronze)",
           };
-        })
+        }),
       );
       setSellers(displaySellers);
       setNextCursor(response.data.nextCursor);
@@ -227,7 +227,7 @@ const Page = () => {
 
     setConfirmTitle("Confirm Suspension");
     setConfirmDescription(
-      `Are you sure you want to suspend ${selectedSeller.name} for ${duration} days?`
+      `Are you sure you want to suspend ${selectedSeller.name} for ${duration} days?`,
     );
     setConfirmAction(() => async () => {
       try {
@@ -238,7 +238,7 @@ const Page = () => {
           selectedSeller.id,
           reason,
           parseInt(duration),
-          "SELLER"
+          "SELLER",
         );
 
         // Update local state immediately for suspension
@@ -246,8 +246,8 @@ const Page = () => {
           prevSellers.map((seller) =>
             seller.id === selectedSeller.id
               ? { ...seller, status: "suspended" }
-              : seller
-          )
+              : seller,
+          ),
         );
 
         setSuspendModal(false);
@@ -261,7 +261,7 @@ const Page = () => {
       } catch (err: unknown) {
         console.error("Error suspending seller:", err);
         toast.error(
-          err instanceof Error ? err.message : "Failed to suspend seller"
+          err instanceof Error ? err.message : "Failed to suspend seller",
         );
       } finally {
         setActionLoading(false);
@@ -285,7 +285,7 @@ const Page = () => {
 
     setConfirmTitle("Confirm Strike");
     setConfirmDescription(
-      `Are you sure you want to issue a strike to ${selectedSeller.name}?`
+      `Are you sure you want to issue a strike to ${selectedSeller.name}?`,
     );
     setConfirmAction(() => async () => {
       try {
@@ -295,14 +295,14 @@ const Page = () => {
         // Check current strike count
         const currentStrikeCount = await getUserStrikeCount(
           selectedSeller.id,
-          "SELLER"
+          "SELLER",
         );
 
         // If this will be the 3rd strike, issue suspension instead
         if (currentStrikeCount >= 2) {
           await issueSuspension(selectedSeller.id, reason, 30, "SELLER"); // 30 days for 3rd strike
           toast.success(
-            `${selectedSeller.name} has been suspended (3rd strike)`
+            `${selectedSeller.name} has been suspended (3rd strike)`,
           );
 
           // Update local state immediately for 3rd strike suspension
@@ -310,18 +310,14 @@ const Page = () => {
             prevSellers.map((seller) =>
               seller.id === selectedSeller.id
                 ? { ...seller, status: "suspended", strikes: 3 }
-                : seller
-            )
+                : seller,
+            ),
           );
         } else {
-          const response = await issueStrike(
-            selectedSeller.id,
-            reason,
-            "SELLER"
-          );
+          await issueStrike(selectedSeller.id, reason, "SELLER");
           const newStrikeCount = currentStrikeCount + 1;
           toast.success(
-            `Strike ${newStrikeCount}/3 issued to ${selectedSeller.name}`
+            `Strike ${newStrikeCount}/3 issued to ${selectedSeller.name}`,
           );
 
           // Update local state immediately for strike
@@ -338,8 +334,8 @@ const Page = () => {
                           }`,
                     strikes: newStrikeCount,
                   }
-                : seller
-            )
+                : seller,
+            ),
           );
         }
 
@@ -351,7 +347,7 @@ const Page = () => {
       } catch (err: unknown) {
         console.error("Error issuing strike:", err);
         toast.error(
-          err instanceof Error ? err.message : "Failed to issue strike"
+          err instanceof Error ? err.message : "Failed to issue strike",
         );
       } finally {
         setActionLoading(false);

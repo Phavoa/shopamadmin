@@ -3,7 +3,7 @@
 import React from "react";
 import { useRouter } from "next/navigation";
 import { useGetLiveStreamsQuery } from "@/api/liveStreamApi";
-import { Play, Calendar, User, Eye, Loader2, AlertCircle } from "lucide-react";
+import { Play, Calendar, User, Loader2, AlertCircle } from "lucide-react";
 
 export default function LiveMonitoringPage() {
   const router = useRouter();

@@ -2,9 +2,8 @@
 
 import React, { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import { useForm, Controller } from "react-hook-form";
+import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import Link from "next/link";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -17,7 +16,7 @@ export default function VerifyOtpPage() {
   const [requestOtp, { isLoading: isRequestingOtp }] = useRequestOtpMutation();
   const [apiError, setApiError] = React.useState<string | null>(null);
   const [successMessage, setSuccessMessage] = React.useState<string | null>(
-    null
+    null,
   );
   const [status, setStatus] = useState<string | null>(null);
   const [cooldown, setCooldown] = useState<number>(0);
@@ -33,7 +32,6 @@ export default function VerifyOtpPage() {
       : "";
 
   const {
-    control,
     handleSubmit,
     formState: { errors, isSubmitting },
     setValue,
@@ -104,7 +102,7 @@ export default function VerifyOtpPage() {
 
   function handleKeyDown(
     index: number,
-    e: React.KeyboardEvent<HTMLInputElement>
+    e: React.KeyboardEvent<HTMLInputElement>,
   ) {
     if (e.key === "Backspace") {
       if (getValues("otp")[index]) {
@@ -199,7 +197,7 @@ export default function VerifyOtpPage() {
     }
   }
 
-  function onSubmit(data: OtpFormData) {
+  function onSubmit() {
     void submitIfComplete();
   }
 

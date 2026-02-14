@@ -45,7 +45,7 @@ export default function TiersAndRulesPage() {
     setIsModalOpen(true);
   };
 
-  const handleReset = (id: string) => {
+  const handleReset = () => {
     // Reset functionality would nominally restore defaults.
     // Since we are strictly using API data, we might need an API endpoint for "reset"
     // or just inform the user this is not yet connected if no endpoint exists.

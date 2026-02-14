@@ -1,13 +1,15 @@
 "use client";
 
 import React, { useState, useMemo, useEffect } from "react";
-import { motion } from "framer-motion";
 import FiltersBar from "@/components/slots/FiltersBar";
 import CalendarBoard from "@/components/slots/CalendarBoard";
 import SlotDetailsPanel from "@/components/slots/SlotDetailsPanel";
-import SlotModal from "@/components/slots/SlotModal";
-import { Slot, Seller } from "@/lib/mockData";
-import { useGetLiveStreamsQuery, LiveStream } from "@/api/liveStreamApi";
+import { Slot } from "@/lib/mockData";
+import {
+  useGetLiveStreamsQuery,
+  LiveStream,
+  GetLiveStreamsParams,
+} from "@/api/liveStreamApi";
 import { useGetLivestreamTiersQuery } from "@/api/slotApi";
 import { useGetCategoriesQuery } from "@/api/categoriesApi";
 import { useGetStatesQuery } from "@/api/userApi";
@@ -83,13 +85,9 @@ const mapLiveStreamToSlot = (stream: LiveStream): Slot => {
     tier: tierValue as any,
     category: stream.categoryIds?.[0] || "General",
     city: "Online", // Placeholder
-    // @ts-ignore: Injecting real status for filtering without breaking Slot type
     livestreamStatus: uiStatus,
-    // @ts-ignore
     itemsCount: stream.items?.length || 0,
-    // @ts-ignore
     tierCap: stream.tier?.maxViewers || 0,
-    // @ts-ignore
     realDuration: durationMinutes,
   };
 };
@@ -105,14 +103,12 @@ const Page = () => {
   const [selectedStatus, setSelectedStatus] = useState("all");
   const [selectedSlot, setSelectedSlot] = useState<Slot | null>(null);
   const [selectedTime, setSelectedTime] = useState("");
-  const [isModalOpen, setIsModalOpen] = useState(false);
-  const [editingSlot, setEditingSlot] = useState<Slot | null>(null);
 
   // Fetch real data
   const { data: tiersData } = useGetLivestreamTiersQuery({});
 
   const queryParams = useMemo(() => {
-    const params: any = {
+    const params: GetLiveStreamsParams = {
       limit: 100,
       populate: ["seller", "seller.user", "tier", "items"],
     };
@@ -176,8 +172,7 @@ const Page = () => {
     selectedRange,
   ]);
 
-  const { data: liveStreamsData, isLoading } =
-    useGetLiveStreamsQuery(queryParams);
+  const { data: liveStreamsData } = useGetLiveStreamsQuery(queryParams);
 
   const { data: categoriesData } = useGetCategoriesQuery({ limit: 100 });
   const { data: statesData } = useGetStatesQuery();
@@ -215,14 +210,9 @@ const Page = () => {
     setSelectedStatus("all");
   };
 
-  const handleCreateSlot = () => {
-    setEditingSlot(null);
-    setIsModalOpen(true);
-  };
-
   const handleEditSlot = (slot: Slot) => {
-    setEditingSlot(slot);
-    setIsModalOpen(true);
+    console.log("Edit slot:", slot.id);
+    // Modal logic removed or needs to be adapted if modal is removed
   };
 
   const handleDeleteSlot = (slotId: string) => {
@@ -230,37 +220,6 @@ const Page = () => {
     if (selectedSlot?.id === slotId) {
       setSelectedSlot(null);
     }
-  };
-
-  const handleSaveSlot = (slotData: Partial<Slot>) => {
-    if (editingSlot) {
-      // Update existing slot
-      setSlots(
-        slots.map((slot) =>
-          slot.id === editingSlot.id ? { ...slot, ...slotData } : slot,
-        ),
-      );
-    } else {
-      // Create new slot
-      const newSlot: Slot = {
-        id: Date.now().toString(),
-        sellerId: slotData.sellerId || "",
-        sellerName: slotData.sellerName || "",
-        startTime: slotData.startTime || selectedTime,
-        endTime: slotData.endTime || "",
-        status: slotData.status as "booked" | "available",
-        date: new Date().toISOString().split("T")[0],
-        duration: slotData.duration || 60,
-        product: slotData.product,
-        price: slotData.price,
-        tier: slotData.tier,
-        category: slotData.category,
-        city: slotData.city,
-      };
-      setSlots([...slots, newSlot]);
-    }
-    setIsModalOpen(false);
-    setEditingSlot(null);
   };
 
   return (

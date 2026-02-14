@@ -24,7 +24,6 @@ import {
   useDeleteCategoryMutation,
   type Category,
 } from "../../../../api/categoriesApi";
-import { useUploadFileMutation } from "../../../../api/filesApi";
 
 // Components
 import { CategoryPageHeader } from "@/components/categories/CategoryPageHeader";
@@ -43,7 +42,7 @@ export default function ProductCategoriesPage() {
   const [showEditModal, setShowEditModal] = useState(false);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [selectedCategory, setSelectedCategory] = useState<Category | null>(
-    null
+    null,
   );
   const [categoryName, setCategoryName] = useState("");
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
@@ -109,7 +108,7 @@ export default function ProductCategoriesPage() {
       // Use the already uploaded image URL
       console.log(
         "🏷️  Creating category with image:",
-        uploadedImageUrl || "No image"
+        uploadedImageUrl || "No image",
       );
 
       await createCategory({
@@ -146,7 +145,7 @@ export default function ProductCategoriesPage() {
       // Use the already uploaded image URL
       console.log(
         "🏷️  Updating category with image:",
-        uploadedImageUrl || "No image"
+        uploadedImageUrl || "No image",
       );
 
       await updateCategory({

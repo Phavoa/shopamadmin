@@ -6,7 +6,6 @@ import { useGetLiveStreamByIdQuery } from "@/api/liveStreamApi";
 import VideoPlayer from "@/components/livestream/VideoPlayer";
 import {
   Play,
-  ShoppingBag,
   TrendingUp,
   MessageSquare,
   Gift,

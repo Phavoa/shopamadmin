@@ -55,7 +55,15 @@ export default function VideoPlayer({
       }
     };
 
-    const handleHlsError = (event: string, data: any) => {
+    const handleHlsError = (
+      event: string,
+      data: {
+        fatal: boolean;
+        type: string;
+        details: string;
+        [key: string]: any;
+      },
+    ) => {
       if (data.fatal) {
         switch (data.type) {
           case Hls.ErrorTypes.NETWORK_ERROR:
@@ -136,7 +144,7 @@ export default function VideoPlayer({
   }, [src, autoPlay]);
 
   return (
-    <div className={`relative bg-black overflow-hidden ${className}`}>
+    <div className={`relative bg-b overflow-hidden ${className}`}>
       {loading && (
         <div className="absolute inset-0 flex items-center justify-center z-10 bg-black/50">
           <Loader2 className="w-8 h-8 text-white animate-spin" />

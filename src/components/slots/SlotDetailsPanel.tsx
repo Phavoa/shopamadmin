@@ -68,8 +68,7 @@ const SlotDetailsPanel: React.FC<SlotDetailsPanelProps> = ({
                   <p className="text-xs font-medium  text-[#008d3f]">Status</p>
                   <Badge className="mt-1 bg-[#d7fdd9] text-[#008d3f] border-0 px-3 py-2 text-xs rounded-sm">
                     {/* Show real status if available */}
-                    {(selectedSlot as any).livestreamStatus ||
-                      selectedSlot.status}
+                    {selectedSlot.livestreamStatus || selectedSlot.status}
                     <ChevronDown className="inline-block ml-1" size={24} />
                   </Badge>
                 </div>
@@ -84,7 +83,7 @@ const SlotDetailsPanel: React.FC<SlotDetailsPanelProps> = ({
                   <p className="text-xs font-medium text-[#666666]">Cap</p>
                   <Badge className="mt-1 border-[0.5px] border-[#f6dcbf] bg-transparent text-[#111111] px-3 py-2 text-xs rounded-sm ">
                     {/* Show actual tier cap */}
-                    {(selectedSlot as any).tierCap || 0}
+                    {selectedSlot.tierCap || 0}
                     <ChevronDown className="inline-block ml-1" size={24} />
                   </Badge>
                 </div>
@@ -125,7 +124,7 @@ const SlotDetailsPanel: React.FC<SlotDetailsPanelProps> = ({
             <div className="flex flex-col justify-between">
               <p className="text-gray-800 text-sm ">Reliability Score: 95%</p>
               <p className="text-gray-800 text-sm ">
-                Products queued: {(selectedSlot as any).itemsCount || 0}
+                Products queued: {selectedSlot.itemsCount || 0}
               </p>
               <p className="text-gray-800 text-sm ">Last no-show: None</p>
               <p className="text-gray-800 text-sm ">Strikes: 0</p>

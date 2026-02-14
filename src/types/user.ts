@@ -21,6 +21,7 @@ export interface Address {
 }
 
 export interface SellerProfile {
+  id: string;
   userId: string;
   status: "PENDING" | "UNDER_REVIEW" | "ACTIVE" | "SUSPENDED";
   tier: "A" | "B" | "C";

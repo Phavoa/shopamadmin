@@ -17,14 +17,13 @@ export default function LoginPage() {
   const [login, { isLoading: isLoggingIn }] = useLoginMutation();
   const [apiError, setApiError] = React.useState<string | null>(null);
   const [successMessage, setSuccessMessage] = React.useState<string | null>(
-    null
+    null,
   );
 
   const {
     control,
     handleSubmit,
-    formState: { errors, isSubmitting },
-    reset,
+    formState: { isSubmitting },
   } = useForm<LoginFormData>({
     resolver: zodResolver(loginSchema),
     defaultValues: {

@@ -72,6 +72,7 @@ export interface GetLiveStreamsParams {
   scheduledEndFrom?: string;
   scheduledEndTo?: string;
   categoryIds?: string[];
+  tier?: string;
 }
 
 export interface ApiResponse<T> {

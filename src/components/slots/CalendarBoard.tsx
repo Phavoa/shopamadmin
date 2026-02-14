@@ -61,7 +61,7 @@ const CalendarBoard: React.FC<CalendarBoardProps> = ({
         slotEventOverlap={false}
         eventDisplay="block"
         eventContent={(arg) => {
-          const slot = arg.event.extendedProps.slot as any;
+          const slot = arg.event.extendedProps.slot as Slot;
           return (
             <div
               className="px-3 text-xs pt-1 text-gray-900 truncate "

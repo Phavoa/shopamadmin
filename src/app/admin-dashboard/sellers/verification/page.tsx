@@ -2,13 +2,7 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
-import {
-  approveSeller,
-  suspendSeller,
-  getSellers,
-  SellerProfileVM,
-} from "@/api/sellerApi";
-import { useNotifications } from "@/hooks/useNotifications";
+import { approveSeller, suspendSeller, getSellers } from "@/api/sellerApi";
 import {
   VerificationPageHeader,
   SellerTable,
@@ -22,7 +16,7 @@ import {
 const Page = () => {
   const [sellers, setSellers] = useState<DisplaySeller[]>([]);
   const [selectedSeller, setSelectedSeller] = useState<DisplaySeller | null>(
-    null
+    null,
   );
   const [loading, setLoading] = useState(false);
   const [fetchingSellers, setFetchingSellers] = useState(true);
@@ -69,8 +63,8 @@ const Page = () => {
         prev.map((seller) =>
           seller.userId === selectedSeller.userId
             ? { ...seller, status: "ACTIVE" }
-            : seller
-        )
+            : seller,
+        ),
       );
 
       setShowApproveModal(false);
@@ -93,8 +87,8 @@ const Page = () => {
         prev.map((seller) =>
           seller.userId === selectedSeller.userId
             ? { ...seller, status: "SUSPENDED" }
-            : seller
-        )
+            : seller,
+        ),
       );
 
       setShowRejectModal(false);

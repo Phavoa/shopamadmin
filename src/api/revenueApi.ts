@@ -65,7 +65,7 @@ export const revenueApi = createApi({
           await new Promise((resolve) => setTimeout(resolve, 500));
 
           return { data: dummyData };
-        } catch (error) {
+        } catch {
           return {
             error: {
               status: "CUSTOM_ERROR",
@@ -91,7 +91,7 @@ export const revenueApi = createApi({
 
           await new Promise((resolve) => setTimeout(resolve, 300));
           return { data: dummyData };
-        } catch (error) {
+        } catch {
           return {
             error: {
               status: "CUSTOM_ERROR",
@@ -116,7 +116,7 @@ export const revenueApi = createApi({
 
           await new Promise((resolve) => setTimeout(resolve, 300));
           return { data: dummyData };
-        } catch (error) {
+        } catch {
           return {
             error: {
               status: "CUSTOM_ERROR",
@@ -141,7 +141,7 @@ export const revenueApi = createApi({
 
           await new Promise((resolve) => setTimeout(resolve, 300));
           return { data: dummyData };
-        } catch (error) {
+        } catch {
           return {
             error: {
               status: "CUSTOM_ERROR",

@@ -89,7 +89,7 @@ const BuyersListPage = () => {
   React.useEffect(() => {
     const transformBuyers = async () => {
       setTransforming(true); // ✅ Start loading
-      
+
       if (!usersData?.data?.items) {
         setBuyers([]);
         setTransforming(false); // ✅ Stop loading
@@ -105,7 +105,7 @@ const BuyersListPage = () => {
           try {
             const disciplineSummary = await getUserDisciplineSummary(
               user.id,
-              "BUYER"
+              "BUYER",
             );
 
             strikes = disciplineSummary.activeStrikes || 0;
@@ -122,10 +122,10 @@ const BuyersListPage = () => {
             } else {
               status = "Active";
             }
-          } catch (error) {
+          } catch {
             console.error(
               "Failed to fetch discipline summary for user:",
-              user.id
+              user.id,
             );
             // If API fails, default to Active
             status = "Active";
@@ -145,7 +145,7 @@ const BuyersListPage = () => {
                 });
               }
             }
-          } catch (err) {
+          } catch {
             lastActivity = "N/A";
           }
 
@@ -161,7 +161,7 @@ const BuyersListPage = () => {
             followersCount: user.followersCount || 0,
             followingCount: user.followingCount || 0,
           };
-        })
+        }),
       );
 
       setBuyers(transformedBuyers);
@@ -240,7 +240,7 @@ const BuyersListPage = () => {
 
     setConfirmTitle("Confirm Suspension");
     setConfirmDescription(
-      `Are you sure you want to suspend ${selectedBuyerForAction.name} for ${duration} days?`
+      `Are you sure you want to suspend ${selectedBuyerForAction.name} for ${duration} days?`,
     );
     setConfirmAction(() => async () => {
       try {
@@ -251,7 +251,7 @@ const BuyersListPage = () => {
           selectedBuyerForAction.id,
           reason,
           parseInt(duration),
-          "BUYER"
+          "BUYER",
         );
 
         // Update local state immediately for suspension
@@ -259,8 +259,8 @@ const BuyersListPage = () => {
           prevBuyers.map((buyer) =>
             buyer.id === selectedBuyerForAction.id
               ? { ...buyer, status: "Suspended" }
-              : buyer
-          )
+              : buyer,
+          ),
         );
 
         setSuspendModal(false);
@@ -272,7 +272,7 @@ const BuyersListPage = () => {
       } catch (err: unknown) {
         console.error("Error suspending buyer:", err);
         toast.error(
-          err instanceof Error ? err.message : "Failed to suspend buyer"
+          err instanceof Error ? err.message : "Failed to suspend buyer",
         );
         refetch();
       } finally {
@@ -302,7 +302,7 @@ const BuyersListPage = () => {
 
     setConfirmTitle("Confirm Strike");
     setConfirmDescription(
-      `Are you sure you want to issue a strike to ${selectedBuyerForAction.name}?`
+      `Are you sure you want to issue a strike to ${selectedBuyerForAction.name}?`,
     );
     setConfirmAction(() => async () => {
       try {
@@ -312,14 +312,14 @@ const BuyersListPage = () => {
         // Check current strike count
         const currentStrikeCount = await getUserStrikeCount(
           selectedBuyerForAction.id,
-          "BUYER"
+          "BUYER",
         );
 
         // If this will be the 3rd strike, issue suspension instead
         if (currentStrikeCount >= 2) {
           await issueSuspension(selectedBuyerForAction.id, reason, 30, "BUYER");
           toast.success(
-            `${selectedBuyerForAction.name} has been suspended (3rd strike)`
+            `${selectedBuyerForAction.name} has been suspended (3rd strike)`,
           );
 
           // Update local state immediately for 3rd strike suspension
@@ -327,14 +327,14 @@ const BuyersListPage = () => {
             prevBuyers.map((buyer) =>
               buyer.id === selectedBuyerForAction.id
                 ? { ...buyer, status: "Suspended", strikes: 3 }
-                : buyer
-            )
+                : buyer,
+            ),
           );
         } else {
           await issueStrike(selectedBuyerForAction.id, reason, "BUYER");
           const newStrikeCount = currentStrikeCount + 1;
           toast.success(
-            `Strike ${newStrikeCount}/3 issued to ${selectedBuyerForAction.name}`
+            `Strike ${newStrikeCount}/3 issued to ${selectedBuyerForAction.name}`,
           );
 
           // Update local state immediately for strike
@@ -349,8 +349,8 @@ const BuyersListPage = () => {
                         : `Strike ${newStrikeCount}/3`,
                     strikes: newStrikeCount,
                   }
-                : buyer
-            )
+                : buyer,
+            ),
           );
         }
 
@@ -360,7 +360,7 @@ const BuyersListPage = () => {
       } catch (err: unknown) {
         console.error("Error issuing strike:", err);
         toast.error(
-          err instanceof Error ? err.message : "Failed to issue strike"
+          err instanceof Error ? err.message : "Failed to issue strike",
         );
         refetch();
       } finally {
