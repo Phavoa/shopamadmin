@@ -9,13 +9,11 @@ import { Slot } from "@/lib/mockData";
 
 interface CalendarBoardProps {
   slots: Slot[];
-  timeSlots: string[];
   onSlotClick: (slot: Slot | null, time: string) => void;
 }
 
 const CalendarBoard: React.FC<CalendarBoardProps> = ({
   slots,
-  timeSlots,
   onSlotClick,
 }) => {
   // Convert slots to FullCalendar events
@@ -33,7 +31,8 @@ const CalendarBoard: React.FC<CalendarBoardProps> = ({
   }));
 
   const handleEventClick = (info: EventClickArg) => {
-    const slot = info.event.extendedProps.slot as Slot;
+    const slot = info.event.extendedProps.slot;
+    console.log("slot", slot);
     onSlotClick(slot, slot.startTime);
   };
 
@@ -62,6 +61,7 @@ const CalendarBoard: React.FC<CalendarBoardProps> = ({
         slotEventOverlap={false}
         eventDisplay="block"
         eventContent={(arg) => {
+          const slot = arg.event.extendedProps.slot as any;
           return (
             <div
               className="px-3 text-xs pt-1 text-gray-900 truncate "
@@ -70,7 +70,7 @@ const CalendarBoard: React.FC<CalendarBoardProps> = ({
                   "Inter, system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial",
               }}
             >
-              Booked - {arg.event.title}
+              {slot.livestreamStatus || "Booked"} - {arg.event.title}
             </div>
           );
         }}

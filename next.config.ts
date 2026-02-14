@@ -44,6 +44,14 @@ const nextConfig: NextConfig = {
     }
     return config;
   },
+  async rewrites() {
+    return [
+      {
+        source: "/hls-proxy/:path*",
+        destination: "https://cdn.shopam.org/streams/:path*",
+      },
+    ];
+  },
 };
 
 export default nextConfig;

@@ -16,6 +16,8 @@ import { adminApi } from "../../api/adminApi";
 import { orderExceptionsApi } from "../../api/orderExceptionsApi";
 import { referralApi } from "../../api/referralApi";
 import { revenueApi } from "../../api/revenueApi";
+import { liveStreamApi } from "@/api/liveStreamApi";
+import { slotApi } from "@/api/slotApi";
 import {
   FLUSH,
   REHYDRATE,
@@ -50,6 +52,8 @@ const rootReducer = combineReducers({
   [orderExceptionsApi.reducerPath]: orderExceptionsApi.reducer,
   [referralApi.reducerPath]: referralApi.reducer,
   [revenueApi.reducerPath]: revenueApi.reducer,
+  [liveStreamApi.reducerPath]: liveStreamApi.reducer,
+  [slotApi.reducerPath]: slotApi.reducer,
   auth: authReducer,
   header: headerReducer,
   search: searchReducer,
@@ -77,7 +81,9 @@ export const store = configureStore({
       adminApi.middleware,
       orderExceptionsApi.middleware,
       referralApi.middleware,
-      revenueApi.middleware
+      revenueApi.middleware,
+      liveStreamApi.middleware,
+      slotApi.middleware,
     ),
   devTools: process.env.NODE_ENV !== "production",
 });
