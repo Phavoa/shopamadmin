@@ -2,141 +2,129 @@ import React, { useEffect, useState } from "react";
 import ReferralsHeader from "./ReferralsHeader";
 import ReferralsTable from "./ReferralsTable";
 import ReferralsPagination from "./ReferralsPagination";
-import { Referral } from "./ReferralsTable";
 import { setHeaderTitle } from "@/features/shared/headerSice";
 import { useDispatch } from "react-redux";
+import { useGetAllReferralsQuery } from "@/api/referralApi";
 
-// Mock Data
-const referralsData: Referral[] = [
-  {
-    id: "1",
-    name: "Chioma Adeleke",
-    email: "chioma.adeleke@email.com",
-    referrals: 45,
-    amountPaid: 26500,
-    bonus: 5000,
-    joinedDate: "15 Jan 2024",
-    isTop: true,
-  },
-  {
-    id: "2",
-    name: "Ibrahim Mohammed",
-    email: "ibrahim.m@email.com",
-    referrals: 38,
-    amountPaid: 21000,
-    bonus: 4000,
-    joinedDate: "20 Feb 2024",
-  },
-  {
-    id: "3",
-    name: "Ngozi Okafor",
-    email: "ngozi.okafor@email.com",
-    referrals: 32,
-    amountPaid: 18000,
-    bonus: 3500,
-    joinedDate: "8 Jan 2024",
-  },
-  {
-    id: "4",
-    name: "Ahmed Bello",
-    email: "ahmed.bello@email.com",
-    referrals: 28,
-    amountPaid: 15400,
-    bonus: 3000,
-    joinedDate: "12 Mar 2024",
-  },
-  {
-    id: "5",
-    name: "Fatima Yusuf",
-    email: "fatima.yusuf@email.com",
-    referrals: 24,
-    amountPaid: 13200,
-    bonus: 2500,
-    joinedDate: "5 Feb 2024",
-  },
-  {
-    id: "6",
-    name: "Chukwudi Eze",
-    email: "chukwudi.eze@email.com",
-    referrals: 19,
-    amountPaid: 10500,
-    bonus: 2000,
-    joinedDate: "28 Mar 2024",
-  },
-  {
-    id: "7",
-    name: "Blessing Okoro",
-    email: "blessing.okoro@email.com",
-    referrals: 15,
-    amountPaid: 9000,
-    bonus: 1500,
-    joinedDate: "10 Apr 2024",
-  },
-  {
-    id: "8",
-    name: "Tunde Akinola",
-    email: "tunde.akinola@email.com",
-    referrals: 12,
-    amountPaid: 7000,
-    bonus: 1200,
-    joinedDate: "22 Apr 2024",
-  },
-];
-
-// Pagination configuration
 const ITEMS_PER_PAGE = 5;
 
-// Main Component
 const ReferralsPage: React.FC = () => {
-  // Pagination state
   const dispatch = useDispatch();
   const [currentPage, setCurrentPage] = useState(1);
+  const [afterCursor, setAfterCursor] = useState<string | undefined>(undefined);
+  const [cursorHistory, setCursorHistory] = useState<string[]>([]);
 
-  // Calculate pagination
-  const totalItems = referralsData.length;
-  const totalPages = Math.ceil(totalItems / ITEMS_PER_PAGE);
-  const startIndex = (currentPage - 1) * ITEMS_PER_PAGE;
-  const endIndex = startIndex + ITEMS_PER_PAGE;
-  const currentData = referralsData.slice(startIndex, endIndex);
+  const { data, isLoading, isError, isFetching } = useGetAllReferralsQuery({
+    limit: ITEMS_PER_PAGE,
+    after: afterCursor,
+    sortBy: "createdAt",
+    sortDir: "desc",
+  });
 
   useEffect(() => {
     dispatch(setHeaderTitle("Referrals"));
   }, [dispatch]);
 
-  // Pagination handlers
+  // ✅ Correct field paths from actual API response
+  const items = data?.data?.items ?? [];
+  const hasNext = data?.data?.hasNext ?? false;
+  const hasPrev = data?.data?.hasPrev ?? false;
+  const nextCursor = data?.data?.nextCursor;
+
+  // ✅ Fixed field mapping based on actual API response
+  const referrals = items.map((r: any) => {
+    const firstName = r.referee?.firstName ?? "";
+    const lastName = r.referee?.lastName ?? "";
+    const fullName =
+      firstName || lastName
+        ? `${firstName} ${lastName}`.trim()
+        : "Unknown User";
+
+    return {
+      id: r.id,
+      name: fullName,
+      email: r.referee?.email ?? "No email",
+      referrals: r.rewards?.length ?? 0,
+      amountPaid: Math.round(Number(r.totalSpendKobo ?? 0) / 100),        // ✅ kobo → naira
+      bonus: Math.round(Number(r.totalRewardsEarnedKobo ?? 0) / 100),     // ✅ correct field
+      joinedDate: new Date(r.createdAt).toLocaleDateString("en-NG", {
+        day: "2-digit",
+        month: "short",
+        year: "numeric",
+      }),
+      referralCode: r.code,
+    };
+  });
+
   const handleNextPage = () => {
-    if (currentPage < totalPages) {
-      setCurrentPage(currentPage + 1);
+    if (hasNext && nextCursor) {
+      setCursorHistory((prev) => [...prev, afterCursor ?? ""]);
+      setAfterCursor(nextCursor);
+      setCurrentPage((p) => p + 1);
     }
   };
 
   const handlePrevPage = () => {
     if (currentPage > 1) {
-      setCurrentPage(currentPage - 1);
+      const history = [...cursorHistory];
+      const prev = history.pop();
+      setCursorHistory(history);
+      setAfterCursor(prev || undefined);
+      setCurrentPage((p) => p - 1);
     }
   };
 
   const handleBack = () => {
-    // Navigate back to settings
     window.location.href = "/admin-dashboard/settings";
   };
 
   return (
     <div className="min-h-screen">
-      {/* Main Content */}
       <main className="px-4 py-8">
         <ReferralsHeader onBack={handleBack} />
 
-        {/* Table Card */}
         <div className="bg-white rounded-lg shadow-none border border-gray-200">
-          <ReferralsTable referrals={currentData} />
-          <ReferralsPagination
-            totalItems={totalItems}
-            currentPage={currentPage}
-            itemsPerPage={ITEMS_PER_PAGE}
-            onNextPage={handleNextPage}
-            onPrevPage={handlePrevPage}
-          />
+          {/* Skeleton loading state */}
+          {(isLoading || isFetching) && (
+            <div className="flex flex-col gap-3 p-6">
+              {[...Array(5)].map((_, i) => (
+                <div
+                  key={i}
+                  className="h-14 bg-gray-100 rounded-lg animate-pulse"
+                />
+              ))}
+            </div>
+          )}
+
+          {/* Error state */}
+          {isError && !isLoading && (
+            <div className="flex items-center justify-center py-16 text-red-500 text-sm">
+              Failed to load referrals. Please try again.
+            </div>
+          )}
+
+          {/* Empty state */}
+          {!isLoading && !isError && referrals.length === 0 && (
+            <div className="flex items-center justify-center py-16 text-gray-400 text-sm">
+              No referrals found.
+            </div>
+          )}
+
+          {/* Table */}
+          {!isLoading && !isError && referrals.length > 0 && (
+            <>
+              <ReferralsTable referrals={referrals} />
+              <ReferralsPagination
+                totalItems={referrals.length}
+                currentPage={currentPage}
+                itemsPerPage={ITEMS_PER_PAGE}
+                onNextPage={handleNextPage}
+                onPrevPage={handlePrevPage}
+                hasNext={hasNext}
+                hasPrev={hasPrev || currentPage > 1}
+              />
+            </>
+          )}
         </div>
       </main>
     </div>

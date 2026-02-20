@@ -2,7 +2,6 @@
 import { configureStore, combineReducers } from "@reduxjs/toolkit";
 import { persistReducer, persistStore } from "redux-persist";
 import type { PersistState } from "redux-persist";
-
 import { authApi } from "../../api/authApi";
 import { userApi } from "../../api/userApi";
 import { hubApi } from "../../api/hubApi";
@@ -14,6 +13,9 @@ import { productsApi } from "../../api/productsApi";
 import { categoriesApi } from "../../api/categoriesApi";
 import { adminApi } from "../../api/adminApi";
 import { orderExceptionsApi } from "../../api/orderExceptionsApi";
+import { referralApi } from "../../api/referralApi";
+import { adminDashboardApi } from "../../api/adminDashboardApi";
+import { disciplineApi } from "../../api/disciplineApi"; // ← NEW
 import {
   FLUSH,
   REHYDRATE,
@@ -46,6 +48,9 @@ const rootReducer = combineReducers({
   [categoriesApi.reducerPath]: categoriesApi.reducer,
   [adminApi.reducerPath]: adminApi.reducer,
   [orderExceptionsApi.reducerPath]: orderExceptionsApi.reducer,
+  [referralApi.reducerPath]: referralApi.reducer,
+  [adminDashboardApi.reducerPath]: adminDashboardApi.reducer,
+  [disciplineApi.reducerPath]: disciplineApi.reducer, // ← NEW
   auth: authReducer,
   header: headerReducer,
   search: searchReducer,
@@ -71,7 +76,10 @@ export const store = configureStore({
       productsApi.middleware,
       categoriesApi.middleware,
       adminApi.middleware,
-      orderExceptionsApi.middleware
+      orderExceptionsApi.middleware,
+      referralApi.middleware,
+      adminDashboardApi.middleware,
+      disciplineApi.middleware // ← NEW
     ),
   devTools: process.env.NODE_ENV !== "production",
 });
@@ -83,5 +91,4 @@ export const persistor = persistStore(store);
 export type RootState = ReturnType<typeof store.getState> & {
   _persist?: PersistState;
 };
-
 export type AppDispatch = typeof store.dispatch;

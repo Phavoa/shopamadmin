@@ -8,6 +8,8 @@ interface ReferralsPaginationProps {
   itemsPerPage: number;
   onNextPage: () => void;
   onPrevPage: () => void;
+  hasNext?: boolean;
+  hasPrev?: boolean;
 }
 
 const ReferralsPagination: React.FC<ReferralsPaginationProps> = ({
@@ -16,18 +18,21 @@ const ReferralsPagination: React.FC<ReferralsPaginationProps> = ({
   itemsPerPage,
   onNextPage,
   onPrevPage,
+  hasNext,
+  hasPrev,
 }) => {
-  const totalPages = Math.ceil(totalItems / itemsPerPage);
   const startIndex = (currentPage - 1) * itemsPerPage;
-  const endIndex = Math.min(startIndex + itemsPerPage, totalItems);
-  const hasNext = currentPage < totalPages;
-  const hasPrev = currentPage > 1;
+  const endIndex = startIndex + totalItems; // totalItems here = items on current page
+
+  // Fall back to internal calculation if props not provided (backwards compatible)
+  const canGoNext = hasNext ?? false;
+  const canGoPrev = hasPrev ?? currentPage > 1;
 
   return (
     <div className="flex items-center justify-between px-6 py-4 border-t border-gray-200">
       {/* Results count */}
       <p className="text-sm text-gray-600">
-        Showing {startIndex + 1}-{endIndex} of {totalItems} referrals
+        Showing {startIndex + 1}–{endIndex} referrals
       </p>
 
       {/* Pagination controls */}
@@ -36,7 +41,7 @@ const ReferralsPagination: React.FC<ReferralsPaginationProps> = ({
           variant="outline"
           size="sm"
           onClick={onPrevPage}
-          disabled={!hasPrev}
+          disabled={!canGoPrev}
           className="h-9 w-9 p-0"
         >
           <ChevronLeft className="w-4 h-4" />
@@ -50,7 +55,7 @@ const ReferralsPagination: React.FC<ReferralsPaginationProps> = ({
           variant="outline"
           size="sm"
           onClick={onNextPage}
-          disabled={!hasNext}
+          disabled={!canGoNext}
           className="h-9 w-9 p-0"
         >
           <ChevronRight className="w-4 h-4" />
