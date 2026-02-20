@@ -1,129 +1,158 @@
+"use client";
+
 import React, { useEffect, useState } from "react";
 import ReferralsHeader from "./ReferralsHeader";
 import ReferralsTable from "./ReferralsTable";
 import ReferralsPagination from "./ReferralsPagination";
+import { Referral as TableReferral } from "./ReferralsTable";
 import { setHeaderTitle } from "@/features/shared/headerSice";
 import { useDispatch } from "react-redux";
-import { useGetAllReferralsQuery } from "@/api/referralApi";
+import { useGetAllReferralsQuery } from "../../api/referralApi";
+import type { Referral } from "../../api/referralApi";
 
-const ITEMS_PER_PAGE = 5;
+// Helper function to transform API data to table format
+const transformReferralData = (apiReferrals: Referral[]): TableReferral[] => {
+  // Use a fixed date formatting approach to avoid hydration mismatches
+  const formatDate = (dateString: string) => {
+    try {
+      const date = new Date(dateString);
+      // Use a consistent format that won't change between server and client
+      const day = date.getDate().toString().padStart(2, "0");
+      const month = (date.getMonth() + 1).toString().padStart(2, "0");
+      const year = date.getFullYear();
+      return `${day}/${month}/${year}`;
+    } catch {
+      return "Invalid Date";
+    }
+  };
 
+  return apiReferrals.map((ref, index) => ({
+    id: ref.id,
+    name: ref.referee
+      ? `${ref.referee.firstName} ${ref.referee.lastName}`
+      : "Unknown User",
+    email: ref.referee?.email || "N/A",
+    referrals: 1, // Each item represents one referral
+    amountPaid: parseInt(ref.totalSpendKobo) / 100, // Convert from kobo to naira
+    bonus: 1000, // Fixed bonus amount
+    joinedDate: formatDate(ref.createdAt),
+    isTop: index < 3, // Mark first 3 as top performers
+  }));
+};
+
+// Main Component
 const ReferralsPage: React.FC = () => {
+  // Pagination state
   const dispatch = useDispatch();
   const [currentPage, setCurrentPage] = useState(1);
-  const [afterCursor, setAfterCursor] = useState<string | undefined>(undefined);
-  const [cursorHistory, setCursorHistory] = useState<string[]>([]);
+  const [limit] = useState(20); // API limit
 
-  const { data, isLoading, isError, isFetching } = useGetAllReferralsQuery({
-    limit: ITEMS_PER_PAGE,
-    after: afterCursor,
+  // API call
+  const { data, isLoading, isError, error } = useGetAllReferralsQuery({
+    limit,
     sortBy: "createdAt",
     sortDir: "desc",
+    populate: ["referee", "referrer"],
   });
+
+  // Transform API data to table format
+  const tableReferrals: TableReferral[] = data?.data?.items
+    ? transformReferralData(data.data.items)
+    : [];
+
+  // Calculate pagination
+  const totalItems = data?.data?.items?.length || 0;
+  const totalPages = Math.ceil(totalItems / limit);
+  const startIndex = (currentPage - 1) * limit;
+  const endIndex = Math.min(startIndex + limit, totalItems);
+  const currentData = tableReferrals.slice(startIndex, endIndex);
 
   useEffect(() => {
     dispatch(setHeaderTitle("Referrals"));
   }, [dispatch]);
 
-  // ✅ Correct field paths from actual API response
-  const items = data?.data?.items ?? [];
-  const hasNext = data?.data?.hasNext ?? false;
-  const hasPrev = data?.data?.hasPrev ?? false;
-  const nextCursor = data?.data?.nextCursor;
-
-  // ✅ Fixed field mapping based on actual API response
-  const referrals = items.map((r: any) => {
-    const firstName = r.referee?.firstName ?? "";
-    const lastName = r.referee?.lastName ?? "";
-    const fullName =
-      firstName || lastName
-        ? `${firstName} ${lastName}`.trim()
-        : "Unknown User";
-
-    return {
-      id: r.id,
-      name: fullName,
-      email: r.referee?.email ?? "No email",
-      referrals: r.rewards?.length ?? 0,
-      amountPaid: Math.round(Number(r.totalSpendKobo ?? 0) / 100),        // ✅ kobo → naira
-      bonus: Math.round(Number(r.totalRewardsEarnedKobo ?? 0) / 100),     // ✅ correct field
-      joinedDate: new Date(r.createdAt).toLocaleDateString("en-NG", {
-        day: "2-digit",
-        month: "short",
-        year: "numeric",
-      }),
-      referralCode: r.code,
-    };
-  });
-
+  // Pagination handlers
   const handleNextPage = () => {
-    if (hasNext && nextCursor) {
-      setCursorHistory((prev) => [...prev, afterCursor ?? ""]);
-      setAfterCursor(nextCursor);
-      setCurrentPage((p) => p + 1);
+    if (currentPage < totalPages) {
+      setCurrentPage(currentPage + 1);
     }
   };
 
   const handlePrevPage = () => {
     if (currentPage > 1) {
-      const history = [...cursorHistory];
-      const prev = history.pop();
-      setCursorHistory(history);
-      setAfterCursor(prev || undefined);
-      setCurrentPage((p) => p - 1);
+      setCurrentPage(currentPage - 1);
     }
   };
 
   const handleBack = () => {
+    // Navigate back to settings
     window.location.href = "/admin-dashboard/settings";
   };
 
+  // Loading state
+  if (isLoading) {
+    return (
+      <div className="min-h-screen">
+        <main className="px-4 py-8">
+          <ReferralsHeader onBack={handleBack} />
+          <div className="bg-white rounded-lg shadow-none border border-gray-200 p-8">
+            <div className="flex justify-center items-center">
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#E67E22]"></div>
+              <span className="ml-2 text-gray-600">Loading referrals...</span>
+            </div>
+          </div>
+        </main>
+      </div>
+    );
+  }
+
+  // Error state
+  if (isError) {
+    return (
+      <div className="min-h-screen">
+        <main className="px-4 py-8">
+          <ReferralsHeader onBack={handleBack} />
+          <div className="bg-white rounded-lg shadow-none border border-gray-200 p-8">
+            <div className="text-center text-red-600">
+              <p>Failed to load referrals. Please try again.</p>
+              <p className="text-sm text-gray-500 mt-2">
+                {typeof error === "object" && error && "data" in error
+                  ? String(
+                      (error as { data?: { message?: string } }).data
+                        ?.message || "An unexpected error occurred"
+                    )
+                  : "An unexpected error occurred"}
+              </p>
+            </div>
+          </div>
+        </main>
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen">
+      {/* Main Content */}
       <main className="px-4 py-8">
         <ReferralsHeader onBack={handleBack} />
 
+        {/* Table Card */}
         <div className="bg-white rounded-lg shadow-none border border-gray-200">
-          {/* Skeleton loading state */}
-          {(isLoading || isFetching) && (
-            <div className="flex flex-col gap-3 p-6">
-              {[...Array(5)].map((_, i) => (
-                <div
-                  key={i}
-                  className="h-14 bg-gray-100 rounded-lg animate-pulse"
-                />
-              ))}
-            </div>
-          )}
-
-          {/* Error state */}
-          {isError && !isLoading && (
-            <div className="flex items-center justify-center py-16 text-red-500 text-sm">
-              Failed to load referrals. Please try again.
-            </div>
-          )}
-
-          {/* Empty state */}
-          {!isLoading && !isError && referrals.length === 0 && (
-            <div className="flex items-center justify-center py-16 text-gray-400 text-sm">
-              No referrals found.
-            </div>
-          )}
-
-          {/* Table */}
-          {!isLoading && !isError && referrals.length > 0 && (
+          {tableReferrals.length > 0 ? (
             <>
-              <ReferralsTable referrals={referrals} />
+              <ReferralsTable referrals={currentData} />
               <ReferralsPagination
-                totalItems={referrals.length}
+                totalItems={totalItems}
                 currentPage={currentPage}
-                itemsPerPage={ITEMS_PER_PAGE}
+                itemsPerPage={limit}
                 onNextPage={handleNextPage}
                 onPrevPage={handlePrevPage}
-                hasNext={hasNext}
-                hasPrev={hasPrev || currentPage > 1}
               />
             </>
+          ) : (
+            <div className="p-8 text-center text-gray-500">
+              No referrals found.
+            </div>
           )}
         </div>
       </main>

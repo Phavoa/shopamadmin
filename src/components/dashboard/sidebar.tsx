@@ -36,22 +36,10 @@ function Sidebar() {
   const [activeSubItem, setActiveSubItem] = useState<string | null>(null);
   const [activeMainItem, setActiveMainItem] = useState<string | null>(null);
   const [showLogoutModal, setShowLogoutModal] = useState(false);
-  const [loadingItem, setLoadingItem] = useState<string | null>(null);
   const pathname = usePathname();
 
   // Auth logout mutation
   const [logout, { isLoading: isLoggingOut }] = useLogoutMutation();
-
-  // Handle navigation with loading state
-  const handleNavigation = (path: string, itemId: string) => {
-    setLoadingItem(itemId);
-    router.push(path);
-  };
-
-  // Clear loading state when pathname changes
-  useEffect(() => {
-    setLoadingItem(null);
-  }, [pathname]);
 
   // Handle logout confirmation
   const handleLogoutConfirm = async () => {
@@ -148,27 +136,24 @@ function Sidebar() {
       <nav aria-label="Sidebar" className="flex-1 overflow-y-auto">
         <ul className="space-y-1">
           <li>
-            <button
-              onClick={() => handleNavigation("/admin-dashboard", "dashboard")}
-              disabled={loadingItem !== null}
-              className={`group flex cursor-pointer items-center gap-3 w-full px-3 py-3 rounded-lg transition-colors duration-200 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed ${
-                activeMainItem === "dashboard"
-                  ? "bg-[var(--sidebar-accent)] text-[var(--sidebar-primary)] font-[var(--font-weight-semibold)]"
-                  : "text-[var(--foreground)] hover:bg-[var(--sidebar-accent)]"
-              }`}
-            >
-              <LayoutGrid className="w-[var(--icon-size-sm)] h-[var(--icon-size-sm)]" />
-              <span>Dashboard</span>
-              {loadingItem === "dashboard" && (
-                <Loader2 className="w-4 h-4 animate-spin ml-auto" />
-              )}
-            </button>
+            <Link href="/admin-dashboard">
+              <button
+                className={`group flex items-center gap-3 w-full px-3 py-3 rounded-lg transition-colors duration-200 ${
+                  activeMainItem === "dashboard"
+                    ? "bg-[var(--sidebar-accent)] text-[var(--sidebar-primary)] font-[var(--font-weight-semibold)]"
+                    : "text-[var(--foreground)] hover:bg-[var(--sidebar-accent)]"
+                }`}
+              >
+                <LayoutGrid className="w-[var(--icon-size-sm)] h-[var(--icon-size-sm)]" />
+                <span>Dashboard</span>
+              </button>
+            </Link>
           </li>
 
           <li>
             <button
               onClick={() => setIsLivestreamOpen(!isLivestreamOpen)}
-              className={`flex items-center gap-3 w-full px-3 py-3 rounded-lg h-12 transition-colors duration-200 cursor-pointer ${
+              className={`flex items-center gap-3 w-full px-3 py-3 rounded-lg h-12 transition-colors duration-200 ${
                 activeMainItem === "livestream"
                   ? "bg-[var(--sidebar-accent)] text-[var(--sidebar-primary)]"
                   : "text-[var(--foreground)] hover:bg-[var(--sidebar-accent)]"
@@ -189,64 +174,46 @@ function Sidebar() {
             >
               <ul className="space-y-1 mt-1">
                 <li>
-                  <button
-                    onClick={() =>
-                      handleNavigation("/admin-dashboard/livestream/slots", "slots")
-                    }
-                    disabled={loadingItem !== null}
-                    className={`flex items-center gap-3 w-full px-3 py-2 rounded-lg h-10 text-sm transition-colors duration-200 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed ${
-                      activeSubItem === "slots"
-                        ? "bg-[var(--sidebar-accent)] text-[var(--sidebar-primary)]"
-                        : "text-[var(--foreground)] hover:bg-[var(--sidebar-accent)]"
-                    }`}
-                  >
-                    <Calendar className="w-[var(--icon-size-sm)] h-[var(--icon-size-sm)]" />
-                    <span>Slot Management</span>
-                    {loadingItem === "slots" && (
-                      <Loader2 className="w-4 h-4 animate-spin ml-auto" />
-                    )}
-                  </button>
+                  <Link href="/admin-dashboard/livestream/slots">
+                    <button
+                      className={`flex items-center gap-3 w-full px-3 py-2 rounded-lg h-10 text-sm transition-colors duration-200 ${
+                        activeSubItem === "slots"
+                          ? "bg-[var(--sidebar-accent)] text-[var(--sidebar-primary)]"
+                          : "text-[var(--foreground)] hover:bg-[var(--sidebar-accent)]"
+                      }`}
+                    >
+                      <Calendar className="w-[var(--icon-size-sm)] h-[var(--icon-size-sm)]" />
+                      Slot Management
+                    </button>
+                  </Link>
                 </li>
                 <li>
-                  <button
-                    onClick={() =>
-                      handleNavigation(
-                        "/admin-dashboard/livestream/monitoring",
-                        "monitoring"
-                      )
-                    }
-                    disabled={loadingItem !== null}
-                    className={`flex items-center gap-3 w-full px-3 py-2 rounded-lg h-10 text-sm transition-colors duration-200 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed ${
-                      activeSubItem === "monitoring"
-                        ? "bg-[var(--sidebar-accent)] text-[var(--sidebar-primary)]"
-                        : "text-[var(--foreground)] hover:bg-[var(--sidebar-accent)]"
-                    }`}
-                  >
-                    <Eye className="w-[var(--icon-size-sm)] h-[var(--icon-size-sm)]" />
-                    <span>Live Monitoring</span>
-                    {loadingItem === "monitoring" && (
-                      <Loader2 className="w-4 h-4 animate-spin ml-auto" />
-                    )}
-                  </button>
+                  <Link href="/admin-dashboard/livestream/monitoring">
+                    <button
+                      className={`flex items-center gap-3 w-full px-3 py-2 rounded-lg h-10 text-sm transition-colors duration-200 ${
+                        activeSubItem === "monitoring"
+                          ? "bg-[var(--sidebar-accent)] text-[var(--sidebar-primary)]"
+                          : "text-[var(--foreground)] hover:bg-[var(--sidebar-accent)]"
+                      }`}
+                    >
+                      <Eye className="w-[var(--icon-size-sm)] h-[var(--icon-size-sm)]" />
+                      Live Monitoring
+                    </button>
+                  </Link>
                 </li>
                 <li>
-                  <button
-                    onClick={() =>
-                      handleNavigation("/admin-dashboard/livestream/tiers", "tiers")
-                    }
-                    disabled={loadingItem !== null}
-                    className={`flex items-center gap-3 w-full px-3 py-2 rounded-lg h-10 text-sm transition-colors duration-200 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed ${
-                      activeSubItem === "tiers"
-                        ? "bg-[var(--sidebar-accent)] text-[var(--sidebar-primary)]"
-                        : "text-[var(--foreground)] hover:bg-[var(--sidebar-accent)]"
-                    }`}
-                  >
-                    <Trophy className="w-[var(--icon-size-sm)] h-[var(--icon-size-sm)]" />
-                    <span>Tiers and Rules</span>
-                    {loadingItem === "tiers" && (
-                      <Loader2 className="w-4 h-4 animate-spin ml-auto" />
-                    )}
-                  </button>
+                  <Link href="/admin-dashboard/livestream/tiers">
+                    <button
+                      className={`flex items-center gap-3 w-full px-3 py-2 rounded-lg h-10 text-sm transition-colors duration-200 ${
+                        activeSubItem === "tiers"
+                          ? "bg-[var(--sidebar-accent)] text-[var(--sidebar-primary)]"
+                          : "text-[var(--foreground)] hover:bg-[var(--sidebar-accent)]"
+                      }`}
+                    >
+                      <Trophy className="w-[var(--icon-size-sm)] h-[var(--icon-size-sm)]" />
+                      Tiers and Rules
+                    </button>
+                  </Link>
                 </li>
               </ul>
             </div>
@@ -255,7 +222,7 @@ function Sidebar() {
           <li>
             <button
               onClick={() => setIsSellersOpen(!isSellersOpen)}
-              className={`flex items-center gap-3 w-full px-3 py-3 rounded-lg h-12 transition-colors duration-200 cursor-pointer ${
+              className={`flex items-center gap-3 w-full px-3 py-3 rounded-lg h-12 transition-colors duration-200 ${
                 activeMainItem === "sellers"
                   ? "bg-[var(--sidebar-accent)] text-[var(--sidebar-primary)]"
                   : "text-[var(--foreground)] hover:bg-[var(--sidebar-accent)]"
@@ -276,83 +243,60 @@ function Sidebar() {
             >
               <ul className="space-y-1 mt-1">
                 <li>
-                  <button
-                    onClick={() =>
-                      handleNavigation("/admin-dashboard/sellers/list", "list")
-                    }
-                    disabled={loadingItem !== null}
-                    className={`flex items-center gap-3 w-full px-3 py-2 rounded-lg h-10 text-sm transition-colors duration-200 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed ${
-                      activeSubItem === "list"
-                        ? "bg-[var(--sidebar-accent)] text-[var(--sidebar-primary)]"
-                        : "text-[var(--foreground)] hover:bg-[var(--sidebar-accent)]"
-                    }`}
-                  >
-                    <Users className="w-[var(--icon-size-sm)] h-[var(--icon-size-sm)]" />
-                    <span>Sellers List</span>
-                    {loadingItem === "list" && (
-                      <Loader2 className="w-4 h-4 animate-spin ml-auto" />
-                    )}
-                  </button>
+                  <Link href="/admin-dashboard/sellers/list">
+                    <button
+                      className={`flex items-center gap-3 w-full px-3 py-2 rounded-lg h-10 text-sm transition-colors duration-200 ${
+                        activeSubItem === "list"
+                          ? "bg-[var(--sidebar-accent)] text-[var(--sidebar-primary)]"
+                          : "text-[var(--foreground)] hover:bg-[var(--sidebar-accent)]"
+                      }`}
+                    >
+                      <Users className="w-[var(--icon-size-sm)] h-[var(--icon-size-sm)]" />
+                      Sellers List
+                    </button>
+                  </Link>
                 </li>
                 <li>
-                  <button
-                    onClick={() =>
-                      handleNavigation(
-                        "/admin-dashboard/sellers/verification",
-                        "verification"
-                      )
-                    }
-                    disabled={loadingItem !== null}
-                    className={`flex items-center gap-3 w-full px-3 py-2 rounded-lg h-10 text-sm transition-colors duration-200 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed ${
-                      activeSubItem === "verification"
-                        ? "bg-[var(--sidebar-accent)] text-[var(--sidebar-primary)]"
-                        : "text-[var(--foreground)] hover:bg-[var(--sidebar-accent)]"
-                    }`}
-                  >
-                    <ShieldCheck className="w-[var(--icon-size-sm)] h-[var(--icon-size-sm)]" />
-                    <span>Sellers Verification</span>
-                    {loadingItem === "verification" && (
-                      <Loader2 className="w-4 h-4 animate-spin ml-auto" />
-                    )}
-                  </button>
+                  <Link href="/admin-dashboard/sellers/verification">
+                    <button
+                      className={`flex items-center gap-3 w-full px-3 py-2 rounded-lg h-10 text-sm transition-colors duration-200 ${
+                        activeSubItem === "verification"
+                          ? "bg-[var(--sidebar-accent)] text-[var(--sidebar-primary)]"
+                          : "text-[var(--foreground)] hover:bg-[var(--sidebar-accent)]"
+                      }`}
+                    >
+                      <ShieldCheck className="w-[var(--icon-size-sm)] h-[var(--icon-size-sm)]" />
+                      Sellers Verification
+                    </button>
+                  </Link>
                 </li>
                 <li>
-                  <button
-                    onClick={() =>
-                      handleNavigation("/admin-dashboard/sellers/strikes", "strikes")
-                    }
-                    disabled={loadingItem !== null}
-                    className={`flex items-center gap-3 w-full px-3 py-2 rounded-lg h-10 text-sm transition-colors duration-200 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed ${
-                      activeSubItem === "strikes"
-                        ? "bg-[var(--sidebar-accent)] text-[var(--sidebar-primary)]"
-                        : "text-[var(--foreground)] hover:bg-[var(--sidebar-accent)]"
-                    }`}
-                  >
-                    <AlertTriangle className="w-[var(--icon-size-sm)] h-[var(--icon-size-sm)]" />
-                    <span>Strikes & Suspensions</span>
-                    {loadingItem === "strikes" && (
-                      <Loader2 className="w-4 h-4 animate-spin ml-auto" />
-                    )}
-                  </button>
+                  <Link href="/admin-dashboard/sellers/strikes">
+                    <button
+                      className={`flex items-center gap-3 w-full px-3 py-2 rounded-lg h-10 text-sm transition-colors duration-200 ${
+                        activeSubItem === "strikes"
+                          ? "bg-[var(--sidebar-accent)] text-[var(--sidebar-primary)]"
+                          : "text-[var(--foreground)] hover:bg-[var(--sidebar-accent)]"
+                      }`}
+                    >
+                      <AlertTriangle className="w-[var(--icon-size-sm)] h-[var(--icon-size-sm)]" />
+                      Strikes & Suspensions
+                    </button>
+                  </Link>
                 </li>
                 <li>
-                  <button
-                    onClick={() =>
-                      handleNavigation("/admin-dashboard/sellers/appeals", "appeals")
-                    }
-                    disabled={loadingItem !== null}
-                    className={`flex items-center gap-3 w-full px-3 py-2 rounded-lg h-10 text-sm transition-colors duration-200 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed ${
-                      activeSubItem === "appeals"
-                        ? "bg-[var(--sidebar-accent)] text-[var(--sidebar-primary)]"
-                        : "text-[var(--foreground)] hover:bg-[var(--sidebar-accent)]"
-                    }`}
-                  >
-                    <FileText className="w-[var(--icon-size-sm)] h-[var(--icon-size-sm)]" />
-                    <span>Appeals & Investigations</span>
-                    {loadingItem === "appeals" && (
-                      <Loader2 className="w-4 h-4 animate-spin ml-auto" />
-                    )}
-                  </button>
+                  <Link href="/admin-dashboard/sellers/appeals">
+                    <button
+                      className={`flex items-center gap-3 w-full px-3 py-2 rounded-lg h-10 text-sm transition-colors duration-200 ${
+                        activeSubItem === "appeals"
+                          ? "bg-[var(--sidebar-accent)] text-[var(--sidebar-primary)]"
+                          : "text-[var(--foreground)] hover:bg-[var(--sidebar-accent)]"
+                      }`}
+                    >
+                      <FileText className="w-[var(--icon-size-sm)] h-[var(--icon-size-sm)]" />
+                      Appeals & Investigations
+                    </button>
+                  </Link>
                 </li>
               </ul>
             </div>
@@ -361,7 +305,7 @@ function Sidebar() {
           <li>
             <button
               onClick={() => setIsBuyersOpen(!isBuyersOpen)}
-              className={`flex items-center gap-3 w-full px-3 py-3 rounded-lg h-12 cursor-pointer transition-colors duration-200 ${
+              className={`flex items-center gap-3 w-full px-3 py-3 rounded-lg h-12 transition-colors duration-200 ${
                 activeMainItem === "buyers"
                   ? "bg-[var(--sidebar-accent)] text-[var(--sidebar-primary)]"
                   : "text-[var(--foreground)] hover:bg-[var(--sidebar-accent)]"
@@ -382,67 +326,46 @@ function Sidebar() {
             >
               <ul className="space-y-1 mt-1">
                 <li>
-                  <button
-                    onClick={() =>
-                      handleNavigation("/admin-dashboard/buyers/list", "buyers-list")
-                    }
-                    disabled={loadingItem !== null}
-                    className={`flex items-center gap-3 w-full px-3 py-2 rounded-lg h-10 text-sm cursor-pointer transition-colors duration-200 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed ${
-                      activeSubItem === "buyers-list"
-                        ? "bg-[var(--sidebar-accent)] text-[var(--sidebar-primary)]"
-                        : "text-[var(--foreground)] hover:bg-[var(--sidebar-accent)]"
-                    }`}
-                  >
-                    <Users className="w-[var(--icon-size-sm)] h-[var(--icon-size-sm)]" />
-                    <span>Buyers List</span>
-                    {loadingItem === "buyers-list" && (
-                      <Loader2 className="w-4 h-4 animate-spin ml-auto" />
-                    )}
-                  </button>
+                  <Link href="/admin-dashboard/buyers/list">
+                    <button
+                      className={`flex items-center gap-3 w-full px-3 py-2 rounded-lg h-10 text-sm transition-colors duration-200 ${
+                        activeSubItem === "buyers-list"
+                          ? "bg-[var(--sidebar-accent)] text-[var(--sidebar-primary)]"
+                          : "text-[var(--foreground)] hover:bg-[var(--sidebar-accent)]"
+                      }`}
+                    >
+                      <Users className="w-[var(--icon-size-sm)] h-[var(--icon-size-sm)]" />
+                      Buyers List
+                    </button>
+                  </Link>
                 </li>
                 <li>
-                  <button
-                    onClick={() =>
-                      handleNavigation(
-                        "/admin-dashboard/buyers/strikes",
-                        "buyers-strikes"
-                      )
-                    }
-                    disabled={loadingItem !== null}
-                    className={`flex items-center gap-3 w-full px-3 py-2 rounded-lg h-10 text-sm cursor-pointer transition-colors duration-200 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed ${
-                      activeSubItem === "buyers-strikes"
-                        ? "bg-[var(--sidebar-accent)] text-[var(--sidebar-primary)]"
-                        : "text-[var(--foreground)] hover:bg-[var(--sidebar-accent)]"
-                    }`}
-                  >
-                    <AlertTriangle className="w-[var(--icon-size-sm)] h-[var(--icon-size-sm)]" />
-                    <span>Strikes & Suspensions</span>
-                    {loadingItem === "buyers-strikes" && (
-                      <Loader2 className="w-4 h-4 animate-spin ml-auto" />
-                    )}
-                  </button>
+                  <Link href="/admin-dashboard/buyers/strikes">
+                    <button
+                      className={`flex items-center gap-3 w-full px-3 py-2 rounded-lg h-10 text-sm transition-colors duration-200 ${
+                        activeSubItem === "buyers-strikes"
+                          ? "bg-[var(--sidebar-accent)] text-[var(--sidebar-primary)]"
+                          : "text-[var(--foreground)] hover:bg-[var(--sidebar-accent)]"
+                      }`}
+                    >
+                      <AlertTriangle className="w-[var(--icon-size-sm)] h-[var(--icon-size-sm)]" />
+                      Strikes & Suspensions
+                    </button>
+                  </Link>
                 </li>
                 <li>
-                  <button
-                    onClick={() =>
-                      handleNavigation(
-                        "/admin-dashboard/buyers/appeals",
-                        "buyers-appeals"
-                      )
-                    }
-                    disabled={loadingItem !== null}
-                    className={`flex items-center gap-3 w-full px-3 py-2 rounded-lg h-10 text-sm cursor-pointer transition-colors duration-200 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed ${
-                      activeSubItem === "buyers-appeals"
-                        ? "bg-[var(--sidebar-accent)] text-[var(--sidebar-primary)]"
-                        : "text-[var(--foreground)] hover:bg-[var(--sidebar-accent)]"
-                    }`}
-                  >
-                    <FileText className="w-[var(--icon-size-sm)] h-[var(--icon-size-sm)]" />
-                    <span>Appeals & Investigations</span>
-                    {loadingItem === "buyers-appeals" && (
-                      <Loader2 className="w-4 h-4 animate-spin ml-auto" />
-                    )}
-                  </button>
+                  <Link href="/admin-dashboard/buyers/appeals">
+                    <button
+                      className={`flex items-center gap-3 w-full px-3 py-2 rounded-lg h-10 text-sm transition-colors duration-200 ${
+                        activeSubItem === "buyers-appeals"
+                          ? "bg-[var(--sidebar-accent)] text-[var(--sidebar-primary)]"
+                          : "text-[var(--foreground)] hover:bg-[var(--sidebar-accent)]"
+                      }`}
+                    >
+                      <FileText className="w-[var(--icon-size-sm)] h-[var(--icon-size-sm)]" />
+                      Appeals & Investigations
+                    </button>
+                  </Link>
                 </li>
               </ul>
             </div>
@@ -451,7 +374,7 @@ function Sidebar() {
           <li>
             <button
               onClick={() => setIsFinanceOpen(!isFinanceOpen)}
-              className={`flex items-center gap-3 w-full px-3 py-3 rounded-lg h-12 cursor-pointer transition-colors duration-200 ${
+              className={`flex items-center gap-3 w-full px-3 py-3 rounded-lg h-12 transition-colors duration-200 ${
                 activeMainItem === "finance"
                   ? "bg-[var(--sidebar-accent)] text-[var(--sidebar-primary)]"
                   : "text-[var(--foreground)] hover:bg-[var(--sidebar-accent)]"
@@ -472,92 +395,60 @@ function Sidebar() {
             >
               <ul className="space-y-1 mt-1">
                 <li>
-                  <button
-                    onClick={() =>
-                      handleNavigation(
-                        "/admin-dashboard/finance/overview",
-                        "finance-overview"
-                      )
-                    }
-                    disabled={loadingItem !== null}
-                    className={`flex items-center gap-3 w-full px-3 py-2 rounded-lg h-10 text-sm cursor-pointer transition-colors duration-200 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed ${
-                      activeSubItem === "finance-overview"
-                        ? "bg-[var(--sidebar-accent)] text-[var(--sidebar-primary)]"
-                        : "text-[var(--foreground)] hover:bg-[var(--sidebar-accent)]"
-                    }`}
-                  >
-                    <OverviewIcon className="w-[var(--icon-size-sm)] h-[var(--icon-size-sm)]" />
-                    <span>Overview</span>
-                    {loadingItem === "finance-overview" && (
-                      <Loader2 className="w-4 h-4 animate-spin ml-auto" />
-                    )}
-                  </button>
+                  <Link href="/admin-dashboard/finance/overview">
+                    <button
+                      className={`flex items-center gap-3 w-full px-3 py-2 rounded-lg h-10 text-sm transition-colors duration-200 ${
+                        activeSubItem === "finance-overview"
+                          ? "bg-[var(--sidebar-accent)] text-[var(--sidebar-primary)]"
+                          : "text-[var(--foreground)] hover:bg-[var(--sidebar-accent)]"
+                      }`}
+                    >
+                      <OverviewIcon className="w-[var(--icon-size-sm)] h-[var(--icon-size-sm)]" />
+                      Overview
+                    </button>
+                  </Link>
                 </li>
                 <li>
-                  <button
-                    onClick={() =>
-                      handleNavigation(
-                        "/admin-dashboard/finance/payout-management",
-                        "finance-payout"
-                      )
-                    }
-                    disabled={loadingItem !== null}
-                    className={`flex items-center gap-3 w-full px-3 py-2 rounded-lg h-10 text-sm cursor-pointer transition-colors duration-200 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed ${
-                      activeSubItem === "finance-payout"
-                        ? "bg-[var(--sidebar-accent)] text-[var(--sidebar-primary)]"
-                        : "text-[var(--foreground)] hover:bg-[var(--sidebar-accent)]"
-                    }`}
-                  >
-                    <CreditCard className="w-[var(--icon-size-sm)] h-[var(--icon-size-sm)]" />
-                    <span>Payout Management</span>
-                    {loadingItem === "finance-payout" && (
-                      <Loader2 className="w-4 h-4 animate-spin ml-auto" />
-                    )}
-                  </button>
+                  <Link href="/admin-dashboard/finance/payout-management">
+                    <button
+                      className={`flex items-center gap-3 w-full px-3 py-2 rounded-lg h-10 text-sm transition-colors duration-200 ${
+                        activeSubItem === "finance-payout"
+                          ? "bg-[var(--sidebar-accent)] text-[var(--sidebar-primary)]"
+                          : "text-[var(--foreground)] hover:bg-[var(--sidebar-accent)]"
+                      }`}
+                    >
+                      <CreditCard className="w-[var(--icon-size-sm)] h-[var(--icon-size-sm)]" />
+                      Payout Management
+                    </button>
+                  </Link>
                 </li>
                 <li>
-                  <button
-                    onClick={() =>
-                      handleNavigation(
-                        "/admin-dashboard/finance/fee-configuration",
-                        "finance-fee"
-                      )
-                    }
-                    disabled={loadingItem !== null}
-                    className={`flex items-center gap-3 w-full px-3 py-2 rounded-lg h-10 text-sm cursor-pointer transition-colors duration-200 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed ${
-                      activeSubItem === "finance-fee"
-                        ? "bg-[var(--sidebar-accent)] text-[var(--sidebar-primary)]"
-                        : "text-[var(--foreground)] hover:bg-[var(--sidebar-accent)]"
-                    }`}
-                  >
-                    <Wrench className="w-[var(--icon-size-sm)] h-[var(--icon-size-sm)]" />
-                    <span>Fee Configuration</span>
-                    {loadingItem === "finance-fee" && (
-                      <Loader2 className="w-4 h-4 animate-spin ml-auto" />
-                    )}
-                  </button>
+                  <Link href="/admin-dashboard/finance/fee-configuration">
+                    <button
+                      className={`flex items-center gap-3 w-full px-3 py-2 rounded-lg h-10 text-sm transition-colors duration-200 ${
+                        activeSubItem === "finance-fee"
+                          ? "bg-[var(--sidebar-accent)] text-[var(--sidebar-primary)]"
+                          : "text-[var(--foreground)] hover:bg-[var(--sidebar-accent)]"
+                      }`}
+                    >
+                      <Wrench className="w-[var(--icon-size-sm)] h-[var(--icon-size-sm)]" />
+                      Fee Configuration
+                    </button>
+                  </Link>
                 </li>
                 <li>
-                  <button
-                    onClick={() =>
-                      handleNavigation(
-                        "/admin-dashboard/finance/revenue-reports",
-                        "finance-revenue"
-                      )
-                    }
-                    disabled={loadingItem !== null}
-                    className={`flex items-center gap-3 w-full px-3 py-2 rounded-lg h-10 text-sm cursor-pointer transition-colors duration-200 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed ${
-                      activeSubItem === "finance-revenue"
-                        ? "bg-[var(--sidebar-accent)] text-[var(--sidebar-primary)]"
-                        : "text-[var(--foreground)] hover:bg-[var(--sidebar-accent)]"
-                    }`}
-                  >
-                    <TrendingUp className="w-[var(--icon-size-sm)] h-[var(--icon-size-sm)]" />
-                    <span>Revenue Reports</span>
-                    {loadingItem === "finance-revenue" && (
-                      <Loader2 className="w-4 h-4 animate-spin ml-auto" />
-                    )}
-                  </button>
+                  <Link href="/admin-dashboard/finance/revenue-reports">
+                    <button
+                      className={`flex items-center gap-3 w-full px-3 py-2 rounded-lg h-10 text-sm transition-colors duration-200 ${
+                        activeSubItem === "finance-revenue"
+                          ? "bg-[var(--sidebar-accent)] text-[var(--sidebar-primary)]"
+                          : "text-[var(--foreground)] hover:bg-[var(--sidebar-accent)]"
+                      }`}
+                    >
+                      <TrendingUp className="w-[var(--icon-size-sm)] h-[var(--icon-size-sm)]" />
+                      Revenue Reports
+                    </button>
+                  </Link>
                 </li>
               </ul>
             </div>
@@ -566,7 +457,7 @@ function Sidebar() {
           <li>
             <button
               onClick={() => setIsReportsOpen(!isReportsOpen)}
-              className={`flex items-center gap-3 w-full px-3 py-3 rounded-lg h-12 cursor-pointer transition-colors duration-200 ${
+              className={`flex items-center gap-3 w-full px-3 py-3 rounded-lg h-12 transition-colors duration-200 ${
                 activeMainItem === "reports"
                   ? "bg-[var(--sidebar-accent)] text-[var(--sidebar-primary)]"
                   : "text-[var(--foreground)] hover:bg-[var(--sidebar-accent)]"
@@ -587,70 +478,46 @@ function Sidebar() {
             >
               <ul className="space-y-1 mt-1">
                 <li>
-                  <button
-                    onClick={() =>
-                      handleNavigation(
-                        "/admin-dashboard/reports/weekly",
-                        "reports-weekly"
-                      )
-                    }
-                    disabled={loadingItem !== null}
-                    className={`flex items-center gap-3 w-full px-3 py-2 rounded-lg h-10 text-sm cursor-pointer transition-colors duration-200 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed ${
-                      activeSubItem === "reports-weekly"
-                        ? "bg-[var(--sidebar-accent)] text-[var(--sidebar-primary)]"
-                        : "text-[var(--foreground)] hover:bg-[var(--sidebar-accent)]"
-                    }`}
-                  >
-                    <Calendar className="w-[var(--icon-size-sm)] h-[var(--icon-size-sm)]" />
-                    <span>Weekly Reports</span>
-                    {loadingItem === "reports-weekly" && (
-                      <Loader2 className="w-4 h-4 animate-spin ml-auto" />
-                    )}
-                  </button>
+                  <Link href="/admin-dashboard/reports/weekly">
+                    <button
+                      className={`flex items-center gap-3 w-full px-3 py-2 rounded-lg h-10 text-sm transition-colors duration-200 ${
+                        activeSubItem === "reports-weekly"
+                          ? "bg-[var(--sidebar-accent)] text-[var(--sidebar-primary)]"
+                          : "text-[var(--foreground)] hover:bg-[var(--sidebar-accent)]"
+                      }`}
+                    >
+                      <Calendar className="w-[var(--icon-size-sm)] h-[var(--icon-size-sm)]" />
+                      Weekly Reports
+                    </button>
+                  </Link>
                 </li>
                 <li>
-                  <button
-                    onClick={() =>
-                      handleNavigation(
-                        "/admin-dashboard/reports/seller-leaderboard",
-                        "reports-seller"
-                      )
-                    }
-                    disabled={loadingItem !== null}
-                    className={`flex items-center gap-3 w-full px-3 py-2 rounded-lg h-10 text-sm cursor-pointer transition-colors duration-200 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed ${
-                      activeSubItem === "reports-seller"
-                        ? "bg-[var(--sidebar-accent)] text-[var(--sidebar-primary)]"
-                        : "text-[var(--foreground)] hover:bg-[var(--sidebar-accent)]"
-                    }`}
-                  >
-                    <Trophy className="w-[var(--icon-size-sm)] h-[var(--icon-size-sm)]" />
-                    <span>Seller Leaderboard</span>
-                    {loadingItem === "reports-seller" && (
-                      <Loader2 className="w-4 h-4 animate-spin ml-auto" />
-                    )}
-                  </button>
+                  <Link href="/admin-dashboard/reports/seller-leaderboard">
+                    <button
+                      className={`flex items-center gap-3 w-full px-3 py-2 rounded-lg h-10 text-sm transition-colors duration-200 ${
+                        activeSubItem === "reports-seller"
+                          ? "bg-[var(--sidebar-accent)] text-[var(--sidebar-primary)]"
+                          : "text-[var(--foreground)] hover:bg-[var(--sidebar-accent)]"
+                      }`}
+                    >
+                      <Trophy className="w-[var(--icon-size-sm)] h-[var(--icon-size-sm)]" />
+                      Seller Leaderboard
+                    </button>
+                  </Link>
                 </li>
                 <li>
-                  <button
-                    onClick={() =>
-                      handleNavigation(
-                        "/admin-dashboard/reports/buyer-insights",
-                        "reports-buyer"
-                      )
-                    }
-                    disabled={loadingItem !== null}
-                    className={`flex items-center gap-3 w-full px-3 py-2 rounded-lg h-10 text-sm cursor-pointer transition-colors duration-200 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed ${
-                      activeSubItem === "reports-buyer"
-                        ? "bg-[var(--sidebar-accent)] text-[var(--sidebar-primary)]"
-                        : "text-[var(--foreground)] hover:bg-[var(--sidebar-accent)]"
-                    }`}
-                  >
-                    <TrendingUp className="w-[var(--icon-size-sm)] h-[var(--icon-size-sm)]" />
-                    <span>Buyer Insights</span>
-                    {loadingItem === "reports-buyer" && (
-                      <Loader2 className="w-4 h-4 animate-spin ml-auto" />
-                    )}
-                  </button>
+                  <Link href="/admin-dashboard/reports/buyer-insights">
+                    <button
+                      className={`flex items-center gap-3 w-full px-3 py-2 rounded-lg h-10 text-sm transition-colors duration-200 ${
+                        activeSubItem === "reports-buyer"
+                          ? "bg-[var(--sidebar-accent)] text-[var(--sidebar-primary)]"
+                          : "text-[var(--foreground)] hover:bg-[var(--sidebar-accent)]"
+                      }`}
+                    >
+                      <TrendingUp className="w-[var(--icon-size-sm)] h-[var(--icon-size-sm)]" />
+                      Buyer Insights
+                    </button>
+                  </Link>
                 </li>
               </ul>
             </div>
@@ -660,25 +527,22 @@ function Sidebar() {
 
       <div className="mt-auto px-2">
         <hr className="border-[var(--sidebar-border)] my-4" />
-        <button
-          onClick={() => handleNavigation("/admin-dashboard/settings", "settings")}
-          disabled={loadingItem !== null}
-          className={`flex items-center gap-2 text-sm font-normal leading-5 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed ${
-            activeMainItem === "settings"
-              ? "text-[var(--sidebar-primary)] font-[var(--font-weight-semibold)]"
-              : "text-muted-foreground hover:text-foreground"
-          }`}
-        >
-          <Settings className="w-[var(--icon-size-sm)] h-[var(--icon-size-sm)]" />
-          <span>Settings</span>
-          {loadingItem === "settings" && (
-            <Loader2 className="w-4 h-4 animate-spin ml-auto" />
-          )}
-        </button>
+        <Link href="/admin-dashboard/settings">
+          <button
+            className={`flex items-center gap-2 text-sm font-normal leading-5 ${
+              activeMainItem === "settings"
+                ? "text-[var(--sidebar-primary)] font-[var(--font-weight-semibold)]"
+                : "text-muted-foreground hover:text-foreground"
+            }`}
+          >
+            <Settings className="w-[var(--icon-size-sm)] h-[var(--icon-size-sm)]" />
+            Settings
+          </button>
+        </Link>
         <button
           onClick={handleLogoutClick}
           disabled={isLoggingOut}
-          className="flex items-center gap-2 text-sm font-normal leading-5 text-destructive cursor-pointer mt-3 hover:text-destructive disabled:opacity-50 disabled:cursor-not-allowed"
+          className="flex items-center gap-2 text-sm font-normal leading-5 text-destructive mt-3 hover:text-destructive disabled:opacity-50 disabled:cursor-not-allowed"
         >
           {isLoggingOut ? (
             <Loader2 className="w-[var(--icon-size-sm)] h-[var(--icon-size-sm)] animate-spin" />
@@ -706,7 +570,7 @@ function Sidebar() {
               </h3>
               <button
                 onClick={handleCloseLogoutModal}
-                className="p-1 hover:bg-gray-100 rounded cursor-pointer"
+                className="p-1 hover:bg-gray-100 rounded"
               >
                 <X className="w-5 h-5 text-gray-500" />
               </button>
@@ -724,14 +588,14 @@ function Sidebar() {
             <div className="flex gap-3 justify-end">
               <button
                 onClick={handleCloseLogoutModal}
-                className="px-4 py-2 text-gray-700 border border-gray-300 rounded-lg hover:bg-gray-50 cursor-pointer"
+                className="px-4 py-2 text-gray-700 border border-gray-300 rounded-lg hover:bg-gray-50"
               >
                 Cancel
               </button>
               <button
                 onClick={handleLogoutConfirm}
                 disabled={isLoggingOut}
-                className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2 cursor-pointer"
+                className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
               >
                 {isLoggingOut ? (
                   <Loader2 className="w-4 h-4 animate-spin" />

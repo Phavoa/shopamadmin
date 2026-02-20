@@ -9,9 +9,10 @@ import {
   SellerListParams,
 } from "@/api/sellerApi";
 import {
-  useIssueStrikeMutation,
-  useIssueSuspensionMutation,
-  useGetDisciplineRecordsQuery,
+  issueStrike,
+  issueSuspension,
+  getUserDisciplineSummary,
+  getUserStrikeCount,
 } from "@/api/disciplineApi";
 import { useDispatch, useSelector } from "react-redux";
 import { setHeaderTitle } from "@/features/shared/headerSice";
@@ -21,7 +22,10 @@ import SellersTable from "@/components/sellers/SellersTable";
 import SellersPagination from "@/components/sellers/SellersPagination";
 import SuspendSellerModal from "@/components/sellers/SuspendSellerModal";
 import IssueStrikeModal from "@/components/sellers/IssueStrikeModal";
-import { AnimatedWrapper, PageWrapper } from "@/components/shared/AnimatedWrapper";
+import {
+  AnimatedWrapper,
+  PageWrapper,
+} from "@/components/shared/AnimatedWrapper";
 import { ConfirmationDialog } from "@/components/ui/confirmation-dialog";
 import { toast } from "react-hot-toast";
 
@@ -60,38 +64,23 @@ const Page = () => {
   const [hasPrev, setHasPrev] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
 
+  // Modal states
   const [suspendModal, setSuspendModal] = useState(false);
   const [strikeModal, setStrikeModal] = useState(false);
-  const [selectedSeller, setSelectedSeller] = useState<DisplaySeller | null>(null);
+  const [selectedSeller, setSelectedSeller] = useState<DisplaySeller | null>(
+    null,
+  );
 
+  // Confirmation dialog states
   const [confirmDialog, setConfirmDialog] = useState(false);
   const [confirmAction, setConfirmAction] = useState<(() => void) | null>(null);
   const [confirmTitle, setConfirmTitle] = useState("");
   const [confirmDescription, setConfirmDescription] = useState("");
 
+  // Form states
   const [reason, setReason] = useState("");
   const [duration, setDuration] = useState("");
   const [actionLoading, setActionLoading] = useState(false);
-
-  // ✅ RTK Query mutations
-  const [issueStrike] = useIssueStrikeMutation();
-  const [issueSuspension] = useIssueSuspensionMutation();
-
-  // ✅ Fetch all SELLER discipline records once — use to derive status per seller
-  const { data: disciplineData } = useGetDisciplineRecordsQuery({
-    role: "SELLER",
-    status: "ACTIVE",
-    limit: 200,
-  });
-  const disciplineRecords = disciplineData?.data?.items ?? [];
-
-  // Helper: get strike count + suspension status for a seller from already-fetched records
-  const getDisciplineStatus = (userId: string) => {
-    const userRecords = disciplineRecords.filter((r) => r.userId === userId);
-    const activeStrikes = userRecords.filter((r) => r.type === "STRIKE" && r.status === "ACTIVE").length;
-    const isSuspended = userRecords.some((r) => r.type === "SUSPENSION" && r.status === "ACTIVE");
-    return { activeStrikes, isSuspended };
-  };
 
   useEffect(() => {
     dispatch(setHeaderTitle("Seller List"));
@@ -102,35 +91,67 @@ const Page = () => {
       setFetchingSellers(true);
       setError(null);
 
-      const response = await getSellers({ ...params, limit: 9 });
+      const response = await getSellers({
+        ...params,
+        limit: 9,
+      });
       const sellersData = response.data.items;
 
+      // Fetch user profiles for names
       const userPromises = sellersData.map((seller) =>
-        getUserById(seller.userId).catch(() => null)
+        getUserById(seller.userId).catch(() => null),
       );
       const userResults = await Promise.allSettled(userPromises);
-      const userProfiles = userResults.map((r) =>
-        r.status === "fulfilled" ? r.value : null
+      const userProfiles = userResults.map((result) =>
+        result.status === "fulfilled" ? result.value : null,
       );
 
-      const displaySellers: DisplaySeller[] = sellersData.map(
-        (seller: SellerProfileVM, index: number) => {
+      const displaySellers: DisplaySeller[] = await Promise.all(
+        sellersData.map(async (seller: SellerProfileVM, index: number) => {
           const user = userProfiles[index];
-          const { activeStrikes, isSuspended } = getDisciplineStatus(seller.userId);
-
+          let strikes = 0;
           let status = seller.status.toLowerCase();
-          if (isSuspended) {
-            status = "suspended";
-          } else if (activeStrikes >= 3) {
-            status = "suspended";
-          } else if (activeStrikes > 0) {
-            status = `${activeStrikes}/3 strike${activeStrikes > 1 ? "s" : ""}`;
+          let activeSuspensions = 0;
+
+          try {
+            const disciplineResponse = await getUserDisciplineSummary(
+              seller.userId,
+              "SELLER",
+            );
+
+            // ✅ ADD THESE DEBUG LOGS
+            console.log("🔍 Seller ID:", seller.userId);
+            console.log("🔍 Discipline Response:", disciplineResponse);
+            console.log("🔍 Active Strikes:", disciplineResponse.activeStrikes);
+
+            strikes = disciplineResponse.activeStrikes;
+            activeSuspensions = disciplineResponse.activeSuspensions;
+
+            // Determine status based on discipline data
+            if (activeSuspensions > 0) {
+              status = "suspended";
+            } else if (strikes >= 3) {
+              status = "suspended"; // Auto-suspended due to 3 strikes
+            } else if (strikes > 0) {
+              status = `${strikes}/3 strike${strikes > 1 ? "s" : ""}`;
+            } else {
+              // Use the original seller status if no strikes/suspensions
+              status = seller.status.toLowerCase();
+            }
+          } catch {
+            console.error(
+              "Failed to fetch discipline summary for seller:",
+              seller.userId,
+            );
+            // If fetching discipline fails, use original status
+            status = seller.status.toLowerCase();
+            strikes = 0;
           }
 
           return {
             id: seller.userId,
             name:
-              user?.firstName && user?.lastName
+              user && user.firstName && user.lastName
                 ? `${user.firstName} ${user.lastName}`
                 : seller.shopName || "Unknown Seller",
             email: user ? user.email : seller.userEmail,
@@ -142,7 +163,7 @@ const Page = () => {
             totalSales: seller.totalSales,
             createdAt: seller.createdAt,
             reliability: "95%",
-            strikes: activeStrikes,
+            strikes,
             lastLive: "Aug 30 (Bronze, 210 viewers)",
             walletBalance: "₦340,000",
             totalOrders: 452,
@@ -150,16 +171,15 @@ const Page = () => {
             activeListings: 35,
             nextSlot: "Sep 6, 2025 14:00 (Bronze)",
           };
-        }
+        }),
       );
-
       setSellers(displaySellers);
       setNextCursor(response.data.nextCursor);
       setPrevCursor(response.data.prevCursor);
       setHasNext(response.data.hasNext);
       setHasPrev(response.data.hasPrev);
-    } catch (err) {
-      console.error("Failed to fetch sellers:", err);
+    } catch (error) {
+      console.error("Failed to fetch sellers:", error);
       setError("Failed to load sellers. Please try again.");
       toast.error("Failed to load sellers");
     } finally {
@@ -167,13 +187,19 @@ const Page = () => {
     }
   };
 
+  // Add this useEffect to refetch when window regains focus
   useEffect(() => {
-    const handleFocus = () => fetchSellers();
+    const handleFocus = () => {
+      fetchSellers(); // Refetch sellers when user comes back to the page
+    };
+
     window.addEventListener("focus", handleFocus);
     return () => window.removeEventListener("focus", handleFocus);
   }, []);
 
-  useEffect(() => { fetchSellers(); }, []);
+  useEffect(() => {
+    fetchSellers();
+  }, []);
 
   useEffect(() => {
     setCurrentPage(1);
@@ -182,59 +208,61 @@ const Page = () => {
     fetchSellers({ q: searchQuery || undefined });
   }, [searchQuery]);
 
-  // Re-derive seller statuses when discipline data loads
-  useEffect(() => {
-    if (disciplineRecords.length > 0 && sellers.length > 0) {
-      setSellers((prev) =>
-        prev.map((seller) => {
-          const { activeStrikes, isSuspended } = getDisciplineStatus(seller.id);
-          let status = isSuspended
-            ? "suspended"
-            : activeStrikes >= 3
-            ? "suspended"
-            : activeStrikes > 0
-            ? `${activeStrikes}/3 strike${activeStrikes > 1 ? "s" : ""}`
-            : seller.status;
-          return { ...seller, status, strikes: activeStrikes };
-        })
-      );
-    }
-  }, [disciplineData]);
-
   const handleViewSeller = (seller: DisplaySeller) => {
     router.push(`/admin-dashboard/sellers/${seller.id}`);
   };
 
+  // Open Suspend Modal
   const openSuspendModal = (seller: DisplaySeller) => {
     setSelectedSeller(seller);
     setSuspendModal(true);
   };
 
+  // Handle Suspend
   const handleSuspend = async () => {
     if (!selectedSeller || !reason || !duration) {
       toast.error("Please fill in all fields");
       return;
     }
+
     setConfirmTitle("Confirm Suspension");
-    setConfirmDescription(`Suspend ${selectedSeller.name} for ${duration} days?`);
+    setConfirmDescription(
+      `Are you sure you want to suspend ${selectedSeller.name} for ${duration} days?`,
+    );
     setConfirmAction(() => async () => {
       try {
         setActionLoading(true);
         setConfirmDialog(false);
-        await issueSuspension({
-          userId: selectedSeller.id,
-          data: { role: "SELLER", durationDays: parseInt(duration), reason },
-        }).unwrap();
-        setSellers((prev) =>
-          prev.map((s) => s.id === selectedSeller.id ? { ...s, status: "suspended" } : s)
+
+        await issueSuspension(
+          selectedSeller.id,
+          reason,
+          parseInt(duration),
+          "SELLER",
         );
+
+        // Update local state immediately for suspension
+        setSellers((prevSellers) =>
+          prevSellers.map((seller) =>
+            seller.id === selectedSeller.id
+              ? { ...seller, status: "suspended" }
+              : seller,
+          ),
+        );
+
         setSuspendModal(false);
         setReason("");
         setDuration("");
         setSelectedSeller(null);
+
         toast.success("Seller suspended successfully!");
-      } catch (err) {
-        toast.error(err instanceof Error ? err.message : "Failed to suspend seller");
+
+        // Refresh seller list in background (don't await to avoid blocking UI)
+      } catch (err: unknown) {
+        console.error("Error suspending seller:", err);
+        toast.error(
+          err instanceof Error ? err.message : "Failed to suspend seller",
+        );
       } finally {
         setActionLoading(false);
       }
@@ -242,60 +270,85 @@ const Page = () => {
     setConfirmDialog(true);
   };
 
+  // Open Strike Modal
   const openStrikeModal = (seller: DisplaySeller) => {
     setSelectedSeller(seller);
     setStrikeModal(true);
   };
 
+  // Handle Strike
   const handleStrike = async () => {
     if (!selectedSeller || !reason) {
       toast.error("Please enter a reason");
       return;
     }
+
     setConfirmTitle("Confirm Strike");
-    setConfirmDescription(`Issue a strike to ${selectedSeller.name}?`);
+    setConfirmDescription(
+      `Are you sure you want to issue a strike to ${selectedSeller.name}?`,
+    );
     setConfirmAction(() => async () => {
       try {
         setActionLoading(true);
         setConfirmDialog(false);
 
-        const currentStrikes = selectedSeller.strikes ?? 0;
+        // Check current strike count
+        const currentStrikeCount = await getUserStrikeCount(
+          selectedSeller.id,
+          "SELLER",
+        );
 
-        if (currentStrikes >= 2) {
-          // 3rd strike → auto suspend
-          await issueSuspension({
-            userId: selectedSeller.id,
-            data: { role: "SELLER", durationDays: 30, reason },
-          }).unwrap();
-          toast.success(`${selectedSeller.name} suspended (3rd strike)`);
-          setSellers((prev) =>
-            prev.map((s) => s.id === selectedSeller.id ? { ...s, status: "suspended", strikes: 3 } : s)
+        // If this will be the 3rd strike, issue suspension instead
+        if (currentStrikeCount >= 2) {
+          await issueSuspension(selectedSeller.id, reason, 30, "SELLER"); // 30 days for 3rd strike
+          toast.success(
+            `${selectedSeller.name} has been suspended (3rd strike)`,
+          );
+
+          // Update local state immediately for 3rd strike suspension
+          setSellers((prevSellers) =>
+            prevSellers.map((seller) =>
+              seller.id === selectedSeller.id
+                ? { ...seller, status: "suspended", strikes: 3 }
+                : seller,
+            ),
           );
         } else {
-          await issueStrike({
-            userId: selectedSeller.id,
-            data: { role: "SELLER", reason },
-          }).unwrap();
-          const newCount = currentStrikes + 1;
-          toast.success(`Strike ${newCount}/3 issued to ${selectedSeller.name}`);
-          setSellers((prev) =>
-            prev.map((s) =>
-              s.id === selectedSeller.id
+          await issueStrike(selectedSeller.id, reason, "SELLER");
+          const newStrikeCount = currentStrikeCount + 1;
+          toast.success(
+            `Strike ${newStrikeCount}/3 issued to ${selectedSeller.name}`,
+          );
+
+          // Update local state immediately for strike
+          setSellers((prevSellers) =>
+            prevSellers.map((seller) =>
+              seller.id === selectedSeller.id
                 ? {
-                    ...s,
-                    strikes: newCount,
-                    status: newCount >= 3 ? "suspended" : `${newCount}/3 strike${newCount > 1 ? "s" : ""}`,
+                    ...seller,
+                    status:
+                      newStrikeCount >= 3
+                        ? "suspended"
+                        : `${newStrikeCount}/3 strike${
+                            newStrikeCount > 1 ? "s" : ""
+                          }`,
+                    strikes: newStrikeCount,
                   }
-                : s
-            )
+                : seller,
+            ),
           );
         }
 
         setStrikeModal(false);
         setReason("");
         setSelectedSeller(null);
-      } catch (err) {
-        toast.error(err instanceof Error ? err.message : "Failed to issue strike");
+
+        // Refresh seller list in background (don't await to avoid blocking UI)
+      } catch (err: unknown) {
+        console.error("Error issuing strike:", err);
+        toast.error(
+          err instanceof Error ? err.message : "Failed to issue strike",
+        );
       } finally {
         setActionLoading(false);
       }
@@ -303,6 +356,7 @@ const Page = () => {
     setConfirmDialog(true);
   };
 
+  // Pagination functions
   const handleNextPage = () => {
     if (hasNext && nextCursor) {
       setCurrentPage((prev) => prev + 1);
@@ -341,6 +395,7 @@ const Page = () => {
         />
       </AnimatedWrapper>
 
+      {/* Modals */}
       <SuspendSellerModal
         isOpen={suspendModal}
         selectedSeller={selectedSeller}

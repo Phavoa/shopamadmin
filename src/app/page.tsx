@@ -24,7 +24,7 @@ const page = () => {
         </Button>
       </Link>
       <Link href="/logistics/non-lagos">
-        <Button className="cursor-pointer bg-[#0915FF] hover:bg-[#0915FF]/90">
+        <Button className="cursor-pointe bg-[#0915FF] hover:bg-[#0915FF]/90">
           Go to Logistics Non-Lagos
         </Button>
       </Link>

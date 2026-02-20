@@ -1,9 +1,11 @@
 import { createApi, fetchBaseQuery } from "@reduxjs/toolkit/query/react";
-import type { ApiResponse } from "../types/auth";
-import { authStorage } from "@/lib/auth/authUtils";
+import { authStorage } from "../lib/auth/authUtils";
 
-// ─── Milestone Types ────────────────────────────────────────────────────────
+const API_BASE_URL =
+  process.env.NEXT_PUBLIC_API_URL ||
+  "https://shapam-ecomerce-backend.onrender.com/api";
 
+// Types based on the API response
 export interface ReferralMilestone {
   id: string;
   thresholdKobo: string;
@@ -15,47 +17,32 @@ export interface ReferralMilestone {
   updatedAt: string;
 }
 
-export interface CreateMilestoneRequest {
-  thresholdKobo: string;
-  rewardKobo: string;
-  label: string;
-  order: number;
-  active: boolean;
-}
-
-export interface UpdateMilestoneRequest {
-  thresholdKobo?: string;
-  rewardKobo?: string;
-  label?: string;
-  order?: number;
-  active?: boolean;
-}
-
-// ─── Referral Types ──────────────────────────────────────────────────────────
-
-export interface Referee {
-  id: string;
-  firstName: string;
-  lastName: string;
-  email: string;
-  phone?: string;
-  createdAt: string;
-}
-
 export interface Referral {
   id: string;
   referrerId: string;
   refereeId: string;
-  referee: Referee;
-  cumulativeSpendKobo: string;
-  totalRewardsKobo: string;
+  code?: string;
+  totalSpendKobo: string;
+  isValid?: boolean;
   createdAt: string;
   updatedAt: string;
+  referee?: {
+    id: string;
+    firstName: string;
+    lastName: string;
+    email: string;
+    phone: string;
+    imageUrl: string | null;
+  };
+  referrer?: {
+    id: string;
+    firstName: string;
+    lastName: string;
+    email: string;
+    phone: string;
+    imageUrl: string | null;
+  };
 }
-
-// ─── Reward Types ────────────────────────────────────────────────────────────
-
-export type RewardStatus = "PENDING" | "PAID" | "CANCELLED";
 
 export interface ReferralReward {
   id: string;
@@ -63,30 +50,86 @@ export interface ReferralReward {
   referralId: string;
   milestoneId: string;
   amountKobo: string;
-  status: RewardStatus;
+  status: string;
   createdAt: string;
   updatedAt: string;
+  referral: Referral;
+  milestone: ReferralMilestone;
 }
-
-// ─── Summary Type ────────────────────────────────────────────────────────────
 
 export interface ReferralSummary {
   totalReferrals: number;
-  totalEarnedKobo: string;
+  totalRefereesSpent: string;
+  totalRewardsEarned: string;
+  activeMilestones: number;
+  recentRewards: ReferralReward[];
 }
 
-// ─── Paginated Response ──────────────────────────────────────────────────────
-
-export interface PaginatedResponse<T> {
-  items: T[];
-  nextCursor?: string;
-  prevCursor?: string;
-  total?: number;
+export interface ReferralMilestoneListResponse {
+  items: ReferralMilestone[];
+  nextCursor: string | null;
+  prevCursor: string | null;
+  pageSize: number;
+  hasNext: boolean;
+  hasPrev: boolean;
+  sortBy: string;
+  sortDir: string;
+  populate: string[];
 }
 
-// ─── Shared Query Params ─────────────────────────────────────────────────────
+export interface ReferralListResponse {
+  items: Referral[];
+  nextCursor: string | null;
+  prevCursor: string | null;
+  pageSize: number;
+  hasNext: boolean;
+  hasPrev: boolean;
+  sortBy: string;
+  sortDir: string;
+  populate: string[];
+}
 
-export interface BaseListParams {
+export interface ApiResponse<T> {
+  success?: boolean;
+  data: T;
+  message: string;
+  statusCode: number;
+  timestamp?: string;
+  traceId?: string;
+}
+
+// Parameter types
+export interface CreateMilestoneParams {
+  thresholdKobo: string;
+  rewardKobo: string;
+  label: string;
+  order: number;
+  active: boolean;
+}
+
+export interface UpdateMilestoneParams {
+  thresholdKobo?: string;
+  rewardKobo?: string;
+  label?: string;
+  order?: number;
+  active?: boolean;
+}
+
+export interface GetMilestonesParams {
+  populate?: string[];
+  sellerId?: string;
+  addresses?: string[];
+  q?: string;
+  phone?: string;
+  limit?: number;
+  after?: string;
+  before?: string;
+  sortBy?: "createdAt" | "name";
+  sortDir?: "asc" | "desc";
+  active?: boolean;
+}
+
+export interface GetReferralsParams {
   populate?: string[];
   q?: string;
   phone?: string;
@@ -95,28 +138,12 @@ export interface BaseListParams {
   before?: string;
   sortBy?: "createdAt" | "name";
   sortDir?: "asc" | "desc";
-}
-
-export interface ListMilestonesParams extends BaseListParams {
-  active?: boolean;
-}
-
-export interface ListReferralsParams extends BaseListParams {
   referrerId?: string;
 }
 
-export interface ListRewardsParams extends BaseListParams {
-  referrerId?: string;
-  status?: RewardStatus;
-  paidOnly?: boolean;
-}
-
-// ─── API Setup (mirrors adminApi pattern) ────────────────────────────────────
-
-const API_BASE_URL =
-  process.env.NEXT_PUBLIC_API_URL ||
-  "https://shapam-ecomerce-backend.onrender.com/api";
-
+/**
+ * Base query with authentication
+ */
 const baseQuery = fetchBaseQuery({
   baseUrl: API_BASE_URL,
   prepareHeaders: (headers) => {
@@ -129,6 +156,9 @@ const baseQuery = fetchBaseQuery({
   },
 });
 
+/**
+ * Base query with reauthentication
+ */
 const baseQueryWithReauth = async (
   args: Parameters<typeof baseQuery>[0],
   api: Parameters<typeof baseQuery>[1],
@@ -137,11 +167,16 @@ const baseQueryWithReauth = async (
   let result = await baseQuery(args, api, extraOptions);
 
   if (result?.error?.status === 401) {
+    // Try to refresh token
     const refreshToken = authStorage.getRefreshToken();
     if (refreshToken) {
       try {
         const refreshResult = await baseQuery(
-          { url: "/auth/refresh", method: "POST", body: { refreshToken } },
+          {
+            url: "/auth/refresh",
+            method: "POST",
+            body: { refreshToken },
+          },
           api,
           extraOptions
         );
@@ -151,7 +186,14 @@ const baseQueryWithReauth = async (
             accessToken: string;
             refreshToken?: string;
           };
-          authStorage.setTokens(refreshData.accessToken, refreshData.refreshToken);
+
+          // Store new tokens
+          authStorage.setTokens(
+            refreshData.accessToken,
+            refreshData.refreshToken
+          );
+
+          // Retry the original query
           result = await baseQuery(args, api, extraOptions);
           return result;
         }
@@ -160,6 +202,7 @@ const baseQueryWithReauth = async (
       }
     }
 
+    // If refresh failed or no refresh token, logout
     if (result?.error?.status === 401) {
       authStorage.clearTokens();
     }
@@ -168,33 +211,33 @@ const baseQueryWithReauth = async (
   return result;
 };
 
-// ─── Referral API Slice ───────────────────────────────────────────────────────
-
 export const referralApi = createApi({
   reducerPath: "referralApi",
   baseQuery: baseQueryWithReauth,
-  tagTypes: ["Milestone", "Referral", "Reward"],
+  tagTypes: [
+    "ReferralMilestone",
+    "Referral",
+    "ReferralReward",
+    "ReferralSummary",
+  ],
   endpoints: (builder) => ({
-
-    // ── Milestones ────────────────────────────────────────────────────────────
-
-    // POST /api/referrals/milestones
+    // Create referral milestone (ADMIN)
     createMilestone: builder.mutation<
       ApiResponse<ReferralMilestone>,
-      CreateMilestoneRequest
+      CreateMilestoneParams
     >({
-      query: (body) => ({
+      query: (milestoneData) => ({
         url: "/referrals/milestones",
         method: "POST",
-        body,
+        body: milestoneData,
       }),
-      invalidatesTags: ["Milestone"],
+      invalidatesTags: ["ReferralMilestone"],
     }),
 
-    // GET /api/referrals/milestones
+    // Get referral milestones (ADMIN)
     getMilestones: builder.query<
-      ApiResponse<PaginatedResponse<ReferralMilestone>>,
-      ListMilestonesParams
+      ApiResponse<ReferralMilestoneListResponse>,
+      GetMilestonesParams
     >({
       query: (params = {}) => ({
         url: "/referrals/milestones",
@@ -205,18 +248,18 @@ export const referralApi = createApi({
         result
           ? [
               ...result.data.items.map(({ id }) => ({
-                type: "Milestone" as const,
+                type: "ReferralMilestone" as const,
                 id,
               })),
-              { type: "Milestone" as const, id: "LIST" },
+              { type: "ReferralMilestone" as const, id: "LIST" },
             ]
-          : [{ type: "Milestone" as const, id: "LIST" }],
+          : [{ type: "ReferralMilestone" as const, id: "LIST" }],
     }),
 
-    // PATCH /api/referrals/milestones/{id}
+    // Update referral milestone (ADMIN)
     updateMilestone: builder.mutation<
       ApiResponse<ReferralMilestone>,
-      { id: string; data: UpdateMilestoneRequest }
+      { id: string; data: UpdateMilestoneParams }
     >({
       query: ({ id, data }) => ({
         url: `/referrals/milestones/${id}`,
@@ -224,17 +267,15 @@ export const referralApi = createApi({
         body: data,
       }),
       invalidatesTags: (result, error, { id }) => [
-        { type: "Milestone", id },
-        "Milestone",
+        { type: "ReferralMilestone", id },
+        { type: "ReferralMilestone", id: "LIST" },
       ],
     }),
 
-    // ── Referrals ─────────────────────────────────────────────────────────────
-
-    // GET /api/referrals/me  (current user as referrer)
+    // Get my referrals (as referrer)
     getMyReferrals: builder.query<
-      ApiResponse<PaginatedResponse<Referral>>,
-      ListReferralsParams
+      ApiResponse<ReferralListResponse>,
+      GetReferralsParams
     >({
       query: (params = {}) => ({
         url: "/referrals/me",
@@ -248,15 +289,15 @@ export const referralApi = createApi({
                 type: "Referral" as const,
                 id,
               })),
-              { type: "Referral" as const, id: "MY_LIST" },
+              { type: "Referral" as const, id: "LIST" },
             ]
-          : [{ type: "Referral" as const, id: "MY_LIST" }],
+          : [{ type: "Referral" as const, id: "LIST" }],
     }),
 
-    // GET /api/referrals/get-all-referrals  (admin: all referrals)
+    // Get all referrals (ADMIN)
     getAllReferrals: builder.query<
-      ApiResponse<PaginatedResponse<Referral>>,
-      ListReferralsParams
+      ApiResponse<ReferralListResponse>,
+      GetReferralsParams
     >({
       query: (params = {}) => ({
         url: "/referrals/get-all-referrals",
@@ -270,64 +311,76 @@ export const referralApi = createApi({
                 type: "Referral" as const,
                 id,
               })),
-              { type: "Referral" as const, id: "ALL_LIST" },
+              { type: "Referral" as const, id: "ADMIN_LIST" },
             ]
-          : [{ type: "Referral" as const, id: "ALL_LIST" }],
+          : [{ type: "Referral" as const, id: "ADMIN_LIST" }],
     }),
 
-    // ── Rewards ───────────────────────────────────────────────────────────────
-
-    // GET /api/referrals/me/rewards
-    getMyRewards: builder.query<
-      ApiResponse<PaginatedResponse<ReferralReward>>,
-      ListRewardsParams
-    >({
-      query: (params = {}) => ({
+    // Get my referral rewards (as referrer)
+    getMyReferralRewards: builder.query<ApiResponse<ReferralReward[]>, void>({
+      query: () => ({
         url: "/referrals/me/rewards",
         method: "GET",
-        params,
       }),
       providesTags: (result) =>
         result
           ? [
-              ...result.data.items.map(({ id }) => ({
-                type: "Reward" as const,
+              ...result.data.map(({ id }) => ({
+                type: "ReferralReward" as const,
                 id,
               })),
-              { type: "Reward" as const, id: "LIST" },
+              { type: "ReferralReward" as const, id: "LIST" },
             ]
-          : [{ type: "Reward" as const, id: "LIST" }],
+          : [{ type: "ReferralReward" as const, id: "LIST" }],
     }),
 
-    // GET /api/referrals/me/summary
-    getMyReferralSummary: builder.query<
-      ApiResponse<ReferralSummary>,
-      void
-    >({
+    // Get my referral summary (as referrer)
+    getMyReferralSummary: builder.query<ApiResponse<ReferralSummary>, void>({
       query: () => ({
         url: "/referrals/me/summary",
         method: "GET",
       }),
-      providesTags: ["Referral"],
+      providesTags: ["ReferralSummary"],
+    }),
+
+    // Get single milestone by ID
+    getMilestoneById: builder.query<
+      ApiResponse<ReferralMilestone>,
+      { id: string; params?: GetMilestonesParams }
+    >({
+      query: ({ id, params }) => ({
+        url: `/referrals/milestones/${id}`,
+        method: "GET",
+        params,
+      }),
+      providesTags: (result, error, { id }) => [
+        { type: "ReferralMilestone", id },
+      ],
+    }),
+
+    // Delete milestone (ADMIN) - Additional endpoint
+    deleteMilestone: builder.mutation<ApiResponse<{ ok: boolean }>, string>({
+      query: (id) => ({
+        url: `/referrals/milestones/${id}`,
+        method: "DELETE",
+      }),
+      invalidatesTags: (result, error, id) => [
+        { type: "ReferralMilestone", id },
+        { type: "ReferralMilestone", id: "LIST" },
+      ],
     }),
   }),
 });
 
-// ─── Export Hooks ─────────────────────────────────────────────────────────────
-
+// EXPORT ALL HOOKS
 export const {
-  // Milestones
   useCreateMilestoneMutation,
   useGetMilestonesQuery,
-  useLazyGetMilestonesQuery,
   useUpdateMilestoneMutation,
-  // Referrals
   useGetMyReferralsQuery,
-  useLazyGetMyReferralsQuery,
   useGetAllReferralsQuery,
-  useLazyGetAllReferralsQuery,
-  // Rewards
-  useGetMyRewardsQuery,
-  useLazyGetMyRewardsQuery,
+  useGetMyReferralRewardsQuery,
   useGetMyReferralSummaryQuery,
+  useGetMilestoneByIdQuery,
+  useDeleteMilestoneMutation,
 } = referralApi;
