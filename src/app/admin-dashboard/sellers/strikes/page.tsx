@@ -4,53 +4,17 @@ import React, { useState, useEffect } from "react";
 import { StrikesTable, StrikeRecord } from "@/components/sellers/StrikesTable";
 import ExtendSuspensionModal from "@/components/sellers/ExtendSuspensionModal";
 import SuspendSellerModal from "@/components/sellers/SuspendSellerModal";
-import {
-  getGroupedDisciplineRecords,
-  getUserStrikeCount,
-  clearStrike,
-  reinstateSuspension,
-  extendSuspension,
-  issueSuspension,
-} from "@/api/disciplineApi";
-import toast from "react-hot-toast";
 import { ConfirmationDialog } from "@/components/ui/confirmation-dialog";
-
-const API_BASE_URL =
-  process.env.NEXT_PUBLIC_API_URL ||
-  "https://shapam-ecomerce-backend.onrender.com/api";
-
-const getAuthToken = (): string | null => {
-  if (typeof window === "undefined") return null;
-  const localToken = localStorage.getItem("authToken");
-  const sessionToken = sessionStorage.getItem("authToken");
-  return localToken || sessionToken;
-};
-
-const getUserById = async (userId: string) => {
-  const token = getAuthToken();
-  const response = await fetch(`${API_BASE_URL}/user/${userId}`, {
-    method: "GET",
-    headers: {
-      "Content-Type": "application/json",
-      ...(token && { Authorization: `Bearer ${token}` }),
-    },
-  });
-
-  if (!response.ok) {
-    throw new Error(`Failed to fetch user: ${response.statusText}`);
-  }
-
-  const data = await response.json();
-  return data.data;
-};
-
-interface UserCache {
-  [userId: string]: {
-    firstName: string;
-    lastName: string;
-    email: string;
-  };
-}
+import toast from "react-hot-toast";
+import {
+  useGetDisciplineRecordsQuery,
+  useIssueSuspensionMutation,
+  useClearStrikeMutation,
+  useReinstateSuspensionMutation,
+  useExtendSuspensionMutation,
+  fetchUserById,
+  DisciplineRecord,
+} from "@/api/disciplineApi";
 
 interface DisplaySeller {
   id: string;
@@ -66,139 +30,156 @@ interface DisplaySeller {
 }
 
 const SellerStrikesPage: React.FC = () => {
-  const [strikes, setStrikes] = useState<StrikeRecord[]>([]);
-  const [fetchingStrikes, setFetchingStrikes] = useState(false);
-  const [error, setError] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
-  const [userCache, setUserCache] = useState<UserCache>({});
   const [selectedStrike, setSelectedStrike] = useState<StrikeRecord | null>(
-    null
+    null,
   );
   const [isExtendModalOpen, setIsExtendModalOpen] = useState(false);
   const [isSuspendModalOpen, setIsSuspendModalOpen] = useState(false);
-  const [actionLoading, setActionLoading] = useState(false);
   const [suspensionReason, setSuspensionReason] = useState("");
   const [suspensionDuration, setSuspensionDuration] = useState("7");
+  const [strikes, setStrikes] = useState<StrikeRecord[]>([]);
+  const [buildingStrikes, setBuildingStrikes] = useState(false);
 
-  // Confirmation dialog states
   const [confirmDialog, setConfirmDialog] = useState(false);
   const [confirmAction, setConfirmAction] = useState<(() => void) | null>(null);
   const [confirmTitle, setConfirmTitle] = useState("");
   const [confirmDescription, setConfirmDescription] = useState("");
 
-  const fetchUserDetails = async (userId: string) => {
-    if (userCache[userId]) {
-      return userCache[userId];
+  const { data, isLoading, isError, refetch } = useGetDisciplineRecordsQuery({
+    role: "SELLER",
+    sortBy: "createdAt",
+    sortDir: "desc",
+    limit: 200,
+  });
+
+  const [issueSuspension, { isLoading: suspending }] =
+    useIssueSuspensionMutation();
+  const [clearStrike, { isLoading: clearing }] = useClearStrikeMutation();
+  const [reinstateSuspension, { isLoading: reinstating }] =
+    useReinstateSuspensionMutation();
+  const [extendSuspension, { isLoading: extending }] =
+    useExtendSuspensionMutation();
+
+  const actionLoading = suspending || clearing || reinstating || extending;
+  const records = data?.data?.items ?? [];
+
+  useEffect(() => {
+    if (!records.length) {
+      setStrikes([]);
+      return;
     }
 
-    try {
-      const user = await getUserById(userId);
-      const userDetails = {
-        firstName: user.firstName || "Unknown",
-        lastName: user.lastName || "Seller",
-        email: user.email || "N/A",
-      };
+    const build = async () => {
+      setBuildingStrikes(true);
 
-      setUserCache((prev) => ({ ...prev, [userId]: userDetails }));
-      return userDetails;
-    } catch (err) {
-      console.error("Failed to fetch user:", err);
-      return {
-        firstName: "Unknown",
-        lastName: "Seller",
-        email: "N/A",
-      };
-    }
-  };
+      const userMap = new Map<string, DisciplineRecord[]>();
+      records.forEach((r) => {
+        if (!userMap.has(r.userId)) userMap.set(r.userId, []);
+        userMap.get(r.userId)!.push(r);
+      });
 
-  const fetchStrikes = async () => {
-    try {
-      setFetchingStrikes(true);
-      setError(null);
+      const result: StrikeRecord[] = [];
 
-      const records = await getGroupedDisciplineRecords("SELLER");
+      for (const [userId, userRecords] of userMap) {
+        const activeSuspension = userRecords.find(
+          (r) => r.type === "SUSPENSION" && r.status === "ACTIVE",
+        );
+        const activeStrikes = userRecords.filter(
+          (r) => r.type === "STRIKE" && r.status === "ACTIVE",
+        );
+        const target =
+          activeSuspension ??
+          (activeStrikes.length > 0
+            ? activeStrikes.reduce((a, b) =>
+                new Date(b.createdAt) > new Date(a.createdAt) ? b : a,
+              )
+            : null);
 
-      if (!Array.isArray(records)) {
-        setStrikes([]);
-        return;
+        if (!target) continue;
+
+        // ✅ Try populated user first, fall back to fetchUserById for real name
+        let firstName = target.user?.firstName;
+        let lastName = target.user?.lastName;
+        let email = target.user?.email ?? "N/A";
+
+        if (!firstName || !lastName) {
+          const fetched = await fetchUserById(userId);
+          firstName = fetched.firstName;
+          lastName = fetched.lastName;
+          email = fetched.email;
+        }
+
+        const name = `${firstName} ${lastName}`;
+        const status = activeSuspension
+          ? "Suspended"
+          : `${activeStrikes.length}/3 Strike${activeStrikes.length > 1 ? "s" : ""}`;
+
+        result.push({
+          id: target.id,
+          sellerId: userId,
+          sellerName: name,
+          sellerEmail: email,
+          reason: target.reason,
+          date: target.createdAt,
+          status,
+          cooldownEnds: target.suspendedUntil,
+          issuedBy: "Admin",
+          description: target.reason,
+        });
       }
 
-      // Get strike counts for each user
-      const strikeCounts = await Promise.all(
-        records.map(async (record) => ({
-          recordId: record.id,
-          userId: record.userId,
-          count: await getUserStrikeCount(record.userId, "SELLER"),
-        }))
+      setStrikes(
+        result.sort(
+          (a, b) => new Date(b.date).getTime() - new Date(a.date).getTime(),
+        ),
       );
+      setBuildingStrikes(false);
+    };
 
-      const strikeCountMap = Object.fromEntries(
-        strikeCounts.map((sc) => [sc.recordId, sc.count])
-      );
+    build();
+  }, [data]);
 
-      // Transform to StrikeRecord format
-      const transformedStrikes: StrikeRecord[] = await Promise.all(
-        records.map(async (record) => {
-          const user = await fetchUserDetails(record.userId);
-          const strikeCount = strikeCountMap[record.id] || 0;
-
-          let status = "";
-          if (record.type === "SUSPENSION") {
-            status = "Suspended";
-          } else if (record.type === "STRIKE") {
-            status = `${strikeCount}/3 Strike${strikeCount > 1 ? "s" : ""}`;
-          }
-
-          return {
-            id: record.id,
-            sellerId: record.userId,
-            sellerName: `${user.firstName} ${user.lastName}`,
-            reason: record.reason,
-            date: record.createdAt,
-            status: status,
-            cooldownEnds: record.suspendedUntil,
-            sellerEmail: user.email,
-            issuedBy: "Admin",
-            description: record.reason,
-          };
-        })
-      );
-
-      setStrikes(transformedStrikes);
-    } catch (err: unknown) {
-      console.error("Error fetching strikes:", err);
-      setError(err instanceof Error ? err.message : "Failed to fetch strikes");
-      toast.error("Failed to load strikes");
-    } finally {
-      setFetchingStrikes(false);
-    }
-  };
-
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  useEffect(() => {
-    fetchStrikes();
-  }, []);
+  const filteredStrikes = strikes.filter((s) => {
+    const q = searchQuery.toLowerCase();
+    return (
+      s.sellerName.toLowerCase().includes(q) ||
+      s.sellerId.toLowerCase().includes(q) ||
+      s.reason.toLowerCase().includes(q)
+    );
+  });
 
   const handleClearStrike = (strike: StrikeRecord) => {
     setConfirmTitle("Clear Strike");
-    setConfirmDescription(
-      `Are you sure you want to clear this strike for ${strike.sellerName}?`
-    );
+    setConfirmDescription(`Clear this strike for ${strike.sellerName}?`);
     setConfirmAction(() => async () => {
       try {
-        setActionLoading(true);
-        setConfirmDialog(false);
-
-        await clearStrike(strike.id);
+        await clearStrike({
+          actionId: strike.id,
+          data: { reason: "Strike cleared by admin." },
+        }).unwrap();
         toast.success("Strike cleared successfully");
-        await fetchStrikes();
-      } catch (err: unknown) {
-        console.error("Error clearing strike:", err);
-        toast.error(
-          err instanceof Error ? err.message : "Failed to clear strike"
-        );
-      } finally {
-        setActionLoading(false);
+        refetch();
+      } catch {
+        toast.error("Failed to clear strike");
+      }
+    });
+    setConfirmDialog(true);
+  };
+
+  const handleReinstate = (strike: StrikeRecord) => {
+    setConfirmTitle("Reinstate Seller");
+    setConfirmDescription(`Reinstate ${strike.sellerName}?`);
+    setConfirmAction(() => async () => {
+      try {
+        await reinstateSuspension({
+          actionId: strike.id,
+          data: { reason: "Reinstated by admin." },
+        }).unwrap();
+        toast.success("Seller reinstated successfully");
+        refetch();
+      } catch {
+        toast.error("Failed to reinstate seller");
       }
     });
     setConfirmDialog(true);
@@ -216,54 +197,23 @@ const SellerStrikesPage: React.FC = () => {
       toast.error("Please provide reason and duration");
       return;
     }
-
-    setActionLoading(true);
     try {
-      await issueSuspension(
-        selectedStrike.sellerId,
-        suspensionReason,
-        parseInt(suspensionDuration),
-        "SELLER"
-      );
+      await issueSuspension({
+        userId: selectedStrike.sellerId,
+        data: {
+          role: "SELLER",
+          durationDays: parseInt(suspensionDuration),
+          reason: suspensionReason,
+        },
+      }).unwrap();
       toast.success(
-        `${selectedStrike.sellerName} suspended for ${suspensionDuration} days`
+        `${selectedStrike.sellerName} suspended for ${suspensionDuration} days`,
       );
       setIsSuspendModalOpen(false);
-      setSuspensionReason("");
-      setSuspensionDuration("7");
-      await fetchStrikes();
-    } catch (err: unknown) {
-      toast.error(
-        err instanceof Error ? err.message : "Failed to issue suspension"
-      );
-    } finally {
-      setActionLoading(false);
+      refetch();
+    } catch {
+      toast.error("Failed to issue suspension");
     }
-  };
-
-  const handleReinstate = (strike: StrikeRecord) => {
-    setConfirmTitle("Reinstate Seller");
-    setConfirmDescription(
-      `Are you sure you want to reinstate ${strike.sellerName}?`
-    );
-    setConfirmAction(() => async () => {
-      try {
-        setActionLoading(true);
-        setConfirmDialog(false);
-
-        await reinstateSuspension(strike.id);
-        toast.success("Seller reinstated successfully");
-        await fetchStrikes();
-      } catch (err: unknown) {
-        console.error("Error reinstating seller:", err);
-        toast.error(
-          err instanceof Error ? err.message : "Failed to reinstate seller"
-        );
-      } finally {
-        setActionLoading(false);
-      }
-    });
-    setConfirmDialog(true);
   };
 
   const handleExtendSuspension = (strike: StrikeRecord) => {
@@ -271,26 +221,21 @@ const SellerStrikesPage: React.FC = () => {
     setIsExtendModalOpen(true);
   };
 
-  const handleExtend = async (days: string, notify: boolean) => {
+  const handleExtend = async (days: string) => {
     if (!selectedStrike) return;
-
-    setActionLoading(true);
     try {
-      await extendSuspension(
-        selectedStrike.sellerId,
-        parseInt(days),
-        "Suspension extended",
-        "SELLER"
-      );
+      await extendSuspension({
+        actionId: selectedStrike.id,
+        data: {
+          additionalDays: parseInt(days),
+          reason: "Suspension extended by admin.",
+        },
+      }).unwrap();
       toast.success(`Suspension extended by ${days} days`);
       setIsExtendModalOpen(false);
-      await fetchStrikes();
-    } catch (err: unknown) {
-      toast.error(
-        err instanceof Error ? err.message : "Failed to extend suspension"
-      );
-    } finally {
-      setActionLoading(false);
+      refetch();
+    } catch {
+      toast.error("Failed to extend suspension");
     }
   };
 
@@ -298,16 +243,6 @@ const SellerStrikesPage: React.FC = () => {
     window.location.href = `mailto:${strike.sellerEmail}`;
   };
 
-  const filteredStrikes = strikes.filter((strike) => {
-    const searchLower = searchQuery.toLowerCase();
-    return (
-      strike.sellerName.toLowerCase().includes(searchLower) ||
-      strike.sellerId.toLowerCase().includes(searchLower) ||
-      strike.reason.toLowerCase().includes(searchLower)
-    );
-  });
-
-  // Convert selectedStrike to DisplaySeller format
   const selectedSellerForModal: DisplaySeller | null = selectedStrike
     ? {
         id: selectedStrike.sellerId,
@@ -327,16 +262,16 @@ const SellerStrikesPage: React.FC = () => {
     <div className="p-8 bg-[#F9FAFB] min-h-screen">
       <StrikesTable
         strikes={filteredStrikes}
-        fetchingStrikes={fetchingStrikes}
-        error={error}
+        fetchingStrikes={isLoading || buildingStrikes}
+        error={isError ? "Failed to load discipline records" : null}
         searchQuery={searchQuery}
         onSearchChange={setSearchQuery}
         onExtendSuspension={handleExtendSuspension}
         onClearStrike={handleClearStrike}
         onUpgradeToSuspension={handleUpgradeToSuspension}
         onReinstate={handleReinstate}
+        onContact={handleContact}
       />
-
       <SuspendSellerModal
         isOpen={isSuspendModalOpen}
         selectedSeller={selectedSellerForModal}
@@ -348,7 +283,6 @@ const SellerStrikesPage: React.FC = () => {
         onDurationChange={setSuspensionDuration}
         onSuspend={handleSuspend}
       />
-
       <ExtendSuspensionModal
         isOpen={isExtendModalOpen}
         selectedSeller={selectedSellerForModal}
@@ -356,7 +290,6 @@ const SellerStrikesPage: React.FC = () => {
         onOpenChange={setIsExtendModalOpen}
         onExtend={handleExtend}
       />
-
       <ConfirmationDialog
         isOpen={confirmDialog}
         onClose={() => setConfirmDialog(false)}

@@ -2,7 +2,6 @@
 import { configureStore, combineReducers } from "@reduxjs/toolkit";
 import { persistReducer, persistStore } from "redux-persist";
 import type { PersistState } from "redux-persist";
-
 import { authApi } from "../../api/authApi";
 import { userApi } from "../../api/userApi";
 import { hubApi } from "../../api/hubApi";
@@ -15,9 +14,8 @@ import { categoriesApi } from "../../api/categoriesApi";
 import { adminApi } from "../../api/adminApi";
 import { orderExceptionsApi } from "../../api/orderExceptionsApi";
 import { referralApi } from "../../api/referralApi";
-import { revenueApi } from "../../api/revenueApi";
-import { liveStreamApi } from "@/api/liveStreamApi";
-import { slotApi } from "@/api/slotApi";
+import { adminDashboardApi } from "../../api/adminDashboardApi";
+import { disciplineApi } from "../../api/disciplineApi"; // ← NEW
 import {
   FLUSH,
   REHYDRATE,
@@ -51,9 +49,8 @@ const rootReducer = combineReducers({
   [adminApi.reducerPath]: adminApi.reducer,
   [orderExceptionsApi.reducerPath]: orderExceptionsApi.reducer,
   [referralApi.reducerPath]: referralApi.reducer,
-  [revenueApi.reducerPath]: revenueApi.reducer,
-  [liveStreamApi.reducerPath]: liveStreamApi.reducer,
-  [slotApi.reducerPath]: slotApi.reducer,
+  [adminDashboardApi.reducerPath]: adminDashboardApi.reducer,
+  [disciplineApi.reducerPath]: disciplineApi.reducer, // ← NEW
   auth: authReducer,
   header: headerReducer,
   search: searchReducer,
@@ -81,9 +78,8 @@ export const store = configureStore({
       adminApi.middleware,
       orderExceptionsApi.middleware,
       referralApi.middleware,
-      revenueApi.middleware,
-      liveStreamApi.middleware,
-      slotApi.middleware,
+      adminDashboardApi.middleware,
+      disciplineApi.middleware // ← NEW
     ),
   devTools: process.env.NODE_ENV !== "production",
 });
@@ -95,5 +91,4 @@ export const persistor = persistStore(store);
 export type RootState = ReturnType<typeof store.getState> & {
   _persist?: PersistState;
 };
-
 export type AppDispatch = typeof store.dispatch;
