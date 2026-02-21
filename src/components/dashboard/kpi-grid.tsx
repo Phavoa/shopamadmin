@@ -1,28 +1,17 @@
 import React, { useState } from "react";
-import { Card } from "@/components/ui/card";
 import {
   DollarSign,
-  Box,
-  Activity,
-  Wifi,
-  Radio,
   Package,
-  ChevronDown,
-  ChevronUp,
-  ChevronRight,
-  ChevronLeft,
+  Radio,
+  Percent,
   Wallet,
   Banknote,
-  TriangleAlert,
-  Percent,
   Receipt,
   Video,
+  ChevronRight,
+  ChevronLeft,
 } from "lucide-react";
-import {
-  useGetShopAmRevenueQuery,
-  useGetVatRevenueQuery,
-  useGetLivestreamRevenueQuery,
-} from "@/api/revenueApi";
+import { useGetFinancialStatsQuery } from "@/api/adminDashboardApi";
 
 type KPI = {
   title: string;
@@ -32,127 +21,112 @@ type KPI = {
   isLoading?: boolean;
 };
 
-const kpis: KPI[] = [
-  {
-    title: "GMV (Today)",
-    value: "₦2.5M",
-    meta: "+2% vs yesterday",
-    icon: <DollarSign className="w-5 h-5  text-[var(--sidebar-primary)]" />,
-  },
-  {
-    title: "Orders (Today)",
-    value: "640",
-    meta: "+4% vs yesterday",
-    icon: <Package className="w-5 h-5 text-[var(--sidebar-primary)]" />,
-  },
-  {
-    title: "Active Streams Now",
-    value: "12",
-    meta: "Viewers: 1,800",
-    icon: <Radio className="w-5 h-5 text-[var(--sidebar-primary)]" />,
-  },
-  {
-    title: "ShopAm Revenue",
-    value: "₦2.68M",
-    meta: "6%: ₦1.25M | 5%: ₦980K | 3%: ₦450K",
-    icon: <Percent className="w-5 h-5 text-[var(--sidebar-primary)]" />,
-  },
-];
-
-const additionalKpis: KPI[] = [
-  {
-    title: "Escrow Balance",
-    value: "₦12.6M",
-    meta: "Funds held",
-    icon: <Wallet className="w-5 h-5 text-[var(--sidebar-primary)]" />,
-  },
-  {
-    title: "Payouts Pending",
-    value: "32",
-    meta: "60% 48h",
-    icon: <Banknote className="w-5 h-5 text-[var(--sidebar-primary)]" />,
-  },
-  {
-    title: "VAT Revenue",
-    value: "₦850K",
-    meta: "7.5% VAT | 1,250 transactions",
-    icon: <Receipt className="w-5 h-5 text-[var(--sidebar-primary)]" />,
-  },
-  {
-    title: "Livestream Revenue",
-    value: "₦1.56M",
-    meta: "78 sellers | ₦20K avg fee",
-    icon: <Video className="w-5 h-5 text-[var(--sidebar-primary)]" />,
-  },
-];
+const formatNaira = (amount: string | number | undefined): string => {
+  if (!amount || amount === "0") return "₦0";
+  const naira = Number(amount);
+  if (naira >= 1_000_000) return `₦${(naira / 1_000_000).toFixed(1)}M`;
+  if (naira >= 1_000) return `₦${(naira / 1_000).toFixed(1)}K`;
+  return `₦${naira.toLocaleString("en-NG")}`;
+};
 
 function KPIGrid() {
   const [showAdditional, setShowAdditional] = useState(false);
 
-  // Fetch revenue data
-  const { data: shopAmRevenue, isLoading: shopAmLoading } =
-    useGetShopAmRevenueQuery();
-  const { data: vatRevenue, isLoading: vatLoading } = useGetVatRevenueQuery();
-  const { data: livestreamRevenue, isLoading: livestreamLoading } =
-    useGetLivestreamRevenueQuery();
+  // ✅ Single query replaces all three old revenueApi hooks
+  const { data, isLoading } = useGetFinancialStatsQuery();
+  const stats = data?.data;
 
-  // Format currency helper
-  const formatCurrency = (amount: number): string => {
-    return new Intl.NumberFormat("en-NG", {
-      style: "currency",
-      currency: "NGN",
-      minimumFractionDigits: 0,
-      maximumFractionDigits: 0,
-    })
-      .format(amount)
-      .replace("NGN", "₦");
-  };
+  const kpis: KPI[] = [
+    {
+      title: "GMV (Today)",
+      value: formatNaira(stats?.gmv.today),
+      meta: `${(stats?.gmv.percentChange ?? 0) >= 0 ? "+" : ""}${(stats?.gmv.percentChange ?? 0).toFixed(1)}% vs yesterday`,
+      icon: <DollarSign className="w-5 h-5 text-[var(--sidebar-primary)]" />,
+      isLoading,
+    },
+    {
+      title: "Orders (Today)",
+      value: String(stats?.orders.today ?? "—"),
+      meta: `${(stats?.orders.percentChange ?? 0) >= 0 ? "+" : ""}${(stats?.orders.percentChange ?? 0).toFixed(1)}% vs yesterday`,
+      icon: <Package className="w-5 h-5 text-[var(--sidebar-primary)]" />,
+      isLoading,
+    },
+    {
+      title: "Active Streams Now",
+      value: String(stats?.livestreams.activeCount ?? "—"),
+      meta: `Viewers: ${(stats?.livestreams.totalViewers ?? 0).toLocaleString()}`,
+      icon: <Radio className="w-5 h-5 text-[var(--sidebar-primary)]" />,
+      isLoading,
+    },
+    {
+      title: "ShopAm Revenue",
+      value: formatNaira(stats?.shopamRevenue.total),
+      meta: `6%: ${formatNaira(stats?.shopamRevenue.breakdown.tier1_6pct)} | 5%: ${formatNaira(stats?.shopamRevenue.breakdown.tier2_5pct)} | 4%: ${formatNaira(stats?.shopamRevenue.breakdown.tier3_4pct)}`,
+      icon: <Percent className="w-5 h-5 text-[var(--sidebar-primary)]" />,
+      isLoading,
+    },
+  ];
 
-  // Format number helper
-  const formatNumber = (num: number): string => {
-    return new Intl.NumberFormat("en-NG").format(num);
-  };
+  const additionalKpis: KPI[] = [
+    {
+      title: "Escrow Balance",
+      value: formatNaira(stats?.escrowBalance),
+      meta: "Funds held",
+      icon: <Wallet className="w-5 h-5 text-[var(--sidebar-primary)]" />,
+      isLoading,
+    },
+    {
+      title: "Payouts Pending",
+      value: formatNaira(stats?.payoutsPending),
+      meta: "Awaiting processing",
+      icon: <Banknote className="w-5 h-5 text-[var(--sidebar-primary)]" />,
+      isLoading,
+    },
+    {
+      title: "VAT Revenue",
+      value: formatNaira(stats?.vatRevenue),
+      meta: "7.5% VAT collected",
+      icon: <Receipt className="w-5 h-5 text-[var(--sidebar-primary)]" />,
+      isLoading,
+    },
+    {
+      title: "Livestream Revenue",
+      value: formatNaira(stats?.livestreamRevenue.totalAmount),
+      meta: `${stats?.livestreamRevenue.totalSellersPaid ?? 0} sellers paid`,
+      icon: <Video className="w-5 h-5 text-[var(--sidebar-primary)]" />,
+      isLoading,
+    },
+  ];
 
-  // Update KPI values with fetched data
-  const updatedKpis = kpis.map((kpi, index) => {
-    if (kpi.title === "ShopAm Revenue" && shopAmRevenue) {
-      return {
-        ...kpi,
-        value: formatCurrency(shopAmRevenue.total),
-        meta: `6%: ${formatCurrency(
-          shopAmRevenue.sixPercent
-        )} | 5%: ${formatCurrency(
-          shopAmRevenue.fivePercent
-        )} | 3%: ${formatCurrency(shopAmRevenue.threePercent)}`,
-        isLoading: shopAmLoading,
-      };
-    }
-    return kpi;
-  });
-
-  const updatedAdditionalKpis = additionalKpis.map((kpi) => {
-    if (kpi.title === "VAT Revenue" && vatRevenue) {
-      return {
-        ...kpi,
-        value: formatCurrency(vatRevenue.vatCollected),
-        meta: `${vatRevenue.vatRate}% VAT | ${formatNumber(
-          vatRevenue.applicableTransactions
-        )} transactions`,
-        isLoading: vatLoading,
-      };
-    }
-    if (kpi.title === "Livestream Revenue" && livestreamRevenue) {
-      return {
-        ...kpi,
-        value: formatCurrency(livestreamRevenue.totalFees),
-        meta: `${formatNumber(
-          livestreamRevenue.totalSellers
-        )} sellers | ${formatCurrency(livestreamRevenue.averageFee)} avg fee`,
-        isLoading: livestreamLoading,
-      };
-    }
-    return kpi;
-  });
+  const renderCard = (k: KPI) => (
+    <div
+      key={k.title}
+      className="p-5 rounded-2xl border-l border-l-gray-200 border-t border-t-gray-200 border-b border-b-gray-200 border-r border-r-gray-100"
+    >
+      <div className="flex items-start justify-between">
+        <div>
+          <h3 className="text-sm font-semibold text-black/90">{k.title}</h3>
+          <div className="mt-8 text-3xl font-bold text-black">
+            {k.isLoading ? (
+              <div className="h-8 bg-gray-200 rounded animate-pulse w-24" />
+            ) : (
+              k.value
+            )}
+          </div>
+          {k.meta && (
+            <div className="text-sm text-black/80 mt-1">
+              {k.isLoading ? (
+                <div className="h-4 bg-gray-100 rounded animate-pulse w-32 mt-1" />
+              ) : (
+                k.meta
+              )}
+            </div>
+          )}
+        </div>
+        <div className="text-[var(--muted-foreground)]">{k.icon}</div>
+      </div>
+    </div>
+  );
 
   return (
     <div className="flex items-center relative">
@@ -161,32 +135,9 @@ function KPIGrid() {
           aria-label="Key metrics"
           className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-[var(--space-md)]"
         >
-          {updatedKpis.map((k) => (
-            <div
-              key={k.title}
-              className="p-5  rounded-2xl border-l border-l-gray-200 border-t border-t-gray-200 border-b border-b-gray-200 border-r border-r-gray-100"
-            >
-              <div className="flex items-start justify-between">
-                <div>
-                  <h3 className="text-sm font-semibold text-black/90">
-                    {k.title}
-                  </h3>
-                  <div className="mt-8 text-3xl font-bold text-balck">
-                    {k.isLoading ? (
-                      <div className="h-8 bg-gray-200 rounded animate-pulse w-24"></div>
-                    ) : (
-                      k.value
-                    )}
-                  </div>
-                  {k.meta && (
-                    <div className="text-sm  text-black/80 mt-1">{k.meta}</div>
-                  )}
-                </div>
-                <div className="text-[var(--muted-foreground)]">{k.icon}</div>
-              </div>
-            </div>
-          ))}
+          {kpis.map(renderCard)}
         </section>
+
         <div
           className={`transition-all duration-500 ease-in-out overflow-hidden ${
             showAdditional
@@ -198,36 +149,11 @@ function KPIGrid() {
             aria-label="Additional metrics"
             className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-[var(--space-md)]"
           >
-            {updatedAdditionalKpis.map((k) => (
-              <div
-                key={k.title}
-                className="p-5  rounded-2xl border-l border-l-gray-200 border-t border-t-gray-200 border-b border-b-gray-200 border-r border-r-gray-100"
-              >
-                <div className="flex items-start justify-between">
-                  <div>
-                    <h3 className="text-sm font-semibold text-black/90">
-                      {k.title}
-                    </h3>
-                    <div className="mt-8 text-3xl font-bold text-balck">
-                      {k.isLoading ? (
-                        <div className="h-8 bg-gray-200 rounded animate-pulse w-24"></div>
-                      ) : (
-                        k.value
-                      )}
-                    </div>
-                    {k.meta && (
-                      <div className="text-sm  text-black/80 mt-1">
-                        {k.meta}
-                      </div>
-                    )}
-                  </div>
-                  <div className="text-[var(--muted-foreground)]">{k.icon}</div>
-                </div>
-              </div>
-            ))}
+            {additionalKpis.map(renderCard)}
           </section>
         </div>
       </div>
+
       <div className="flex items-center justify-center -mr-10 absolute right-5 top-1/2 transform -translate-y-1/2 z-50">
         <button
           onClick={() => setShowAdditional(!showAdditional)}
