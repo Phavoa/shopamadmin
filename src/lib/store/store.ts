@@ -20,6 +20,7 @@ import { liveStreamApi } from "../../api/liveStreamApi";
 import { slotApi } from "../../api/slotApi";
 import { filesApi } from "../../api/filesApi";
 import { revenueApi } from "../../api/revenueApi";
+import { livestreamCategoriesApi } from "../../api/livestreamCategoriesApi";
 import {
   FLUSH,
   REHYDRATE,
@@ -59,6 +60,7 @@ const rootReducer = combineReducers({
   [slotApi.reducerPath]: slotApi.reducer,
   [filesApi.reducerPath]: filesApi.reducer,
   [revenueApi.reducerPath]: revenueApi.reducer,
+  [livestreamCategoriesApi.reducerPath]: livestreamCategoriesApi.reducer,
   auth: authReducer,
   header: headerReducer,
   search: searchReducer,
@@ -92,6 +94,7 @@ export const store = configureStore({
       slotApi.middleware,
       filesApi.middleware,
       revenueApi.middleware,
+      livestreamCategoriesApi.middleware,
     ),
   devTools: process.env.NODE_ENV !== "production",
 });
