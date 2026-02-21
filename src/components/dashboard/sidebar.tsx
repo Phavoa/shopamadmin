@@ -22,6 +22,7 @@ import {
   TrendingUp,
   Loader2,
   X,
+  Store,
 } from "lucide-react";
 import Link from "next/link";
 import { useLogoutMutation } from "@/api/authApi";
@@ -100,6 +101,9 @@ function Sidebar() {
       else if (pathname === "/admin-dashboard/buyers/appeals")
         setActiveSubItem("buyers-appeals");
       else setActiveSubItem(null);
+    } else if (pathname.startsWith("/admin-dashboard/hub-verification")) {
+      setActiveMainItem("hub-verification");
+      setActiveSubItem(null);
     } else if (pathname.startsWith("/admin-dashboard/finance")) {
       setActiveMainItem("finance");
       setIsFinanceOpen(true);
@@ -369,6 +373,21 @@ function Sidebar() {
                 </li>
               </ul>
             </div>
+          </li>
+
+          <li>
+            <Link href="/admin-dashboard/hub-verification">
+              <button
+                className={`group flex items-center gap-3 w-full px-3 py-3 rounded-lg transition-colors duration-200 ${
+                  activeMainItem === "hub-verification"
+                    ? "bg-[var(--sidebar-accent)] text-[var(--sidebar-primary)] font-[var(--font-weight-semibold)]"
+                    : "text-[var(--foreground)] hover:bg-[var(--sidebar-accent)]"
+                }`}
+              >
+                <Store className="w-[var(--icon-size-sm)] h-[var(--icon-size-sm)]" />
+                <span>Hub Verification</span>
+              </button>
+            </Link>
           </li>
 
           <li>

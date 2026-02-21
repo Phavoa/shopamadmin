@@ -18,6 +18,8 @@ import { referralApi } from "../../api/referralApi";
 import { revenueApi } from "../../api/revenueApi";
 import { liveStreamApi } from "@/api/liveStreamApi";
 import { slotApi } from "@/api/slotApi";
+import { livestreamCategoriesApi } from "@/api/livestreamCategoriesApi";
+import { filesApi } from "@/api/filesApi";
 import {
   FLUSH,
   REHYDRATE,
@@ -54,6 +56,8 @@ const rootReducer = combineReducers({
   [revenueApi.reducerPath]: revenueApi.reducer,
   [liveStreamApi.reducerPath]: liveStreamApi.reducer,
   [slotApi.reducerPath]: slotApi.reducer,
+  [livestreamCategoriesApi.reducerPath]: livestreamCategoriesApi.reducer,
+  [filesApi.reducerPath]: filesApi.reducer,
   auth: authReducer,
   header: headerReducer,
   search: searchReducer,
@@ -84,6 +88,8 @@ export const store = configureStore({
       revenueApi.middleware,
       liveStreamApi.middleware,
       slotApi.middleware,
+      livestreamCategoriesApi.middleware,
+      filesApi.middleware,
     ),
   devTools: process.env.NODE_ENV !== "production",
 });

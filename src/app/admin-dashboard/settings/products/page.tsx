@@ -213,8 +213,11 @@ export default function ProductCategoriesPage() {
   };
 
   const handleUploadSuccess = (url: string) => {
-    setUploadedImageUrl(url);
-    console.log("✅ Upload success:", url);
+    // '__REMOVED__' is the sentinel emitted by FileUpload when the user removes the image
+    setUploadedImageUrl(url === "__REMOVED__" ? null : url || null);
+    if (url && url !== "__REMOVED__") {
+      console.log("✅ Upload success:", url);
+    }
   };
 
   const handleUploadError = (error: string) => {
@@ -260,6 +263,9 @@ export default function ProductCategoriesPage() {
         <CategoryPageHeader
           onAdd={handleAdd}
           onBack={() => router.push("/admin-dashboard/settings")}
+          onLivestreamCategories={() =>
+            router.push("/admin-dashboard/settings/livestream-categories")
+          }
         />
 
         <div className="p-6">

@@ -27,7 +27,7 @@ const baseQuery = fetchBaseQuery({
 const baseQueryWithReauth = async (
   args: Parameters<typeof baseQuery>[0],
   api: Parameters<typeof baseQuery>[1],
-  extraOptions: Parameters<typeof baseQuery>[2]
+  extraOptions: Parameters<typeof baseQuery>[2],
 ) => {
   let result = await baseQuery(args, api, extraOptions);
 
@@ -42,7 +42,7 @@ const baseQueryWithReauth = async (
           body: { refreshToken },
         },
         api,
-        extraOptions
+        extraOptions,
       );
 
       if (refreshResult?.data && typeof refreshResult.data === "object") {
@@ -54,7 +54,7 @@ const baseQueryWithReauth = async (
         // Store new tokens in localStorage
         authStorage.setTokens(
           refreshData.accessToken,
-          refreshData.refreshToken
+          refreshData.refreshToken,
         );
 
         // Retry the original query
@@ -79,6 +79,11 @@ export interface Hub {
   address: string;
   city: string;
   phone: string;
+  email?: string;
+  status?: string;
+  idCardUrl?: string;
+  selfieWithIdUrl?: string;
+  proofOfAddressUrl?: string;
   deliveryZoneId: string;
   deliveryZone?: {
     id: string;
@@ -96,6 +101,10 @@ export interface CreateHubRequest {
   city: string;
   phone: string;
   deliveryZoneId: string;
+  email: string;
+  idCardUrl: string;
+  selfieWithIdUrl: string;
+  proofOfAddressUrl: string;
 }
 
 export interface UpdateHubRequest {
@@ -105,6 +114,10 @@ export interface UpdateHubRequest {
   city?: string;
   phone?: string;
   deliveryZoneId?: string;
+  email?: string;
+  idCardUrl?: string;
+  selfieWithIdUrl?: string;
+  proofOfAddressUrl?: string;
 }
 
 export interface ListHubsParams {
@@ -116,11 +129,19 @@ export interface ListHubsParams {
   page?: number;
 }
 
-export interface HubListResponse {
-  message: string;
-  data: Hub[];
-  statusCode: number;
+export interface HubPaginatedData {
+  items: Hub[];
+  nextCursor: string | null;
+  prevCursor: string | null;
+  pageSize: number;
+  hasNext: boolean;
+  hasPrev: boolean;
+  sortBy: string;
+  sortDir: string;
+  populate: string[];
 }
+
+export type HubListResponse = ApiResponse<HubPaginatedData>;
 
 export const hubApi = createApi({
   reducerPath: "hubApi",
@@ -147,9 +168,9 @@ export const hubApi = createApi({
         params,
       }),
       providesTags: (result) =>
-        result
+        result?.data?.items
           ? [
-              ...result.data.map(({ id }) => ({
+              ...result.data.items.map(({ id }) => ({
                 type: "Hub" as const,
                 id,
               })),
@@ -195,6 +216,20 @@ export const hubApi = createApi({
       }),
       invalidatesTags: (result, error, id) => [{ type: "Hub", id }, "Hub"],
     }),
+
+    // Review a hub
+    // POST /api/hubs/{id}/review
+    reviewHub: builder.mutation<
+      ApiResponse<Hub>,
+      { id: string; action: "APPROVE" | "REJECT"; reason: string }
+    >({
+      query: ({ id, ...body }) => ({
+        url: `/hubs/${id}/review`,
+        method: "POST",
+        body,
+      }),
+      invalidatesTags: (result, error, { id }) => [{ type: "Hub", id }, "Hub"],
+    }),
   }),
 });
 
@@ -206,4 +241,5 @@ export const {
   useGetHubByIdQuery,
   useLazyGetHubByIdQuery,
   useDeleteHubMutation,
+  useReviewHubMutation,
 } = hubApi;
