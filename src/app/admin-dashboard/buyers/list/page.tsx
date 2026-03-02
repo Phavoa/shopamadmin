@@ -44,6 +44,49 @@ const BuyersListPage = () => {
   const [duration, setDuration] = useState("");
   const [actionLoading, setActionLoading] = useState(false);
   const [buyers, setBuyers] = useState<Buyer[]>([]);
+  const [buyerStats, setBuyerStats] = useState<Record<string, { totalOrders: number; totalSpend: number }>>({});
+
+  // ✅ Fetch real buyer stats in the background for all buyers at once
+  useEffect(() => {
+    const fetchAllStats = async () => {
+      const missingIds = buyers
+        .map(b => b.id)
+        .filter(id => !buyerStats[id]);
+      
+      if (missingIds.length === 0) return;
+
+      const { getOrdersByBuyer } = await import("@/api/ordersApi");
+      
+      const results = await Promise.all(
+        missingIds.map(async (id) => {
+          try {
+            const resp = await getOrdersByBuyer(id, { limit: 50 });
+            if (resp.data?.items) {
+              const orders = resp.data.items;
+              // Sum up total orders and spend (assuming totalAmount might be in kobo)
+              const totalOrders = orders.length;
+              const totalSpendKobo = orders.reduce((sum, o) => sum + (Number(o.totalAmount) || 0), 0);
+              // Most amounts in this system are kobo, but let's be safe and check if we should show major unit
+              return { id, stats: { totalOrders, totalSpend: Math.round(totalSpendKobo / 100) } };
+            }
+          } catch (err) {
+            console.error(`Failed stats for ${id}:`, err);
+          }
+          return { id, stats: { totalOrders: 0, totalSpend: 0 } };
+        })
+      );
+
+      const newStats = { ...buyerStats };
+      results.forEach(({ id, stats }) => {
+        newStats[id] = stats;
+      });
+      setBuyerStats(newStats);
+    };
+
+    if (buyers.length > 0) {
+      fetchAllStats();
+    }
+  }, [buyers]);
 
   // ✅ RTK Query mutations
   const [issueStrike] = useIssueStrikeMutation();
@@ -52,7 +95,7 @@ const BuyersListPage = () => {
   // ✅ Fetch all BUYER discipline records once — no per-user fetching
   const { data: disciplineData } = useGetDisciplineRecordsQuery({
     role: "BUYER",
-    status: "ACTIVE",
+    // Remove status: "ACTIVE" to fetch appeals/all records for accurate summary
     limit: 200,
   });
   const disciplineRecords = disciplineData?.data?.items ?? [];
@@ -60,7 +103,12 @@ const BuyersListPage = () => {
   const getDisciplineStatus = (userId: string) => {
     const userRecords = disciplineRecords.filter((r) => r.userId === userId);
     const activeStrikes = userRecords.filter((r) => r.type === "STRIKE" && r.status === "ACTIVE").length;
-    const isSuspended = userRecords.some((r) => r.type === "SUSPENSION" && r.status === "ACTIVE");
+    // A suspension is active if it's "ACTIVE" OR if it's been appealed but not approved yet
+    const isSuspended = userRecords.some(
+      (r) => 
+        r.type === "SUSPENSION" && 
+        (r.status === "ACTIVE" || (r.appealStatus !== "APPROVED" && r.appealText))
+    );
     return { activeStrikes, isSuspended };
   };
 
@@ -109,12 +157,14 @@ const BuyersListPage = () => {
         }
       } catch {}
 
+      const stats = buyerStats[user.id] || { totalOrders: 0, totalSpend: 0 };
+
       return {
         ...user,
         name: `${user.firstName} ${user.lastName}`,
         verified: user.isVerified || false,
-        totalOrders: 0,
-        totalSpend: "₦0",
+        totalOrders: stats.totalOrders,
+        totalSpend: `₦${stats.totalSpend.toLocaleString()}`,
         lastActivity,
         strikes: activeStrikes,
         status,
@@ -124,7 +174,20 @@ const BuyersListPage = () => {
     });
 
     setBuyers(transformed);
-  }, [usersData, disciplineData]); // re-run when discipline data loads too
+  }, [usersData, disciplineData, buyerStats]); // re-run when discipline or stats load
+
+  // ✅ Fetch real buyer stats in the background
+  useEffect(() => {
+    if (buyers.length > 0) {
+      buyers.forEach(async (buyer) => {
+        // Only fetch if we don't have stats yet for this buyer
+        if (!buyerStats[buyer.id]) {
+          const stats = await fetchStatsForBuyer(buyer.id);
+          setBuyerStats((prev) => ({ ...prev, [buyer.id]: stats }));
+        }
+      });
+    }
+  }, [buyers]);
 
   React.useEffect(() => {
     const handleFocus = () => refetch();

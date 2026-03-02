@@ -28,15 +28,17 @@ const BuyerAppealsPage = () => {
   const [enriching, setEnriching] = useState(false);
 
   const { data, isLoading, isError, refetch } = useGetDisciplineRecordsQuery({
-    type: "APPEAL",
     role: "BUYER",
     sortBy: "createdAt",
     sortDir: "desc",
-    limit: 50,
+    limit: 100, // Fetch more to filter on frontend
   });
 
   const [appealDecision, { isLoading: isDeciding }] = useAppealDecisionMutation();
-  const rawAppeals = data?.data?.items ?? [];
+  // Filter for records that have an appeal or are specifically of type APPEAL
+  const rawAppeals = (data?.data?.items ?? []).filter(
+    (r) => r.type === "APPEAL" || r.appealText
+  );
 
   // ✅ Enrich with real user names
   useEffect(() => {

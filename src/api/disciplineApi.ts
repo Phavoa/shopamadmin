@@ -94,6 +94,53 @@ export const fetchUserById = async (userId: string): Promise<{ firstName: string
   }
 };
 
+/**
+ * Helper to fetch a user's discipline summary from the raw /discipline endpoint.
+ * This aggregates active strikes and suspensions.
+ */
+export const getUserDisciplineSummary = async (userId: string) => {
+  const token = authStorage.getAccessToken();
+  try {
+    const res = await fetch(`${API_BASE_URL}/discipline?userId=${userId}&limit=50`, {
+      headers: {
+        "Content-Type": "application/json",
+        ...(token && { Authorization: `Bearer ${token}` }),
+      },
+    });
+
+    if (!res.ok) throw new Error("Failed to fetch discipline records");
+    
+    const data = await res.json();
+    const records: DisciplineRecord[] = data.data.items || [];
+
+    const activeStrikes = records.filter(
+      (r) => r.type === "STRIKE" && r.status === "ACTIVE"
+    ).length;
+
+    // A suspension is considered active if:
+    // 1. Its status is "ACTIVE"
+    // 2. OR it is under appeal but the appeal hasn't been APPROVED yet
+    const activeSuspensionsRecords = records.filter(
+      (r) => r.type === "SUSPENSION" && (r.status === "ACTIVE" || (r.appealStatus !== "APPROVED" && r.appealText))
+    );
+
+    return {
+      activeStrikes,
+      isSuspended: activeSuspensionsRecords.length > 0,
+      activeSuspensions: activeSuspensionsRecords.length,
+      records
+    };
+  } catch (err) {
+    console.error("Error in getUserDisciplineSummary:", err);
+    return {
+      activeStrikes: 0,
+      isSuspended: false,
+      activeSuspensions: 0,
+      records: []
+    };
+  }
+};
+
 const baseQuery = fetchBaseQuery({
   baseUrl: API_BASE_URL,
   prepareHeaders: (headers) => {

@@ -80,7 +80,7 @@ const Page = () => {
   // ✅ Fetch all SELLER discipline records once — use to derive status per seller
   const { data: disciplineData } = useGetDisciplineRecordsQuery({
     role: "SELLER",
-    status: "ACTIVE",
+    // Remove status: "ACTIVE" to fetch appeals/all records for accurate summary
     limit: 200,
   });
   const disciplineRecords = disciplineData?.data?.items ?? [];
@@ -89,7 +89,12 @@ const Page = () => {
   const getDisciplineStatus = (userId: string) => {
     const userRecords = disciplineRecords.filter((r) => r.userId === userId);
     const activeStrikes = userRecords.filter((r) => r.type === "STRIKE" && r.status === "ACTIVE").length;
-    const isSuspended = userRecords.some((r) => r.type === "SUSPENSION" && r.status === "ACTIVE");
+    // A suspension is active if it's "ACTIVE" OR if it's been appealed but not approved yet
+    const isSuspended = userRecords.some(
+      (r) => 
+        r.type === "SUSPENSION" && 
+        (r.status === "ACTIVE" || (r.appealStatus !== "APPROVED" && r.appealText))
+    );
     return { activeStrikes, isSuspended };
   };
 

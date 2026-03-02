@@ -19,6 +19,7 @@ const ReferralsPage: React.FC = () => {
     after: afterCursor,
     sortBy: "createdAt",
     sortDir: "desc",
+    populate: ["referrer", "referee", "rewards"], // Added rewards population
   });
 
   useEffect(() => {
@@ -33,20 +34,32 @@ const ReferralsPage: React.FC = () => {
 
   // ✅ Fixed field mapping based on actual API response
   const referrals = items.map((r: any) => {
-    const firstName = r.referee?.firstName ?? "";
-    const lastName = r.referee?.lastName ?? "";
+    // Show the person who DID the referring. 
+    // Priority: r.referrer (populated) -> r.user (for top list) -> fallback to r.referee
+    let user = r.referrer && typeof r.referrer === "object" ? r.referrer : null;
+    if (!user || (!user.firstName && !user.lastName)) {
+      user = r.user && typeof r.user === "object" ? r.user : null;
+    }
+    if (!user || (!user.firstName && !user.lastName)) {
+      user = r.referee && typeof r.referee === "object" ? r.referee : r;
+    }
+
+    const firstName = user?.firstName ?? "";
+    const lastName = user?.lastName ?? "";
     const fullName =
       firstName || lastName
         ? `${firstName} ${lastName}`.trim()
-        : "Unknown User";
+        : "N/A";
 
     return {
       id: r.id,
       name: fullName,
-      email: r.referee?.email ?? "No email",
-      referrals: r.rewards?.length ?? 0,
-      amountPaid: Math.round(Number(r.totalSpendKobo ?? 0) / 100),        // ✅ kobo → naira
-      bonus: Math.round(Number(r.totalRewardsEarnedKobo ?? 0) / 100),     // ✅ correct field
+      email: user?.email ?? "No email",
+      // Try multiple count fields to ensure we catch real data
+      referrals: r.totalReferrals || r.referralsCount || r.rewards?.length || (r.code ? 1 : 0), 
+      // Try multiple amount fields
+      amountPaid: Math.round(Number(r.totalSpendKobo || r.cumulativeSpendKobo || r.totalSpentKobo || 0) / 100),
+      bonus: Math.round(Number(r.totalRewardsEarnedKobo || r.totalRewardsKobo || r.totalEarnedKobo || 0) / 100),
       joinedDate: new Date(r.createdAt).toLocaleDateString("en-NG", {
         day: "2-digit",
         month: "short",
