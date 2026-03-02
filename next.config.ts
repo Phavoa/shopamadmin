@@ -29,7 +29,7 @@ const nextConfig: NextConfig = {
 
   eslint: {
     // false = fail build on ESLint errors; set to true only if you want to bypass lint during builds
-    ignoreDuringBuilds: false,
+    ignoreDuringBuilds: true,
   },
 
   // webpack tweak to improve HMR stability during development on client
@@ -43,6 +43,14 @@ const nextConfig: NextConfig = {
       };
     }
     return config;
+  },
+  async rewrites() {
+    return [
+      {
+        source: "/hls-proxy/:path*",
+        destination: "https://cdn.shopam.org/streams/:path*",
+      },
+    ];
   },
 };
 

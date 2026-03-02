@@ -1,209 +1,131 @@
 "use client";
 
 import React from "react";
-import { Play, ShoppingBag, TrendingUp, MessageSquare, Gift, Package } from "lucide-react";
+import { useRouter } from "next/navigation";
+import { useGetLiveStreamsQuery } from "@/api/liveStreamApi";
+import { Play, Calendar, User, Loader2, AlertCircle } from "lucide-react";
 
 export default function LiveMonitoringPage() {
-  // Mock data for activity feed
-  const activities = [
+  const router = useRouter();
+
+  // Fetch only currently LIVE streams
+  const { data, isLoading, error } = useGetLiveStreamsQuery(
     {
-      id: 1,
-      icon: <Package className="w-4 h-4" />,
-      text: "Buyer John B. purchased iPhone 12 - ₦320,000",
+      status: "LIVE",
     },
     {
-      id: 2,
-      icon: <TrendingUp className="w-4 h-4" />,
-      text: "Buyer Mary K. bid ₦45,000 on Samsung Galaxy A20",
+      pollingInterval: 30000, // Poll every 30s to keep list fresh
     },
-    {
-      id: 3,
-      icon: <Package className="w-4 h-4" />,
-      text: "Buyer Ahmed H. purchased AirPods - ₦60,000",
-    },
-    {
-      id: 4,
-      icon: <MessageSquare className="w-4 h-4" />,
-      text: 'Buyer Jane T. "fake products?"',
-    },
-    {
-      id: 5,
-      icon: <Package className="w-4 h-4" />,
-      text: "Buyer John B. purchased iPhone 12 - ₦320,000",
-    },
-    {
-      id: 6,
-      icon: <Gift className="w-4 h-4" />,
-      text: "Buyer Sam O. sent a gift (5 tokens)",
-    },
-    {
-      id: 7,
-      icon: <Package className="w-4 h-4" />,
-      text: "Buyer John B. purchased iPhone 12 - ₦320,000",
-    },
-  ];
+  );
+
+  const liveStreams = data?.data.items || [];
+
+  const handleStreamClick = (streamId: string) => {
+    router.push(`/admin-dashboard/livestream/monitoring/${streamId}`);
+  };
+
+  if (isLoading) {
+    return (
+      <div className="flex h-[50vh] items-center justify-center">
+        <Loader2 className="h-8 w-8 animate-spin text-gray-500" />
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="flex h-[50vh] flex-col items-center justify-center text-red-500">
+        <AlertCircle className="mb-2 h-10 w-10" />
+        <p>Failed to load live streams. Please try again later.</p>
+      </div>
+    );
+  }
 
   return (
-    <div className="min-h-screen bg-[var(--background)] pt-6">
-      {/* Header */}
-      <div className="mb-6">
-        <h1 className="text-2xl font-semibold text-[rgba(0,0,0,0.9)]">
-          Live Monitoring - Maxi Gadgets
-        </h1>
+    <div className="min-h-screen bg-[var(--background)] pt-6 p-6">
+      <div className="mb-8">
+        <h1 className="text-2xl font-bold text-gray-900">Live Monitoring</h1>
+        <p className="text-gray-500 mt-1">
+          Select a live stream to monitor its status and activity.
+        </p>
       </div>
 
-      {/* Main Content Grid */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Live Preview Card - Takes 2 columns */}
-        <div
-          className="lg:col-span-2 bg-white p-5"
-          style={{
-            borderRadius: "18px",
-            border: "0.3px solid rgba(0, 0, 0, 0.20)",
-
-          }}
-        >
-          <h2 className="text-lg font-semibold text-[rgba(0,0,0,0.9)] mb-4">
-            Live Preview
-          </h2>
-
-          {/* Video Preview */}
-          <div
-            className="relative bg-[#1a1a2e] rounded-lg flex items-center justify-center"
-            style={{ height: "600px" }}
-          >
-            <div className="text-center">
-              <div className="w-16 h-16 rounded-full bg-[#E67E22] flex items-center justify-center mx-auto mb-3">
-                <Play className="w-8 h-8 text-white ml-1" fill="white" />
-              </div>
-              <p className="text-white text-lg font-medium">Live Video Preview</p>
-            </div>
+      {liveStreams.length === 0 ? (
+        <div className="flex flex-col items-center justify-center h-64 bg-white rounded-xl border border-dashed border-gray-300">
+          <div className="bg-gray-100 p-4 rounded-full mb-3">
+            <Calendar className="h-8 w-8 text-gray-400" />
           </div>
-
-          {/* Video Stats */}
-          <div className="flex items-center justify-between mt-3">
-            <p className="text-sm text-[rgba(0,0,0,0.7)]">Viewers: 320</p>
-            <p className="text-sm text-[rgba(0,0,0,0.7)]">
-              Stream Health: <span className="text-green-600">Good</span> (2s latency)
-            </p>
-          </div>
+          <h3 className="text-lg font-medium text-gray-900">
+            No Active Livestreams
+          </h3>
+          <p className="text-gray-500 max-w-sm text-center mt-1">
+            There are currently no streams with LIVE status. Scheduled streams
+            will appear here when they go live.
+          </p>
         </div>
+      ) : (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          {liveStreams.map((stream) => (
+            <div
+              key={stream.id}
+              onClick={() => handleStreamClick(stream.id)}
+              className="bg-white rounded-xl overflow-hidden border border-gray-200 hover:shadow-lg transition-all cursor-pointer group"
+            >
+              {/* Thumbnail / Preview Area */}
+              <div className="relative h-48 bg-gray-900 flex items-center justify-center">
+                {/* Fallback pattern or actual thumbnail if available */}
+                <div className="absolute inset-0 opacity-20 bg-[radial-gradient(ellipse_at_center,_var(--tw-gradient-stops))] from-gray-700 via-gray-900 to-black"></div>
 
-        {/* Activity Feed Card - Takes 1 column */}
-        <div
-          className="bg-white p-5"
-          style={{
-            borderRadius: "18px",
-            border: "0.3px solid rgba(0, 0, 0, 0.20)",
-            height:"500px"
-          }}
-        >
-          <h2 className="text-lg font-semibold text-[rgba(0,0,0,0.9)] mb-4">
-            Activity Feed
-          </h2>
-
-          {/* Activities List */}
-          <div className="space-y-10 max-h-[400px] overflow-y-auto">
-            {activities.map((activity) => (
-              <div key={activity.id} className="flex items-start gap-3">
-                <div className="mt-1 text-[rgba(0,0,0,0.6)]">
-                  {activity.icon}
+                <div className="relative z-10 w-12 h-12 bg-white/10 backdrop-blur-sm rounded-full flex items-center justify-center group-hover:scale-110 transition-transform">
+                  <Play className="h-6 w-6 text-white ml-1" fill="white" />
                 </div>
-                <p className="text-sm text-[rgba(0,0,0,0.8)] leading-relaxed">
-                  {activity.text}
-                </p>
+
+                <div className="absolute top-3 right-3 bg-red-600 text-white text-xs px-2 py-1 rounded-full font-bold uppercase tracking-wider animate-pulse flex items-center gap-1">
+                  <span className="w-1.5 h-1.5 bg-white rounded-full"></span>
+                  LIVE
+                </div>
               </div>
-            ))}
-          </div>
+
+              {/* Content */}
+              <div className="p-4">
+                <h3 className="font-semibold text-lg text-gray-900 line-clamp-1 mb-1">
+                  {stream.title || "Untitled Stream"}
+                </h3>
+
+                <div className="flex items-center gap-2 text-sm text-gray-600 mb-4">
+                  <User className="h-3.5 w-3.5" />
+                  <span>
+                    {stream.seller
+                      ? `${stream.seller.firstName} ${stream.seller.lastName}`
+                      : "Unknown Seller"}
+                  </span>
+                </div>
+
+                <div className="flex items-center justify-between text-xs text-gray-500 border-t pt-3">
+                  <div className="flex items-center gap-1.5">
+                    <Calendar className="h-3.5 w-3.5" />
+                    <span>
+                      Started:{" "}
+                      {stream.startedAt
+                        ? new Date(stream.startedAt).toLocaleTimeString([], {
+                            hour: "2-digit",
+                            minute: "2-digit",
+                          })
+                        : "N/A"}
+                    </span>
+                  </div>
+
+                  {/* Placeholder for viewer count if API doesn't provide it yet */}
+                  {/* <div className="flex items-center gap-1.5">
+                    <Eye className="h-3.5 w-3.5" />
+                    <span>Viewers: -</span>
+                  </div> */}
+                </div>
+              </div>
+            </div>
+          ))}
         </div>
-      </div>
-
-      {/* Admin Controls and Insights */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mt-6">
-        {/* Admin Controls Card - Takes 2 columns */}
-        <div
-          className="lg:col-span-2 bg-white p-5"
-          style={{
-            borderRadius: "18px",
-            border: "0.3px solid rgba(0, 0, 0, 0.20)",
-            height:"150px",
-          }}
-        >
-          <h2 className="text-lg font-semibold text-[rgba(0,0,0,0.9)] mb-4">
-            Admin Controls
-          </h2>
-
-          <div className="flex flex-wrap gap-3">
-            <button
-              className="px-6 py-3 rounded-lg font-medium text-white transition-colors"
-              style={{
-                background: "#E67E22",
-              }}
-            >
-              Add Strike to Seller
-            </button>
-            <button
-              className="px-6 py-3 rounded-lg font-medium border transition-colors"
-              style={{
-                border: "1px solid rgba(0, 0, 0, 0.2)",
-                color: "rgba(0, 0, 0, 0.7)",
-              }}
-            >
-              Issue Warning to Seller
-            </button>
-            <button
-              className="px-6 py-3 rounded-lg font-medium text-white transition-colors"
-              style={{
-                background: "#DC3545",
-              }}
-            >
-              End Live
-            </button>
-          </div>
-        </div>
-
-        {/* Insights Card - Takes 1 column */}
-        <div
-          className="bg-white p-5 mt-[-200]"
-          style={{
-            borderRadius: "18px",
-            border: "0.3px solid rgba(0, 0, 0, 0.20)",
-            height:"350px"
-          }}
-        >
-          <h2 className="text-lg font-semibold text-[rgba(0,0,0,0.9)] mb-4">
-            Insights
-          </h2>
-
-          <div className="space-y-8">
-            <div>
-              <p className="text-sm text-[rgba(0,0,0,0.7)]">
-                Total Sales this Stream: <span className="font-semibold text-[rgba(0,0,0,0.9)]">₦620,000</span>
-              </p>
-            </div>
-            <div>
-              <p className="text-sm text-[rgba(0,0,0,0.7)]">
-                Products Sold: <span className="font-semibold text-[rgba(0,0,0,0.9)]">12</span>
-              </p>
-            </div>
-            <div>
-              <p className="text-sm font-semibold text-[rgba(0,0,0,0.9)] mb-2">
-                Top Buyers:
-              </p>
-              <ol className="text-sm text-[rgba(0,0,0,0.7)] space-y-1 ml-4">
-                <li>1. John B. - ₦320,000</li>
-                <li>2. Ahmed H. - ₦120,000</li>
-                <li>3. Mary K. - ₦30,000</li>
-              </ol>
-            </div>
-            <div>
-              <p className="text-sm text-[rgba(0,0,0,0.7)]">
-                Engagement: <span className="font-semibold text-[rgba(0,0,0,0.9)]">Avg watch 14m | Peak 340 viewers</span>
-              </p>
-            </div>
-          </div>
-        </div>
-      </div>
+      )}
     </div>
   );
 }

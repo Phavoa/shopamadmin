@@ -138,8 +138,14 @@ const BuyerAppealsPage = () => {
                       {appeal.resolvedName} • {getActionLabel(appeal)} • {getDaysAgo(appeal.createdAt)}
                     </p>
                   </div>
-                  <button className="px-3 py-1 rounded-lg text-xs font-medium" style={{ background: "#FFFFFF", color: "#141312", border: "1px solid #141312" }}>
-                    {appeal.appealStatus ?? "Review"}
+                  <button className={`px-3 py-1 rounded-lg text-xs font-medium border ${
+                    appeal.appealStatus === "APPROVED" 
+                      ? "bg-green-100 text-green-700 border-green-200" 
+                      : appeal.appealStatus === "REJECTED"
+                      ? "bg-red-100 text-red-700 border-red-200"
+                      : "bg-white text-gray-700 border-gray-300"
+                  }`}>
+                    {appeal.appealStatus ? (appeal.appealStatus === "APPROVED" ? "Approved" : "Rejected") : "Review"}
                   </button>
                 </div>
               </div>

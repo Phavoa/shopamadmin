@@ -9,20 +9,14 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { X } from "lucide-react";
-
-type Tier = {
-  id: string;
-  title: string;
-  subtitle?: string;
-  meta: string[];
-};
+import { LiveStreamTier, UpdateTierRequest } from "@/api/slotApi";
 
 interface EditTierModalProps {
   isOpen: boolean;
   onClose: () => void;
-  tier: Tier | null;
-  onSave: (updatedTier: Tier) => void;
+  tier: LiveStreamTier | null;
+  onSave: (id: string, updates: UpdateTierRequest) => void;
+  isLoading?: boolean;
 }
 
 export default function EditTierModal({
@@ -30,44 +24,35 @@ export default function EditTierModal({
   onClose,
   tier,
   onSave,
+  isLoading = false,
 }: EditTierModalProps) {
-  const [title, setTitle] = useState("");
-  const [subtitle, setSubtitle] = useState("");
-  const [meta, setMeta] = useState<string[]>([]);
+  const [name, setName] = useState("");
+  const [description, setDescription] = useState("");
+  const [durationMinutes, setDurationMinutes] = useState<number | string>("");
+  const [maxViewers, setMaxViewers] = useState<number | string>("");
+  const [minTotalSales, setMinTotalSales] = useState("");
 
   useEffect(() => {
     if (tier) {
-      setTitle(tier.title);
-      setSubtitle(tier.subtitle || "");
-      setMeta([...tier.meta]);
+      setName(tier.name);
+      setDescription(tier.description);
+      setDurationMinutes(tier.durationMinutes);
+      setMaxViewers(tier.maxViewers);
+      setMinTotalSales(tier.minTotalSales);
     }
   }, [tier]);
 
   const handleSave = () => {
     if (tier) {
-      const updatedTier: Tier = {
-        ...tier,
-        title,
-        subtitle: subtitle || undefined,
-        meta,
+      const updates: UpdateTierRequest = {
+        name,
+        description,
+        durationMinutes: Number(durationMinutes),
+        maxViewers: Number(maxViewers),
+        minTotalSales,
       };
-      onSave(updatedTier);
-      onClose();
+      onSave(tier.id, updates);
     }
-  };
-
-  const handleMetaChange = (index: number, value: string) => {
-    const newMeta = [...meta];
-    newMeta[index] = value;
-    setMeta(newMeta);
-  };
-
-  const addMeta = () => {
-    setMeta([...meta, ""]);
-  };
-
-  const removeMeta = (index: number) => {
-    setMeta(meta.filter((_, i) => i !== index));
   };
 
   return (
@@ -85,69 +70,84 @@ export default function EditTierModal({
         <div className="space-y-6 py-4">
           <div className="space-y-2">
             <Label
-              htmlFor="title"
+              htmlFor="name"
               className="text-sm font-medium text-slate-700"
             >
-              Tier Title
+              Tier Name
             </Label>
             <Input
-              id="title"
-              value={title}
-              onChange={(e) => setTitle(e.target.value)}
-              placeholder="Enter tier title"
+              id="name"
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              placeholder="Enter tier name"
               className="w-full border border-gray-200"
             />
           </div>
 
           <div className="space-y-2">
             <Label
-              htmlFor="subtitle"
+              htmlFor="description"
               className="text-sm font-medium text-slate-700 "
             >
-              Subtitle (Optional)
+              Description
             </Label>
             <Input
-              id="subtitle"
-              value={subtitle}
-              onChange={(e) => setSubtitle(e.target.value)}
-              placeholder="Enter subtitle"
+              id="description"
+              value={description}
+              onChange={(e) => setDescription(e.target.value)}
+              placeholder="Enter description"
               className="w-full border border-gray-200"
             />
           </div>
 
-          <div className="space-y-3">
-            <Label className="text-sm font-medium text-slate-700">
-              Meta Information
-            </Label>
-            <div className="space-y-3">
-              {meta.map((item, index) => (
-                <div key={index} className="flex items-center gap-3">
-                  <Input
-                    value={item}
-                    onChange={(e) => handleMetaChange(index, e.target.value)}
-                    placeholder="Enter meta item (e.g., Viewer cap: 50)"
-                    className="flex-1 border border-gray-200"
-                  />
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => removeMeta(index)}
-                    className="h-9 w-9 p-0 text-red-500 hover:text-red-700 hover:bg-red-50"
-                    aria-label="Remove meta item"
-                  >
-                    <X className="h-4 w-4" />
-                  </Button>
-                </div>
-              ))}
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={addMeta}
-                className="w-full border-dashed border-slate-300 text-slate-600 hover:border-slate-400 hover:text-slate-700"
+          <div className="grid grid-cols-2 gap-4">
+            <div className="space-y-2">
+              <Label
+                htmlFor="duration"
+                className="text-sm font-medium text-slate-700"
               >
-                + Add Meta Item
-              </Button>
+                Duration (min)
+              </Label>
+              <Input
+                id="duration"
+                type="number"
+                value={durationMinutes}
+                onChange={(e) => setDurationMinutes(e.target.value)}
+                className="w-full border border-gray-200"
+              />
             </div>
+
+            <div className="space-y-2">
+              <Label
+                htmlFor="maxViewers"
+                className="text-sm font-medium text-slate-700"
+              >
+                Max Viewers
+              </Label>
+              <Input
+                id="maxViewers"
+                type="number"
+                value={maxViewers}
+                onChange={(e) => setMaxViewers(e.target.value)}
+                className="w-full border border-gray-200"
+              />
+            </div>
+          </div>
+
+          <div className="space-y-2">
+            <Label
+              htmlFor="minTotalSales"
+              className="text-sm font-medium text-slate-700"
+            >
+              Min Total Sales (Threshold)
+            </Label>
+            <Input
+              id="minTotalSales"
+              value={minTotalSales}
+              onChange={(e) => setMinTotalSales(e.target.value)}
+              placeholder="e.g. 5000000"
+              className="w-full border border-gray-200"
+            />
           </div>
         </div>
 
@@ -157,9 +157,10 @@ export default function EditTierModal({
           </Button>
           <Button
             onClick={handleSave}
+            disabled={isLoading}
             className="flex-1 bg-[#E67A2B] hover:bg-[#D86A1F] text-white"
           >
-            Save Changes
+            {isLoading ? "Saving..." : "Save Changes"}
           </Button>
         </DialogFooter>
       </DialogContent>

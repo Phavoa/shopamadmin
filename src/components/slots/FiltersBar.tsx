@@ -26,6 +26,9 @@ interface FiltersBarProps {
   onStatusChange: (status: string) => void;
   onApplyFilters: () => void;
   onClearFilters: () => void;
+  categories?: { id: string; name: string }[];
+  states?: { state: string; alias: string }[];
+  tiers?: { id: string; name: string }[];
 }
 
 const FiltersBar: React.FC<FiltersBarProps> = ({
@@ -43,10 +46,13 @@ const FiltersBar: React.FC<FiltersBarProps> = ({
   onStatusChange,
   onApplyFilters,
   onClearFilters,
+  categories = [],
+  states = [],
+  tiers = [],
 }) => {
   return (
     <div className=" border border-gray-200 rounded-[12px] p-4 mb-6 ">
-      <h1 className="text-xl font-semibold mb-4">Fliters</h1>
+      <h1 className="text-xl font-semibold mb-4">Filters</h1>
       <div className="flex flex-wrap gap-3 items-center">
         <Select value={selectedRange} onValueChange={onRangeChange}>
           <SelectTrigger className="w-[160px] border-[#E6E9EB]  py-6">
@@ -68,9 +74,11 @@ const FiltersBar: React.FC<FiltersBarProps> = ({
           </SelectTrigger>
           <SelectContent>
             <SelectItem value="all">All Tiers</SelectItem>
-            <SelectItem value="gold">Gold</SelectItem>
-            <SelectItem value="silver">Silver</SelectItem>
-            <SelectItem value="bronze">Bronze</SelectItem>
+            {tiers.map((tier) => (
+              <SelectItem key={tier.id} value={tier.id}>
+                {tier.name}
+              </SelectItem>
+            ))}
           </SelectContent>
         </Select>
 
@@ -80,9 +88,11 @@ const FiltersBar: React.FC<FiltersBarProps> = ({
           </SelectTrigger>
           <SelectContent>
             <SelectItem value="all">All Categories</SelectItem>
-            <SelectItem value="electronics">Electronics</SelectItem>
-            <SelectItem value="clothing">Clothing</SelectItem>
-            <SelectItem value="home">Home & Garden</SelectItem>
+            {categories.map((cat) => (
+              <SelectItem key={cat.id} value={cat.id}>
+                {cat.name}
+              </SelectItem>
+            ))}
           </SelectContent>
         </Select>
 
@@ -92,9 +102,11 @@ const FiltersBar: React.FC<FiltersBarProps> = ({
           </SelectTrigger>
           <SelectContent>
             <SelectItem value="all">All Cities</SelectItem>
-            <SelectItem value="lagos">Lagos</SelectItem>
-            <SelectItem value="abuja">Abuja</SelectItem>
-            <SelectItem value="port-harcourt">Port Harcourt</SelectItem>
+            {states.map((state) => (
+              <SelectItem key={state.state} value={state.alias.toLowerCase()}>
+                {state.alias}
+              </SelectItem>
+            ))}
           </SelectContent>
         </Select>
 
@@ -103,9 +115,10 @@ const FiltersBar: React.FC<FiltersBarProps> = ({
             <SelectValue placeholder="Select Status" />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="all">All Status</SelectItem>
-            <SelectItem value="booked">Booked</SelectItem>
-            <SelectItem value="available">Available</SelectItem>
+            <SelectItem value="all">All Statuses</SelectItem>
+            <SelectItem value="LIVE">Live</SelectItem>
+            <SelectItem value="DRAFT">Draft</SelectItem>
+            <SelectItem value="ENDED">Ended</SelectItem>
           </SelectContent>
         </Select>
 

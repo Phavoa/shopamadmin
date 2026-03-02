@@ -50,7 +50,7 @@ const baseQuery = fetchBaseQuery({
 const baseQueryWithReauth = async (
   args: Parameters<typeof baseQuery>[0],
   api: Parameters<typeof baseQuery>[1],
-  extraOptions: Parameters<typeof baseQuery>[2]
+  extraOptions: Parameters<typeof baseQuery>[2],
 ) => {
   let result = await baseQuery(args, api, extraOptions);
 
@@ -65,7 +65,7 @@ const baseQueryWithReauth = async (
           body: { refreshToken },
         },
         api,
-        extraOptions
+        extraOptions,
       );
 
       if (refreshResult?.data && typeof refreshResult.data === "object") {
@@ -152,6 +152,11 @@ export const userApi = createApi({
               console.log("✅ Found by seller.userId");
               return true;
             }
+            // Match by seller.id (Profile ID)
+            if (u.seller?.id === sellerId) {
+              console.log("✅ Found by seller.id");
+              return true;
+            }
             return false;
           });
 
@@ -177,7 +182,7 @@ export const userApi = createApi({
             users.map((u) => ({
               userId: u.id,
               sellerUserId: u.seller?.userId,
-            }))
+            })),
           );
         }
 
@@ -209,7 +214,7 @@ export const userApi = createApi({
 
         if (userResult.data?.data?.items) {
           const user = userResult.data.data.items.find(
-            (u: User) => u.id === sellerId || u.seller?.userId === sellerId
+            (u: User) => u.id === sellerId || u.seller?.userId === sellerId,
           );
 
           if (user) {
@@ -256,7 +261,7 @@ export const userApi = createApi({
 
         if (userResult.data?.data?.items) {
           const user = userResult.data.data.items.find(
-            (u: User) => u.id === sellerId || u.seller?.userId === sellerId
+            (u: User) => u.id === sellerId || u.seller?.userId === sellerId,
           );
 
           if (user) {
@@ -298,7 +303,7 @@ export const userApi = createApi({
 
         if (userResult.data?.data?.items) {
           const user = userResult.data.data.items.find(
-            (u: User) => u.id === sellerId || u.seller?.userId === sellerId
+            (u: User) => u.id === sellerId || u.seller?.userId === sellerId,
           );
 
           if (user) {

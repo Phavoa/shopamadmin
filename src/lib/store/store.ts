@@ -15,7 +15,12 @@ import { adminApi } from "../../api/adminApi";
 import { orderExceptionsApi } from "../../api/orderExceptionsApi";
 import { referralApi } from "../../api/referralApi";
 import { adminDashboardApi } from "../../api/adminDashboardApi";
-import { disciplineApi } from "../../api/disciplineApi"; // ← NEW
+import { disciplineApi } from "../../api/disciplineApi";
+import { liveStreamApi } from "../../api/liveStreamApi";
+import { slotApi } from "../../api/slotApi";
+import { filesApi } from "../../api/filesApi";
+import { revenueApi } from "../../api/revenueApi";
+import { livestreamCategoriesApi } from "../../api/livestreamCategoriesApi";
 import {
   FLUSH,
   REHYDRATE,
@@ -50,7 +55,12 @@ const rootReducer = combineReducers({
   [orderExceptionsApi.reducerPath]: orderExceptionsApi.reducer,
   [referralApi.reducerPath]: referralApi.reducer,
   [adminDashboardApi.reducerPath]: adminDashboardApi.reducer,
-  [disciplineApi.reducerPath]: disciplineApi.reducer, // ← NEW
+  [disciplineApi.reducerPath]: disciplineApi.reducer,
+  [liveStreamApi.reducerPath]: liveStreamApi.reducer,
+  [slotApi.reducerPath]: slotApi.reducer,
+  [filesApi.reducerPath]: filesApi.reducer,
+  [revenueApi.reducerPath]: revenueApi.reducer,
+  [livestreamCategoriesApi.reducerPath]: livestreamCategoriesApi.reducer,
   auth: authReducer,
   header: headerReducer,
   search: searchReducer,
@@ -79,7 +89,12 @@ export const store = configureStore({
       orderExceptionsApi.middleware,
       referralApi.middleware,
       adminDashboardApi.middleware,
-      disciplineApi.middleware // ← NEW
+      disciplineApi.middleware,
+      liveStreamApi.middleware,
+      slotApi.middleware,
+      filesApi.middleware,
+      revenueApi.middleware,
+      livestreamCategoriesApi.middleware,
     ),
   devTools: process.env.NODE_ENV !== "production",
 });

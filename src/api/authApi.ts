@@ -25,7 +25,7 @@ import {
   clearCredentials,
   updateUser,
 } from "../features/auth/authSlice";
-import { authStorage, handleApiError } from "../lib/auth/authUtils";
+import { authStorage } from "../lib/auth/authUtils";
 
 const API_BASE_URL =
   process.env.NEXT_PUBLIC_API_URL ||
@@ -52,7 +52,7 @@ const baseQuery = fetchBaseQuery({
 const baseQueryWithReauth = async (
   args: Parameters<typeof baseQuery>[0],
   api: Parameters<typeof baseQuery>[1],
-  extraOptions: Parameters<typeof baseQuery>[2]
+  extraOptions: Parameters<typeof baseQuery>[2],
 ) => {
   let result = await baseQuery(args, api, extraOptions);
 
@@ -68,7 +68,7 @@ const baseQueryWithReauth = async (
             body: { refreshToken },
           },
           api,
-          extraOptions
+          extraOptions,
         );
 
         if (refreshResult?.data && typeof refreshResult.data === "object") {
@@ -80,7 +80,7 @@ const baseQueryWithReauth = async (
           // Store new tokens
           authStorage.setTokens(
             refreshData.accessToken,
-            refreshData.refreshToken
+            refreshData.refreshToken,
           );
           // Also set in localStorage for compatibility with other APIs
           localStorage.setItem("authToken", refreshData.accessToken);
@@ -93,7 +93,7 @@ const baseQueryWithReauth = async (
             setCredentials({
               accessToken: refreshData.accessToken,
               refreshToken: refreshData.refreshToken,
-            })
+            }),
           );
 
           // Retry the original query
@@ -133,7 +133,7 @@ export const authApi = createApi({
           if (data.data.accessToken) {
             authStorage.setTokens(
               data.data.accessToken,
-              data.data.refreshToken
+              data.data.refreshToken,
             );
             // Also set in localStorage for compatibility with other APIs
             localStorage.setItem("authToken", data.data.accessToken);
@@ -145,7 +145,7 @@ export const authApi = createApi({
                 accessToken: data.data.accessToken,
                 refreshToken: data.data.refreshToken,
                 user: data.data.user,
-              })
+              }),
             );
           }
         } catch (error) {
@@ -194,7 +194,7 @@ export const authApi = createApi({
             if (responseData.accessToken) {
               authStorage.setTokens(
                 responseData.accessToken,
-                responseData.refreshToken
+                responseData.refreshToken,
               );
               // Also set in localStorage for compatibility with other APIs
               localStorage.setItem("authToken", responseData.accessToken);
@@ -206,7 +206,7 @@ export const authApi = createApi({
                   accessToken: responseData.accessToken,
                   refreshToken: responseData.refreshToken,
                   user: responseData.user,
-                })
+                }),
               );
             }
           }
@@ -259,13 +259,13 @@ export const authApi = createApi({
           if (data.data.accessToken) {
             authStorage.setTokens(
               data.data.accessToken,
-              data.data.refreshToken
+              data.data.refreshToken,
             );
             dispatch(
               setCredentials({
                 accessToken: data.data.accessToken,
                 refreshToken: data.data.refreshToken,
-              })
+              }),
             );
           }
         } catch (error) {

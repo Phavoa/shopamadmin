@@ -17,23 +17,14 @@ import {
 } from "@/api/disciplineApi";
 
 interface DisplaySeller {
-  id: string;
-  name: string;
-  email: string;
-  shopName: string;
-  status: string;
-  tier: string;
-  businessCategory: string;
-  location: string;
-  totalSales: string;
-  createdAt: string;
+  id: string; name: string; email: string; shopName: string;
+  status: string; tier: string; businessCategory: string;
+  location: string; totalSales: string; createdAt: string;
 }
 
 const SellerStrikesPage: React.FC = () => {
   const [searchQuery, setSearchQuery] = useState("");
-  const [selectedStrike, setSelectedStrike] = useState<StrikeRecord | null>(
-    null,
-  );
+  const [selectedStrike, setSelectedStrike] = useState<StrikeRecord | null>(null);
   const [isExtendModalOpen, setIsExtendModalOpen] = useState(false);
   const [isSuspendModalOpen, setIsSuspendModalOpen] = useState(false);
   const [suspensionReason, setSuspensionReason] = useState("");
@@ -53,22 +44,16 @@ const SellerStrikesPage: React.FC = () => {
     limit: 200,
   });
 
-  const [issueSuspension, { isLoading: suspending }] =
-    useIssueSuspensionMutation();
+  const [issueSuspension, { isLoading: suspending }] = useIssueSuspensionMutation();
   const [clearStrike, { isLoading: clearing }] = useClearStrikeMutation();
-  const [reinstateSuspension, { isLoading: reinstating }] =
-    useReinstateSuspensionMutation();
-  const [extendSuspension, { isLoading: extending }] =
-    useExtendSuspensionMutation();
+  const [reinstateSuspension, { isLoading: reinstating }] = useReinstateSuspensionMutation();
+  const [extendSuspension, { isLoading: extending }] = useExtendSuspensionMutation();
 
   const actionLoading = suspending || clearing || reinstating || extending;
   const records = data?.data?.items ?? [];
 
   useEffect(() => {
-    if (!records.length) {
-      setStrikes([]);
-      return;
-    }
+    if (!records.length) { setStrikes([]); return; }
 
     const build = async () => {
       setBuildingStrikes(true);
@@ -82,19 +67,11 @@ const SellerStrikesPage: React.FC = () => {
       const result: StrikeRecord[] = [];
 
       for (const [userId, userRecords] of userMap) {
-        const activeSuspension = userRecords.find(
-          (r) => r.type === "SUSPENSION" && r.status === "ACTIVE",
-        );
-        const activeStrikes = userRecords.filter(
-          (r) => r.type === "STRIKE" && r.status === "ACTIVE",
-        );
-        const target =
-          activeSuspension ??
-          (activeStrikes.length > 0
-            ? activeStrikes.reduce((a, b) =>
-                new Date(b.createdAt) > new Date(a.createdAt) ? b : a,
-              )
-            : null);
+        const activeSuspension = userRecords.find(r => r.type === "SUSPENSION" && r.status === "ACTIVE");
+        const activeStrikes = userRecords.filter(r => r.type === "STRIKE" && r.status === "ACTIVE");
+        const target = activeSuspension ?? (activeStrikes.length > 0
+          ? activeStrikes.reduce((a, b) => new Date(b.createdAt) > new Date(a.createdAt) ? b : a)
+          : null);
 
         if (!target) continue;
 
@@ -129,11 +106,7 @@ const SellerStrikesPage: React.FC = () => {
         });
       }
 
-      setStrikes(
-        result.sort(
-          (a, b) => new Date(b.date).getTime() - new Date(a.date).getTime(),
-        ),
-      );
+      setStrikes(result.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()));
       setBuildingStrikes(false);
     };
 
@@ -142,11 +115,7 @@ const SellerStrikesPage: React.FC = () => {
 
   const filteredStrikes = strikes.filter((s) => {
     const q = searchQuery.toLowerCase();
-    return (
-      s.sellerName.toLowerCase().includes(q) ||
-      s.sellerId.toLowerCase().includes(q) ||
-      s.reason.toLowerCase().includes(q)
-    );
+    return s.sellerName.toLowerCase().includes(q) || s.sellerId.toLowerCase().includes(q) || s.reason.toLowerCase().includes(q);
   });
 
   const handleClearStrike = (strike: StrikeRecord) => {
@@ -154,15 +123,10 @@ const SellerStrikesPage: React.FC = () => {
     setConfirmDescription(`Clear this strike for ${strike.sellerName}?`);
     setConfirmAction(() => async () => {
       try {
-        await clearStrike({
-          actionId: strike.id,
-          data: { reason: "Strike cleared by admin." },
-        }).unwrap();
+        await clearStrike({ actionId: strike.id, data: { reason: "Strike cleared by admin." } }).unwrap();
         toast.success("Strike cleared successfully");
         refetch();
-      } catch {
-        toast.error("Failed to clear strike");
-      }
+      } catch { toast.error("Failed to clear strike"); }
     });
     setConfirmDialog(true);
   };
@@ -172,15 +136,10 @@ const SellerStrikesPage: React.FC = () => {
     setConfirmDescription(`Reinstate ${strike.sellerName}?`);
     setConfirmAction(() => async () => {
       try {
-        await reinstateSuspension({
-          actionId: strike.id,
-          data: { reason: "Reinstated by admin." },
-        }).unwrap();
+        await reinstateSuspension({ actionId: strike.id, data: { reason: "Reinstated by admin." } }).unwrap();
         toast.success("Seller reinstated successfully");
         refetch();
-      } catch {
-        toast.error("Failed to reinstate seller");
-      }
+      } catch { toast.error("Failed to reinstate seller"); }
     });
     setConfirmDialog(true);
   };
@@ -198,22 +157,11 @@ const SellerStrikesPage: React.FC = () => {
       return;
     }
     try {
-      await issueSuspension({
-        userId: selectedStrike.sellerId,
-        data: {
-          role: "SELLER",
-          durationDays: parseInt(suspensionDuration),
-          reason: suspensionReason,
-        },
-      }).unwrap();
-      toast.success(
-        `${selectedStrike.sellerName} suspended for ${suspensionDuration} days`,
-      );
+      await issueSuspension({ userId: selectedStrike.sellerId, data: { role: "SELLER", durationDays: parseInt(suspensionDuration), reason: suspensionReason } }).unwrap();
+      toast.success(`${selectedStrike.sellerName} suspended for ${suspensionDuration} days`);
       setIsSuspendModalOpen(false);
       refetch();
-    } catch {
-      toast.error("Failed to issue suspension");
-    }
+    } catch { toast.error("Failed to issue suspension"); }
   };
 
   const handleExtendSuspension = (strike: StrikeRecord) => {
@@ -224,39 +172,24 @@ const SellerStrikesPage: React.FC = () => {
   const handleExtend = async (days: string) => {
     if (!selectedStrike) return;
     try {
-      await extendSuspension({
-        actionId: selectedStrike.id,
-        data: {
-          additionalDays: parseInt(days),
-          reason: "Suspension extended by admin.",
-        },
-      }).unwrap();
+      await extendSuspension({ actionId: selectedStrike.id, data: { additionalDays: parseInt(days), reason: "Suspension extended by admin." } }).unwrap();
       toast.success(`Suspension extended by ${days} days`);
       setIsExtendModalOpen(false);
       refetch();
-    } catch {
-      toast.error("Failed to extend suspension");
-    }
+    } catch { toast.error("Failed to extend suspension"); }
   };
 
-  const handleContact = (strike: StrikeRecord) => {
-    window.location.href = `mailto:${strike.sellerEmail}`;
-  };
+  const handleContact = (strike: StrikeRecord) => { window.location.href = `mailto:${strike.sellerEmail}`; };
 
-  const selectedSellerForModal: DisplaySeller | null = selectedStrike
-    ? {
-        id: selectedStrike.sellerId,
-        name: selectedStrike.sellerName,
-        email: selectedStrike.sellerEmail,
-        shopName: selectedStrike.sellerName,
-        status: selectedStrike.status,
-        tier: "N/A",
-        businessCategory: "N/A",
-        location: "N/A",
-        totalSales: "N/A",
-        createdAt: selectedStrike.date,
-      }
-    : null;
+  const selectedSellerForModal: DisplaySeller | null = selectedStrike ? {
+    id: selectedStrike.sellerId,
+    name: selectedStrike.sellerName,
+    email: selectedStrike.sellerEmail,
+    shopName: selectedStrike.sellerName,
+    status: selectedStrike.status,
+    tier: "N/A", businessCategory: "N/A", location: "N/A", totalSales: "N/A",
+    createdAt: selectedStrike.date,
+  } : null;
 
   return (
     <div className="p-8 bg-[#F9FAFB] min-h-screen">
@@ -272,34 +205,9 @@ const SellerStrikesPage: React.FC = () => {
         onReinstate={handleReinstate}
         onContact={handleContact}
       />
-      <SuspendSellerModal
-        isOpen={isSuspendModalOpen}
-        selectedSeller={selectedSellerForModal}
-        reason={suspensionReason}
-        duration={suspensionDuration}
-        actionLoading={actionLoading}
-        onOpenChange={setIsSuspendModalOpen}
-        onReasonChange={setSuspensionReason}
-        onDurationChange={setSuspensionDuration}
-        onSuspend={handleSuspend}
-      />
-      <ExtendSuspensionModal
-        isOpen={isExtendModalOpen}
-        selectedSeller={selectedSellerForModal}
-        actionLoading={actionLoading}
-        onOpenChange={setIsExtendModalOpen}
-        onExtend={handleExtend}
-      />
-      <ConfirmationDialog
-        isOpen={confirmDialog}
-        onClose={() => setConfirmDialog(false)}
-        onConfirm={confirmAction || (() => setConfirmDialog(false))}
-        title={confirmTitle}
-        description={confirmDescription}
-        confirmText="Confirm"
-        cancelText="Cancel"
-        isLoading={actionLoading}
-      />
+      <SuspendSellerModal isOpen={isSuspendModalOpen} selectedSeller={selectedSellerForModal} reason={suspensionReason} duration={suspensionDuration} actionLoading={actionLoading} onOpenChange={setIsSuspendModalOpen} onReasonChange={setSuspensionReason} onDurationChange={setSuspensionDuration} onSuspend={handleSuspend} />
+      <ExtendSuspensionModal isOpen={isExtendModalOpen} selectedSeller={selectedSellerForModal} actionLoading={actionLoading} onOpenChange={setIsExtendModalOpen} onExtend={handleExtend} />
+      <ConfirmationDialog isOpen={confirmDialog} onClose={() => setConfirmDialog(false)} onConfirm={confirmAction || (() => setConfirmDialog(false))} title={confirmTitle} description={confirmDescription} confirmText="Confirm" cancelText="Cancel" isLoading={actionLoading} />
     </div>
   );
 };

@@ -20,7 +20,7 @@ interface StrikeRowProps {
   strike: StrikeRecord;
   onUpgradeToSuspension?: (strike: StrikeRecord) => void;
   onExtendSuspension?: (strike: StrikeRecord) => void;
-  onRevoke?: (strike: StrikeRecord) => Promise<void>;
+  onRevoke?: (strike: StrikeRecord) => void | Promise<void>;
   onContact?: (strike: StrikeRecord) => void;
 }
 
@@ -36,24 +36,24 @@ const getStatusBadgeStyles = (status: string) => {
 
 const formatCooldownDate = (dateString: string | null): string => {
   if (!dateString) return "-";
-  
+
   try {
     const date = new Date(dateString);
     // Check if date is valid
     if (isNaN(date.getTime())) return "-";
-    
+
     return formatDistanceToNow(date, { addSuffix: true });
   } catch (error) {
     return "-";
   }
 };
 
-export const StrikeRow: React.FC<StrikeRowProps> = ({ 
-  strike, 
-  onUpgradeToSuspension, 
-  onExtendSuspension, 
-  onRevoke, 
-  onContact 
+export const StrikeRow: React.FC<StrikeRowProps> = ({
+  strike,
+  onUpgradeToSuspension,
+  onExtendSuspension,
+  onRevoke,
+  onContact,
 }) => {
   return (
     <tr className="border-b border-[#E5E7EB] bg-white hover:bg-[#F9FAFB]">

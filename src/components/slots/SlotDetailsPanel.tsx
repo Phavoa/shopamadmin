@@ -13,6 +13,7 @@ import {
 } from "@/components/ui/select";
 
 import { Slot } from "@/lib/mockData";
+import { useGetUserBySellerIdQuery } from "@/api/userApi";
 
 interface SlotDetailsPanelProps {
   selectedSlot: Slot | null;
@@ -29,6 +30,16 @@ const SlotDetailsPanel: React.FC<SlotDetailsPanelProps> = ({
   onEdit,
   onDelete,
 }) => {
+  // Fetch detailed user info when a slot is selected
+  const { data: userResponse, isLoading: isUserLoading } =
+    useGetUserBySellerIdQuery(selectedSlot?.sellerId || "", {
+      skip: !selectedSlot?.sellerId,
+    });
+
+  const userData = userResponse?.data;
+
+  console.log("userData", userData);
+
   return (
     <div>
       <h1
@@ -56,21 +67,23 @@ const SlotDetailsPanel: React.FC<SlotDetailsPanelProps> = ({
                 <div className="text-center">
                   <p className="text-xs font-medium  text-[#008d3f]">Status</p>
                   <Badge className="mt-1 bg-[#d7fdd9] text-[#008d3f] border-0 px-3 py-2 text-xs rounded-sm">
-                    {selectedSlot.status === "booked" ? "Booked" : "Available"}
+                    {/* Show real status if available */}
+                    {selectedSlot.livestreamStatus || selectedSlot.status}
                     <ChevronDown className="inline-block ml-1" size={24} />
                   </Badge>
                 </div>
                 <div className="flex flex-col items-center">
                   <p className="text-xs font-medium text-[#666666]">Tier</p>
                   <Badge className="mt-1  border-[0.5px] border-[#f6dcbf] bg-transparent text-[#111111] px-3 py-2 text-xs rounded-sm">
-                    {selectedSlot.tier}
+                    {selectedSlot.tier || "N/A"}
                     <ChevronDown className="inline-block ml-1" size={24} />
                   </Badge>
                 </div>
                 <div className="flex flex-col items-center">
                   <p className="text-xs font-medium text-[#666666]">Cap</p>
                   <Badge className="mt-1 border-[0.5px] border-[#f6dcbf] bg-transparent text-[#111111] px-3 py-2 text-xs rounded-sm ">
-                    120
+                    {/* Show actual tier cap */}
+                    {selectedSlot.tierCap || 0}
                     <ChevronDown className="inline-block ml-1" size={24} />
                   </Badge>
                 </div>
@@ -88,16 +101,18 @@ const SlotDetailsPanel: React.FC<SlotDetailsPanelProps> = ({
                 </h3>
                 <div className="flex justify-start border border-[#e6e6e6] rounded-lg  items-center px-3 py-2 w-fit gap-3">
                   <p className="text-xs text-gray-900 font-medium">
-                    {selectedSlot.sellerName}
+                    {userData
+                      ? `${userData.firstName} ${userData.lastName}`
+                      : selectedSlot.sellerName}
                   </p>
                   <div className="w-px bg-gray-500 h-4" />
                   <p className="text-xs text-gray-900 font-medium">
-                    Reliability: 95%
+                    {userData?.phone || "Phone N/A"}
                   </p>
                   <div className="w-px bg-gray-500 h-4" />
 
                   <p className="text-xs text-gray-900 font-medium">
-                    Strikes: 0
+                    {userData?.email || "Email N/A"}
                   </p>
                 </div>
               </div>
@@ -108,7 +123,9 @@ const SlotDetailsPanel: React.FC<SlotDetailsPanelProps> = ({
 
             <div className="flex flex-col justify-between">
               <p className="text-gray-800 text-sm ">Reliability Score: 95%</p>
-              <p className="text-gray-800 text-sm ">Products queued: 5</p>
+              <p className="text-gray-800 text-sm ">
+                Products queued: {selectedSlot.itemsCount || 0}
+              </p>
               <p className="text-gray-800 text-sm ">Last no-show: None</p>
               <p className="text-gray-800 text-sm ">Strikes: 0</p>
             </div>

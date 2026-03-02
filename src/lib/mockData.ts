@@ -9,9 +9,13 @@ export interface Slot {
   duration: number; // in minutes
   product?: string;
   price?: number;
-  tier?: "gold" | "silver" | "bronze";
+  tier?: "Beginner" | "Bronze" | "Gold" | "Pop-Up";
   category?: string;
   city?: string;
+  livestreamStatus?: string;
+  itemsCount?: number;
+  tierCap?: number;
+  realDuration?: number;
 }
 
 export interface Seller {
@@ -41,7 +45,7 @@ export const mockSlots: Slot[] = [
     duration: 60,
     product: "Electronics Bundle",
     price: 150,
-    tier: "gold",
+    tier: "Gold",
     category: "electronics",
     city: "lagos",
   },
@@ -54,7 +58,7 @@ export const mockSlots: Slot[] = [
     status: "available",
     date: "2025-10-21",
     duration: 60,
-    tier: "silver",
+    tier: "Bronze",
     category: "clothing",
     city: "abuja",
   },
@@ -69,7 +73,7 @@ export const mockSlots: Slot[] = [
     duration: 60,
     product: "Fashion Collection",
     price: 200,
-    tier: "gold",
+    tier: "Gold",
     category: "clothing",
     city: "lagos",
   },
@@ -82,7 +86,7 @@ export const mockSlots: Slot[] = [
     status: "available",
     date: "2025-10-21",
     duration: 60,
-    tier: "bronze",
+    tier: "Beginner",
     category: "home",
     city: "port-harcourt",
   },
@@ -97,7 +101,7 @@ export const mockSlots: Slot[] = [
     duration: 60,
     product: "Home Goods",
     price: 100,
-    tier: "silver",
+    tier: "Bronze",
     category: "home",
     city: "abuja",
   },
@@ -111,7 +115,7 @@ export const mockSlots: Slot[] = [
     status: "available",
     date: "2025-10-21",
     duration: 60,
-    tier: "gold",
+    tier: "Gold",
     category: "electronics",
     city: "lagos",
   },
@@ -126,7 +130,7 @@ export const mockSlots: Slot[] = [
     duration: 60,
     product: "Beauty Products",
     price: 120,
-    tier: "silver",
+    tier: "Bronze",
     category: "clothing",
     city: "abuja",
   },

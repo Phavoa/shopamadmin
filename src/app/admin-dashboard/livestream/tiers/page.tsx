@@ -1,41 +1,24 @@
 "use client";
 import React, { useState } from "react";
-
-// This file is a self-contained Next/React component written in TypeScript
-// Stack: Next.js (React), Tailwind CSS, shadcn/ui component primitives
-// Save as: app/(admin)/tiers/page.tsx or pages/tiers-and-rules.tsx depending on your Next.js setup
-
 import TierCard from "@/components/tiers/TierCard";
 import EditTierModal from "@/components/tiers/EditTierModal";
 import GlobalRules from "@/components/tiers/GlobalRules";
+import {
+  useGetLivestreamTiersQuery,
+  useUpdateLivestreamTierMutation,
+  LiveStreamTier,
+  UpdateTierRequest,
+} from "@/api/slotApi";
+import { Loader2 } from "lucide-react";
+import toast from "react-hot-toast";
 
-type Tier = {
+// Type needed for TierCard component, derived from UI requirements
+type TierUI = {
   id: string;
   title: string;
   subtitle?: string;
   meta: string[];
 };
-
-const DEFAULT_TIERS: Tier[] = [
-  {
-    id: "beginner",
-    title: "Beginner (Scenario A)",
-    subtitle: "Unlock threshold: auto (new sellers)",
-    meta: ["Viewer cap: 50", "Duration: 70 mins"],
-  },
-  {
-    id: "bronze",
-    title: "Bronze (Scenario B)",
-    subtitle: "Unlock threshold: after ₦5,000,000 sales",
-    meta: ["Viewer cap: 150", "Duration: 70 mins"],
-  },
-  {
-    id: "gold",
-    title: "Gold (Scenario C)",
-    subtitle: "Unlock threshold: after ₦20,000,000 sales",
-    meta: ["Viewer cap: 3000", "Duration: 70 mins"],
-  },
-];
 
 const GLOBAL_RULES = [
   "Start window: 7:30 to 9:30 Sundays",
@@ -48,32 +31,67 @@ const GLOBAL_RULES = [
 ];
 
 export default function TiersAndRulesPage() {
-  const [tiers, setTiers] = useState<Tier[]>(DEFAULT_TIERS);
-  const [editingTier, setEditingTier] = useState<Tier | null>(null);
+  const { data: response, isLoading, isError } = useGetLivestreamTiersQuery({});
+  const [updateTier, { isLoading: isUpdating }] =
+    useUpdateLivestreamTierMutation();
+
+  const [editingTierId, setEditingTierId] = useState<string | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
 
+  const tiers = response?.data?.items || [];
+
   const handleEdit = (id: string) => {
-    const tier = tiers.find((t) => t.id === id);
-    if (tier) {
-      setEditingTier(tier);
-      setIsModalOpen(true);
+    setEditingTierId(id);
+    setIsModalOpen(true);
+  };
+
+  const handleReset = () => {
+    // Reset functionality would nominally restore defaults.
+    // Since we are strictly using API data, we might need an API endpoint for "reset"
+    // or just inform the user this is not yet connected if no endpoint exists.
+    // For now, adhering to "integration" scope, we'll toast that it's strict API data.
+    toast.error("Resetting to default is not currently supported via API.");
+  };
+
+  const handleSaveTier = async (id: string, updates: UpdateTierRequest) => {
+    try {
+      await updateTier({ id, data: updates }).unwrap();
+      toast.success("Tier updated successfully");
+      setIsModalOpen(false);
+    } catch (error) {
+      console.error("Failed to update tier:", error);
+      toast.error("Failed to update tier. Please try again.");
     }
   };
 
-  const handleReset = (id: string) => {
-    const defaultTier = DEFAULT_TIERS.find((t) => t.id === id);
-    if (defaultTier) {
-      setTiers((prev) =>
-        prev.map((t) => (t.id === id ? { ...defaultTier } : t))
-      );
-    }
-  };
+  // Map API data to UI format for TierCard
+  const mapTierToUI = (tier: LiveStreamTier): TierUI => ({
+    id: tier.id,
+    title: tier.name,
+    subtitle: tier.description || `Unlock threshold: ${tier.minTotalSales}`,
+    meta: [
+      `Viewer cap: ${tier.maxViewers}`,
+      `Duration: ${tier.durationMinutes} mins`,
+    ],
+  });
 
-  const handleSaveTier = (updatedTier: Tier) => {
-    setTiers((prev) =>
-      prev.map((t) => (t.id === updatedTier.id ? updatedTier : t))
+  const editingTier = tiers.find((t) => t.id === editingTierId) || null;
+
+  if (isLoading) {
+    return (
+      <div className="flex justify-center items-center min-h-[400px]">
+        <Loader2 className="h-8 w-8 animate-spin text-[#E67A2B]" />
+      </div>
     );
-  };
+  }
+
+  if (isError) {
+    return (
+      <div className="flex justify-center items-center min-h-[400px] text-red-500">
+        Failed to load tiers. Please try refreshing the page.
+      </div>
+    );
+  }
 
   return (
     <main className=" px-6 pt-8 pb-16 font-sans" aria-label="main-content">
@@ -83,7 +101,7 @@ export default function TiersAndRulesPage() {
           {tiers.map((tier) => (
             <TierCard
               key={tier.id}
-              tier={tier}
+              tier={mapTierToUI(tier)}
               onEdit={handleEdit}
               onReset={handleReset}
             />
@@ -98,6 +116,7 @@ export default function TiersAndRulesPage() {
         onClose={() => setIsModalOpen(false)}
         tier={editingTier}
         onSave={handleSaveTier}
+        isLoading={isUpdating}
       />
     </main>
   );

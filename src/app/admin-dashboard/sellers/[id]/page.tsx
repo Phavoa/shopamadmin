@@ -15,7 +15,6 @@ import {
 import SellerProfileCard from "@/components/sellers/SellerProfileCard";
 import LivestreamTierManagement from "@/components/sellers/LivestreamTierManagement";
 import SellerProfileSkeleton from "@/components/sellers/SellerProfileSkeleton";
-import { SellerProfile } from "@/types/user";
 
 // Type for display seller data
 interface DisplaySeller {
@@ -112,7 +111,7 @@ const SellerProfilePage = () => {
   useEffect(() => {
     if (productsResponse?.data?.items) {
       const activeProducts = productsResponse.data.items.filter(
-        (product) => product.status === "ACTIVE"
+        (product) => product.status === "ACTIVE",
       );
       setActiveListingsCount(activeProducts.length);
     }

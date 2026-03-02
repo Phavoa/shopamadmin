@@ -40,8 +40,8 @@ const BuyerProfileView: React.FC<BuyerProfileViewProps> = ({
       "items",
       "items.product",
       "buyer",
-      "sellerProfile",
-      "sellerProfile.user",
+      "seller",
+      "seller.user",
       "checkoutSession",
       "shipment",
       "shipment.events",
@@ -89,11 +89,10 @@ const BuyerProfileView: React.FC<BuyerProfileViewProps> = ({
             o.status.toLowerCase() === "completed" ||
             o.status.toLowerCase() === "delivered"
         ).length;
-        const pending = fetchedOrders.filter(
-          (o: Order) =>
-            o.status.toLowerCase() === "pending" ||
-            o.status.toLowerCase() === "processing"
-        ).length;
+        const pending = fetchedOrders.filter((o: Order) => {
+          const statusLower = o.status.toLowerCase();
+          return statusLower !== "completed" && statusLower !== "refunded";
+        }).length;
         const refunded = fetchedOrders.filter(
           (o: Order) =>
             o.status.toLowerCase() === "refunded" ||
@@ -257,14 +256,24 @@ const BuyerProfileView: React.FC<BuyerProfileViewProps> = ({
 
   const getStatusBadgeColor = (status: string) => {
     const statusLower = status.toLowerCase();
-    if (statusLower === "completed" || statusLower === "delivered") {
+    if (statusLower === "completed") {
       return "bg-green-50 text-green-700";
-    } else if (statusLower === "pending" || statusLower === "processing") {
-      return "bg-orange-50 text-orange-700";
-    } else if (statusLower === "refunded" || statusLower === "cancelled") {
+    } else if (statusLower === "refunded") {
       return "bg-red-50 text-red-700";
+    } else {
+      return "bg-orange-50 text-orange-700";
     }
-    return "bg-gray-50 text-gray-700";
+  };
+
+  const getDisplayStatus = (status: string) => {
+    const statusLower = status.toLowerCase();
+    if (statusLower === "completed") {
+      return "Completed";
+    } else if (statusLower === "refunded") {
+      return "Refunded";
+    } else {
+      return "Pending";
+    }
   };
 
   const walletBalanceNaira = parseInt(wallet.balanceKobo) / 100;
@@ -358,9 +367,11 @@ const BuyerProfileView: React.FC<BuyerProfileViewProps> = ({
                   <p className="text-xs text-gray-500 mb-1">Status</p>
                   <span
                     className={`inline-block px-3 py-1 text-xs font-medium rounded ${
-                      disciplineData.status === 'Suspended' ? 'bg-red-50 text-red-700' :
-                      disciplineData.status.includes('Strike') ? 'bg-orange-50 text-orange-700' :
-                      'bg-green-50 text-green-700'
+                      disciplineData.status === "Suspended"
+                        ? "bg-red-50 text-red-700"
+                        : disciplineData.status.includes("Strike")
+                        ? "bg-orange-50 text-orange-700"
+                        : "bg-green-50 text-green-700"
                     }`}
                   >
                     {disciplineData.status}
@@ -540,7 +551,7 @@ const BuyerProfileView: React.FC<BuyerProfileViewProps> = ({
                     </tr>
                   </thead>
                   <tbody>
-                    {orders.slice(0, 5).map((order) => (
+                    {orders.map((order) => (
                       <tr
                         key={order.id}
                         className="border-b border-gray-100 hover:bg-gray-50"
@@ -562,7 +573,7 @@ const BuyerProfileView: React.FC<BuyerProfileViewProps> = ({
                         </td>
                         <td className="py-3 px-6">
                           {order.items?.[0] ? (
-                            <span className="text-sm text-blue-600 border border-blue-200 px-2 py-1 rounded inline-block truncate max-w-full">
+                            <span className="py-3 px-6 text-sm text-gray-900">
                               {order.items[0].title}
                             </span>
                           ) : (
@@ -578,11 +589,11 @@ const BuyerProfileView: React.FC<BuyerProfileViewProps> = ({
                         </td>
                         <td className="py-3 px-6">
                           <span
-                            className={`inline-block px-3 py-1 text-xs font-medium rounded ${getStatusBadgeColor(
+                            className={`inline-block px-3 py-1 text-xs font-medium rounded-full ${getStatusBadgeColor(
                               order.status
                             )}`}
                           >
-                            {order.status}
+                            {getDisplayStatus(order.status)}
                           </span>
                         </td>
                       </tr>

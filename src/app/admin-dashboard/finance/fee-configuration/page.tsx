@@ -11,11 +11,11 @@ export default function FeeConfigurationPage() {
   const [tier1Min, setTier1Min] = useState("100");
   const [tier1Max, setTier1Max] = useState("499,999");
   const [tier1Commission, setTier1Commission] = useState("6");
-  
+
   const [tier2Min, setTier2Min] = useState("500,000");
   const [tier2Max, setTier2Max] = useState("999,999");
   const [tier2Commission, setTier2Commission] = useState("5");
-  
+
   const [tier3Min, setTier3Min] = useState("1,000,000");
   const [tier3Commission, setTier3Commission] = useState("3");
 
@@ -40,11 +40,11 @@ export default function FeeConfigurationPage() {
   ];
 
   // Simulation data
-  const [expectedPerMonth, setExpectedPerMonth] = useState("69,000,000");
-  const [split, setSplit] = useState("50/30/15");
-  const [platformRevenue, setPlatformRevenue] = useState("2,240,000");
-  const [shoppingGMV, setShoppingGMV] = useState("40%");
-  const [payoutFees, setPayoutFees] = useState("40,000");
+  const [expectedPerMonth] = useState("69,000,000");
+  const [split] = useState("50/30/15");
+  const [platformRevenue] = useState("2,240,000");
+  const [shoppingGMV] = useState("40%");
+  const [payoutFees] = useState("40,000");
 
   return (
     <div className="min-h-screen bg-white">
@@ -310,7 +310,9 @@ export default function FeeConfigurationPage() {
 
                 <div className="space-y-4">
                   <div className="flex items-center justify-between">
-                    <span className="text-sm text-black">Wallet fee (fixed):</span>
+                    <span className="text-sm text-black">
+                      Wallet fee (fixed):
+                    </span>
                     <div className="flex items-center gap-2">
                       <span className="text-sm font-semibold">₦</span>
                       <input
@@ -331,7 +333,9 @@ export default function FeeConfigurationPage() {
                   </div>
 
                   <div className="flex items-center justify-between">
-                    <span className="text-sm text-black">Withdrawal fee (fixed):</span>
+                    <span className="text-sm text-black">
+                      Withdrawal fee (fixed):
+                    </span>
                     <div className="flex items-center gap-2">
                       <span className="text-sm font-semibold">₦</span>
                       <input
@@ -352,7 +356,9 @@ export default function FeeConfigurationPage() {
                   </div>
 
                   <div className="flex items-center justify-between">
-                    <span className="text-sm text-black">Subscription (monthly):</span>
+                    <span className="text-sm text-black">
+                      Subscription (monthly):
+                    </span>
                     <div className="flex items-center gap-3">
                       <label className="flex items-center gap-2 cursor-pointer">
                         <input
@@ -384,13 +390,17 @@ export default function FeeConfigurationPage() {
                   </div>
 
                   <div className="flex items-center justify-between">
-                    <span className="text-sm text-black">Promo codes enabled:</span>
+                    <span className="text-sm text-black">
+                      Promo codes enabled:
+                    </span>
                     <div className="flex items-center gap-2">
                       <span className="text-sm">Yes</span>
                       <input
                         type="checkbox"
                         checked={promoCodesEnabled}
-                        onChange={() => setPromoCodesEnabled(!promoCodesEnabled)}
+                        onChange={() =>
+                          setPromoCodesEnabled(!promoCodesEnabled)
+                        }
                         className="w-4 h-4 cursor-pointer"
                       />
                     </div>
@@ -413,7 +423,10 @@ export default function FeeConfigurationPage() {
 
                 <div className="space-y-3">
                   {logistics.map((item, index) => (
-                    <div key={index} className="flex items-center justify-between">
+                    <div
+                      key={index}
+                      className="flex items-center justify-between"
+                    >
                       <span className="text-sm text-black">{item.name}</span>
                       <div className="flex items-center gap-2">
                         <span className="text-sm font-semibold">₦</span>
@@ -531,15 +544,21 @@ export default function FeeConfigurationPage() {
 
                 <div className="space-y-3">
                   <div className="flex items-center justify-between">
-                    <span className="text-sm text-gray-700">Input: Expected per month:</span>
+                    <span className="text-sm text-gray-700">
+                      Input: Expected per month:
+                    </span>
                     <span className="text-sm font-semibold text-black">
                       ₦{expectedPerMonth}
                     </span>
                   </div>
 
                   <div className="flex items-center justify-between">
-                    <span className="text-sm text-gray-700">Split (S/M/%):</span>
-                    <span className="text-sm font-semibold text-black">{split}</span>
+                    <span className="text-sm text-gray-700">
+                      Split (S/M/%):
+                    </span>
+                    <span className="text-sm font-semibold text-black">
+                      {split}
+                    </span>
                   </div>
 
                   <div className="flex items-center justify-between">
@@ -552,8 +571,12 @@ export default function FeeConfigurationPage() {
                   </div>
 
                   <div className="flex items-center justify-between">
-                    <span className="text-sm text-gray-700">Shopping GMV portion:</span>
-                    <span className="text-sm font-semibold text-black">{shoppingGMV}</span>
+                    <span className="text-sm text-gray-700">
+                      Shopping GMV portion:
+                    </span>
+                    <span className="text-sm font-semibold text-black">
+                      {shoppingGMV}
+                    </span>
                   </div>
 
                   <div className="flex items-center justify-between">

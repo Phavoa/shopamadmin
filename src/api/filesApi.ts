@@ -31,20 +31,19 @@ export interface FileApiResponse<T> {
   statusCode?: number;
 }
 
-export interface UploadFileApiResponse
-  extends FileApiResponse<FileUploadResponse> {
+export interface UploadFileApiResponse extends FileApiResponse<FileUploadResponse> {
   message: "File uploaded";
   statusCode: 201;
 }
 
-export interface UploadMultipleFilesApiResponse
-  extends FileApiResponse<FileUploadResponse[]> {
+export interface UploadMultipleFilesApiResponse extends FileApiResponse<
+  FileUploadResponse[]
+> {
   message: "Files uploaded";
   statusCode: 201;
 }
 
-export interface DeleteFileApiResponse
-  extends FileApiResponse<DeleteFileResponse> {
+export interface DeleteFileApiResponse extends FileApiResponse<DeleteFileResponse> {
   message: "File deleted";
   statusCode: 200;
 }
@@ -73,7 +72,7 @@ const baseQuery = fetchBaseQuery({
 const baseQueryWithReauth = async (
   args: Parameters<typeof baseQuery>[0],
   api: Parameters<typeof baseQuery>[1],
-  extraOptions: Parameters<typeof baseQuery>[2]
+  extraOptions: Parameters<typeof baseQuery>[2],
 ) => {
   let result = await baseQuery(args, api, extraOptions);
 
@@ -89,7 +88,7 @@ const baseQueryWithReauth = async (
             body: { refreshToken },
           },
           api,
-          extraOptions
+          extraOptions,
         );
 
         if (refreshResult?.data && typeof refreshResult.data === "object") {
@@ -101,7 +100,7 @@ const baseQueryWithReauth = async (
           // Store new tokens in localStorage
           authStorage.setTokens(
             refreshData.accessToken,
-            refreshData.refreshToken
+            refreshData.refreshToken,
           );
 
           // Retry the original query
@@ -147,7 +146,7 @@ export const filesApi = createApi({
     >({
       query: ({ files, prefix }) => {
         const formData = new FormData();
-        files.forEach((file, index) => {
+        files.forEach((file) => {
           formData.append("files", file);
         });
         if (prefix) {
