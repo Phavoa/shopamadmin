@@ -7,12 +7,28 @@ export interface LivestreamCategory {
   id: string;
   name: string;
   slug: string;
+  description?: string;
   image?: string;
   createdAt: string;
   updatedAt: string;
 }
 
+export interface CreateLivestreamCategoryRequest {
+  name: string;
+  image?: string;
+  slug?: string;
+  description?: string;
+}
+
+export interface UpdateLivestreamCategoryRequest {
+  name?: string;
+  image?: string;
+  slug?: string;
+  description?: string;
+}
+
 export interface LivestreamCategoriesListParams {
+  populate?: string[];
   q?: string;
   limit?: number;
   after?: string;
@@ -116,8 +132,21 @@ export const livestreamCategoriesApi = createApi({
       query: (params = {}) => {
         const url = new URL(`${API_BASE_URL}/streams/categories`);
 
+        // Handle populate array
+        if (params.populate) {
+          const populateValue = Array.isArray(params.populate)
+            ? params.populate.join(",")
+            : params.populate;
+          url.searchParams.set("populate", populateValue as string);
+        }
+
         Object.entries(params).forEach(([key, value]) => {
-          if (value !== undefined && value !== null && value !== "") {
+          if (
+            value !== undefined &&
+            value !== null &&
+            value !== "" &&
+            key !== "populate"
+          ) {
             url.searchParams.set(key, value.toString());
           }
         });
@@ -144,7 +173,7 @@ export const livestreamCategoriesApi = createApi({
     // Create livestream category (ADMIN)
     createLivestreamCategory: builder.mutation<
       ApiResponse<LivestreamCategory>,
-      { name: string; image?: string; slug?: string }
+      CreateLivestreamCategoryRequest
     >({
       query: (body) => ({
         url: "/streams/categories",
@@ -157,7 +186,7 @@ export const livestreamCategoriesApi = createApi({
     // Update livestream category (ADMIN)
     updateLivestreamCategory: builder.mutation<
       ApiResponse<LivestreamCategory>,
-      { idOrSlug: string; data: { name?: string; image?: string; slug?: string } }
+      { idOrSlug: string; data: UpdateLivestreamCategoryRequest }
     >({
       query: ({ idOrSlug, data }) => ({
         url: `/streams/categories/${idOrSlug}`,
