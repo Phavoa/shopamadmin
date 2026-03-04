@@ -46,7 +46,7 @@ const BuyersListPage = () => {
   const [buyers, setBuyers] = useState<Buyer[]>([]);
   const [buyerStats, setBuyerStats] = useState<Record<string, { totalOrders: number; totalSpend: number }>>({});
 
-  // ✅ Fetch real buyer stats in the background for all buyers at once
+  // ✅ Fetch real buyer stats in the background for all buyers at once (Fallback for #19)
   useEffect(() => {
     const fetchAllStats = async () => {
       const missingIds = buyers
@@ -60,13 +60,11 @@ const BuyersListPage = () => {
       const results = await Promise.all(
         missingIds.map(async (id) => {
           try {
-            const resp = await getOrdersByBuyer(id, { limit: 50 });
+            const resp = await getOrdersByBuyer(id, { limit: 100 }); // Increase limit for more accuracy
             if (resp.data?.items) {
               const orders = resp.data.items;
-              // Sum up total orders and spend (assuming totalAmount might be in kobo)
               const totalOrders = orders.length;
               const totalSpendKobo = orders.reduce((sum, o) => sum + (Number(o.totalAmount) || 0), 0);
-              // Most amounts in this system are kobo, but let's be safe and check if we should show major unit
               return { id, stats: { totalOrders, totalSpend: Math.round(totalSpendKobo / 100) } };
             }
           } catch (err) {
@@ -78,7 +76,7 @@ const BuyersListPage = () => {
 
       const newStats = { ...buyerStats };
       results.forEach(({ id, stats }) => {
-        newStats[id] = stats;
+        if (id) newStats[id] = stats;
       });
       setBuyerStats(newStats);
     };
@@ -157,14 +155,16 @@ const BuyersListPage = () => {
         }
       } catch {}
 
-      const stats = buyerStats[user.id] || { totalOrders: 0, totalSpend: 0 };
+      const stats = buyerStats[user.id];
+      const totalOrders = (user.totalOrders || stats?.totalOrders) || 0;
+      const totalSpendNaira = user.totalSpent ? (parseInt(user.totalSpent) / 100) : (stats?.totalSpend || 0);
 
       return {
         ...user,
         name: `${user.firstName} ${user.lastName}`,
         verified: user.isVerified || false,
-        totalOrders: stats.totalOrders,
-        totalSpend: `₦${stats.totalSpend.toLocaleString()}`,
+        totalOrders,
+        totalSpend: `₦${totalSpendNaira.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`,
         lastActivity,
         strikes: activeStrikes,
         status,
@@ -176,18 +176,8 @@ const BuyersListPage = () => {
     setBuyers(transformed);
   }, [usersData, disciplineData, buyerStats]); // re-run when discipline or stats load
 
-  // ✅ Fetch real buyer stats in the background
-  useEffect(() => {
-    if (buyers.length > 0) {
-      buyers.forEach(async (buyer) => {
-        // Only fetch if we don't have stats yet for this buyer
-        if (!buyerStats[buyer.id]) {
-          const stats = await fetchStatsForBuyer(buyer.id);
-          setBuyerStats((prev) => ({ ...prev, [buyer.id]: stats }));
-        }
-      });
-    }
-  }, [buyers]);
+  // ✅ Fetch real buyer stats in the background removed in favor of enriched fields
+
 
   React.useEffect(() => {
     const handleFocus = () => refetch();

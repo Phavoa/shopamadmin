@@ -22,6 +22,14 @@ interface SelectedBuyer {
   profileImage?: string;
   followersCount?: number;
   followingCount?: number;
+  // Enriched Profile Fields (#19)
+  totalSpent?: string;
+  totalOrders?: number;
+  disciplineStatus?: string;
+  refundRate?: string;
+  lastActivity?: string;
+  linkedBank?: string;
+  has2FA?: boolean;
 }
 
 interface BuyerProfileViewProps {
@@ -123,15 +131,18 @@ const BuyerProfileView: React.FC<BuyerProfileViewProps> = ({
           : "";
 
         setOrderStats({
-          totalOrders: total,
+          totalOrders: selectedBuyer.totalOrders ?? total,
           completedOrders: completed,
           pendingOrders: pending,
-          totalSpend: totalSpendKobo / 100,
-          refundRate: `${refundRateCalc}%`,
-          lastPurchase: lastPurchaseDate,
+          totalSpend: selectedBuyer.totalSpent ? (parseInt(selectedBuyer.totalSpent) / 100) : (totalSpendKobo / 100),
+          refundRate: selectedBuyer.refundRate ?? `${refundRateCalc}%`,
+          lastPurchase: selectedBuyer.lastActivity ? new Date(selectedBuyer.lastActivity).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" }) : lastPurchaseDate,
         });
 
-        // Fetch discipline data
+        // Resolve discipline status priority: API > Calculated
+        const apiDisciplineStatus = selectedBuyer.disciplineStatus;
+        
+        // Fetch discipline data (legacy fallback/supplement)
         try {
           const discipline = await getUserDisciplineSummary(selectedBuyer.id);
           const activeStrikes = discipline.activeStrikes || 0;
@@ -139,13 +150,15 @@ const BuyerProfileView: React.FC<BuyerProfileViewProps> = ({
           const activeSuspensions = discipline.activeSuspensions || 0;
 
           // Determine status based on discipline data
-          let status = "Active";
-          if (isSuspended || activeSuspensions > 0) {
-            status = "Suspended";
-          } else if (activeStrikes >= 3) {
-            status = "Suspended"; // Auto-suspended due to 3 strikes
-          } else if (activeStrikes > 0) {
-            status = `Strike ${activeStrikes}/3`;
+          let status = apiDisciplineStatus || "Active";
+          if (!apiDisciplineStatus) {
+            if (isSuspended || activeSuspensions > 0) {
+              status = "Suspended";
+            } else if (activeStrikes >= 3) {
+              status = "Suspended"; // Auto-suspended due to 3 strikes
+            } else if (activeStrikes > 0) {
+              status = `Strike ${activeStrikes}/3`;
+            }
           }
 
           setDisciplineData({
@@ -158,7 +171,7 @@ const BuyerProfileView: React.FC<BuyerProfileViewProps> = ({
           setDisciplineData({
             activeStrikes: 0,
             isSuspended: false,
-            status: "Active",
+            status: apiDisciplineStatus || "Active",
           });
         }
 
@@ -441,24 +454,24 @@ const BuyerProfileView: React.FC<BuyerProfileViewProps> = ({
                     {loading ? "..." : formatCurrency(walletBalanceNaira)}
                   </span>
                   <span className="text-sm font-semibold text-gray-900">
-                    {loading ? "..." : wallet.linkedBanksCount}
+                    {loading ? "..." : (selectedBuyer.linkedBank || (wallet.linkedBanksCount > 0 ? "Linked" : "None"))}
                   </span>
-                  <span className="text-sm font-semibold text-gray-900">
+                  <span className="text-sm font-semibold text-gray-900 truncate">
                     {loading ? "..." : orderStats.lastPurchase || "N/A"}
                   </span>
                 </div>
 
                 <div className="grid grid-cols-2 gap-2 pb-3 border-b border-gray-100">
                   <span className="text-xs text-gray-500">Verification</span>
-                  <span className="text-xs text-gray-500">2FA</span>
+                  <span className="text-xs text-gray-500">2FA Status</span>
                 </div>
 
                 <div className="grid grid-cols-2 gap-2">
-                  <span className="inline-block px-3 py-1 text-xs font-medium rounded bg-gray-100 text-gray-600 text-center">
-                    Unverified
+                  <span className={`inline-block px-3 py-1 text-xs font-medium rounded text-center ${selectedBuyer.isVerified ? "bg-green-50 text-green-700" : "bg-gray-100 text-gray-600"}`}>
+                    {selectedBuyer.isVerified ? "Verified" : "Unverified"}
                   </span>
-                  <span className="inline-block px-3 py-1 bg-red-50 text-red-700 text-xs font-medium rounded text-center">
-                    Disabled
+                  <span className={`inline-block px-3 py-1 text-xs font-medium rounded text-center ${selectedBuyer.has2FA ? "bg-green-50 text-green-700" : "bg-red-50 text-red-700"}`}>
+                    {selectedBuyer.has2FA ? "Enabled" : "Disabled"}
                   </span>
                 </div>
               </div>

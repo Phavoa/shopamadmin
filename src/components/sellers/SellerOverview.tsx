@@ -2,6 +2,7 @@ import React from "react";
 import { OrderStatistics } from "@/api/ordersApi";
 import { AnimatedWrapper } from "@/components/shared/AnimatedWrapper";
 import InfoItem from "./InfoItem";
+import { User } from "@/types/auth";
 
 interface SellerOverviewProps {
   orderStatistics: OrderStatistics | null;
@@ -10,6 +11,10 @@ interface SellerOverviewProps {
   activeListingsCount: number | null | undefined;
   productsLoading: boolean;
   productsError: string | Error | null | undefined;
+  user?: User | null;
+  lastLive?: string;
+  nextSlot?: string;
+  walletBalance?: string;
 }
 
 const SellerOverview: React.FC<SellerOverviewProps> = ({
@@ -19,6 +24,10 @@ const SellerOverview: React.FC<SellerOverviewProps> = ({
   activeListingsCount,
   productsLoading,
   productsError,
+  user,
+  lastLive,
+  nextSlot,
+  walletBalance,
 }) => {
   return (
     <AnimatedWrapper animation="fadeIn" delay={0.4}>
@@ -35,7 +44,7 @@ const SellerOverview: React.FC<SellerOverviewProps> = ({
           ) : (
             <>
               <InfoItem
-                text={`Total Orders: ${orderStatistics?.totalOrders || 0}`}
+                text={`Total Orders: ${user?.totalOrders ?? orderStatistics?.totalOrders ?? 0}`}
               />
               <InfoItem
                 text={`Completed Orders: ${
@@ -63,9 +72,9 @@ const SellerOverview: React.FC<SellerOverviewProps> = ({
               }
               return <InfoItem text={errorMessage} />;
             })()}
-          <InfoItem text={`Last Live: Aug 30, 2025 (Bronze)`} />
-          <InfoItem text={`Next Slot: Sep 6, 2025 14:00 (Bronze)`} />
-          <InfoItem text={`Wallet Balance: ₦340,000`} />
+          <InfoItem text={`Last Live: ${lastLive || "None"}`} />
+          <InfoItem text={`Next Slot: ${nextSlot || "None"}`} />
+          <InfoItem text={`Wallet Balance: ${walletBalance || "₦0"}`} />
         </div>
       </div>
     </AnimatedWrapper>

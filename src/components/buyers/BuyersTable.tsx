@@ -121,10 +121,10 @@ const getStatusStyle = (buyer: Buyer) => {
                   <CheckCircleIcon />
                 </TableCell>
                 <TableCell className="text-sm text-black">
-                  {formatRandomOrders()}
+                  {buyer.totalOrders || 0}
                 </TableCell>
                 <TableCell className="text-sm font-medium text-black">
-                  ₦{formatRandomAmount()}
+                  {buyer.totalSpend || "₦0"}
                 </TableCell>
                 <TableCell className="text-sm text-black">
                   {buyer.lastActivity}

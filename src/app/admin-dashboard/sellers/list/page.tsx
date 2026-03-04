@@ -72,6 +72,7 @@ const Page = () => {
   const [reason, setReason] = useState("");
   const [duration, setDuration] = useState("");
   const [actionLoading, setActionLoading] = useState(false);
+  const [sellerStats, setSellerStats] = useState<Record<string, { totalOrders: number; totalSales: number; lastLive?: string }>>({});
 
   // ✅ RTK Query mutations
   const [issueStrike] = useIssueStrikeMutation();
@@ -132,6 +133,16 @@ const Page = () => {
             status = `${activeStrikes}/3 strike${activeStrikes > 1 ? "s" : ""}`;
           }
 
+          const stats = sellerStats[seller.id];
+          const totalOrders = (user?.totalOrders || stats?.totalOrders) || 0;
+          
+          // Prioritize seller.totalSales for the "Wallet" column as per user feedback
+          const walletValueKobo = seller.totalSales ? parseInt(seller.totalSales) : 0;
+          const walletNaira = walletValueKobo / 100;
+          
+          // finalTotalSales combines background stats and direct field
+          const finalTotalSales = Math.max(walletNaira, stats?.totalSales || 0);
+
           return {
             id: seller.userId,
             name:
@@ -144,16 +155,16 @@ const Page = () => {
             shopName: seller.shopName,
             businessCategory: seller.businessCategory,
             location: `${seller.locationCity}, ${seller.locationState}`,
-            totalSales: seller.totalSales,
+            totalSales: finalTotalSales.toString(),
             createdAt: seller.createdAt,
             reliability: "95%",
             strikes: activeStrikes,
-            lastLive: "Aug 30 (Bronze, 210 viewers)",
-            walletBalance: "₦340,000",
-            totalOrders: 452,
-            completedOrders: 400,
+            lastLive: stats?.lastLive || "None",
+            walletBalance: `₦${finalTotalSales.toLocaleString(undefined, { minimumFractionDigits: 2 })}`,
+            totalOrders: totalOrders,
+            completedOrders: totalOrders, // Fallback if completed not available
             activeListings: 35,
-            nextSlot: "Sep 6, 2025 14:00 (Bronze)",
+            nextSlot: "None",
           };
         }
       );
@@ -172,6 +183,75 @@ const Page = () => {
     }
   };
 
+  // ✅ Fetch real seller stats in the background (Fallback for #19)
+  useEffect(() => {
+    const fetchAllSellerStats = async () => {
+      // Map seller.id to seller.userId for correct API lookups
+      const sellerToUserMap = Object.fromEntries(
+        sellers.map(s => [s.id, s.userId])
+      );
+
+      const missingIds = sellers
+        .map(s => s.id)
+        .filter(id => !sellerStats[id]);
+      
+      if (missingIds.length === 0) return;
+
+      const { getOrderStatisticsBySeller } = await import("@/api/ordersApi");
+      const { authStorage } = await import("@/lib/auth/authUtils");
+      
+      const results = await Promise.all(
+        missingIds.map(async (id) => {
+          const userId = sellerToUserMap[id];
+          let statsObj = { totalOrders: 0, totalSales: 0, lastLive: "None" };
+          try {
+            // 1. Order stats (Uses Seller Profile ID)
+            const resp = await getOrderStatisticsBySeller(id);
+            if (resp.success && resp.data) {
+              statsObj.totalOrders = resp.data.totalOrders;
+              statsObj.totalSales = resp.data.totalRevenue / 100;
+            }
+
+            // 2. Last Live (Uses User ID)
+            const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "https://shapam-ecomerce-backend.onrender.com/api";
+            const token = authStorage.getAccessToken();
+            
+            // Fetch ended streams for this seller via userId
+            const liveResp = await fetch(`${API_BASE_URL}/streams?sellerId=${userId}&status=ENDED&limit=1&sortBy=createdAt&sortDir=desc`, {
+              headers: { Authorization: `Bearer ${token}` }
+            });
+            
+            if (liveResp.ok) {
+              const liveData = await liveResp.json();
+              if (liveData.data?.items?.length > 0) {
+                const stream = liveData.data.items[0];
+                const dateRaw = stream.endedAt || stream.startedAt || stream.createdAt;
+                statsObj.lastLive = new Date(dateRaw).toLocaleDateString("en-NG", { 
+                  month: "short", 
+                  day: "numeric",
+                  year: "numeric"
+                });
+              }
+            }
+          } catch (err) {
+            console.error(`Failed seller stats for ${id}:`, err);
+          }
+          return { id, stats: statsObj };
+        })
+      );
+
+      const newStats = { ...sellerStats };
+      results.forEach(({ id, stats }) => {
+        if (id) newStats[id] = stats;
+      });
+      setSellerStats(newStats);
+    };
+
+    if (sellers.length > 0) {
+      fetchAllSellerStats();
+    }
+  }, [sellers]);
+
   useEffect(() => {
     const handleFocus = () => fetchSellers();
     window.addEventListener("focus", handleFocus);
@@ -186,6 +266,35 @@ const Page = () => {
     setPrevCursor(undefined);
     fetchSellers({ q: searchQuery || undefined });
   }, [searchQuery]);
+
+  // ✅ Memoized sellers for display, combining base data with background stats (#19)
+  const memoizedSellers = React.useMemo(() => {
+    return sellers.map(seller => {
+      const stats = sellerStats[seller.id];
+      if (!stats) return seller;
+
+      // Prioritize background stats for "Wallet" and "Last Live"
+      // totalSales is in kobo in stats
+      const walletNaira = stats.totalSales; 
+      
+      // If we already have a walletBalance in the base seller object, 
+      // check if it's 0 and if the stats have a better value
+      const currentWalletStr = seller.walletBalance?.replace(/[^\d.-]/g, "") || "0";
+      const currentWallet = parseFloat(currentWalletStr);
+      
+      const bestWallet = Math.max(currentWallet, walletNaira);
+
+      return {
+        ...seller,
+        lastLive: stats.lastLive !== "None" ? stats.lastLive : seller.lastLive,
+        walletBalance: bestWallet > 0 
+          ? `₦${bestWallet.toLocaleString(undefined, { minimumFractionDigits: 2 })}` 
+          : seller.walletBalance,
+        totalSales: bestWallet.toString(),
+        totalOrders: stats.totalOrders > 0 ? stats.totalOrders : seller.totalOrders,
+      };
+    });
+  }, [sellers, sellerStats]);
 
   // Re-derive seller statuses when discipline data loads
   useEffect(() => {
@@ -326,7 +435,7 @@ const Page = () => {
     <PageWrapper className="min-h-screen px-6 py-8">
       <AnimatedWrapper animation="fadeIn" delay={0.1}>
         <SellersTable
-          sellers={sellers}
+          sellers={memoizedSellers}
           fetchingSellers={fetchingSellers}
           error={error}
           onViewSeller={handleViewSeller}
@@ -337,7 +446,7 @@ const Page = () => {
 
       <AnimatedWrapper animation="slideUp" delay={0.2}>
         <SellersPagination
-          sellers={sellers}
+          sellers={memoizedSellers}
           hasNext={hasNext}
           hasPrev={hasPrev}
           onNextPage={handleNextPage}

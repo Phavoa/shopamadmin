@@ -18,10 +18,10 @@ interface DisplaySeller {
   strikes?: number;
   lastLive?: string;
   walletBalance?: string;
-  totalOrders?: number;
-  completedOrders?: number;
   activeListings?: number;
   nextSlot?: string;
+  // Enriched Profile Fields (#19)
+  disciplineStatus?: string;
 }
 
 interface SellerStatsGridProps {
@@ -82,7 +82,9 @@ const SellerStatsGrid: React.FC<SellerStatsGridProps> = ({
           <StatItem
             label="Total Sales"
             value={
-              displaySeller.totalSales
+              user?.totalSpent
+                ? `₦${(parseInt(user.totalSpent) / 100).toLocaleString()}`
+                : displaySeller.totalSales
                 ? `₦${parseFloat(displaySeller.totalSales).toLocaleString()}`
                 : "N/A"
             }
@@ -91,8 +93,8 @@ const SellerStatsGrid: React.FC<SellerStatsGridProps> = ({
           <StatItem
             label="Status"
             value={
-              displaySeller.status.charAt(0).toUpperCase() +
-              displaySeller.status.slice(1)
+              (user?.disciplineStatus || displaySeller.status).charAt(0).toUpperCase() +
+              (user?.disciplineStatus || displaySeller.status).slice(1)
             }
             className="col-span-2"
           />

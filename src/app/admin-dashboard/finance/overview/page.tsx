@@ -48,9 +48,9 @@ export default function FinanceOverviewPage() {
   const kpiCards = [
     {
       title: "GMV (Today)",
-      value: kpiLoading ? "..." : formatNaira(stats?.gmv.today),
-      subtitle: kpiLoading ? "" : formatPercent(stats?.gmv.percentChange ?? 0),
-      subtitleColor: (stats?.gmv.percentChange ?? 0) >= 0 ? "#10B981" : "#EF4444",
+      value: kpiLoading ? "..." : formatNaira(stats?.gmv?.today),
+      subtitle: kpiLoading ? "" : formatPercent(stats?.gmv?.percentChange ?? 0),
+      subtitleColor: (stats?.gmv?.percentChange ?? 0) >= 0 ? "#10B981" : "#EF4444",
     },
     {
       title: "Escrow Balance",
@@ -66,7 +66,7 @@ export default function FinanceOverviewPage() {
     },
     {
       title: "ShopAM Revenue",
-      value: kpiLoading ? "..." : formatNaira(stats?.shopamRevenue.total),
+      value: kpiLoading ? "..." : formatNaira(stats?.shopamRevenue?.total),
       subtitle: "Commissions + fees",
       subtitleColor: "#6B7280",
     },
@@ -98,7 +98,7 @@ export default function FinanceOverviewPage() {
         { type: "PAYOUT",   title: "Payouts Pending",    subtitle: `${formatNaira(stats?.payoutsPending)} awaiting processing`,              actionLabel: "Review" },
         { type: "ESCROW",   title: "Escrow Balance",     subtitle: `Current balance: ${formatNaira(stats?.escrowBalance)}`,                  actionLabel: "View"   },
         { type: "VAT",      title: "VAT Revenue",        subtitle: `Collected: ${formatNaira(stats?.vatRevenue)}`,                           actionLabel: "Details"},
-        { type: "LIVE",     title: "Active Livestreams", subtitle: `${stats?.livestreams.activeCount ?? 0} live · ${stats?.livestreams.totalViewers ?? 0} viewers`, actionLabel: "Monitor"},
+        { type: "LIVE",     title: "Active Livestreams", subtitle: `${stats?.livestreams?.activeCount ?? 0} live · ${stats?.livestreams?.totalViewers ?? 0} viewers`, actionLabel: "Monitor"},
       ];
 
   const isChartLoading = overviewLoading || overviewFetching;
@@ -144,8 +144,9 @@ export default function FinanceOverviewPage() {
         <div
           style={{
             display: "flex",
-            width: "1230px",
-            padding: "20px",
+            width: "100%",
+            maxWidth: "1230px",
+            padding: "24px",
             flexDirection: "column",
             alignItems: "flex-start",
             gap: "24px",
@@ -177,10 +178,12 @@ export default function FinanceOverviewPage() {
           <div
             style={{
               display: "flex",
-              justifyContent: "center",
+              justifyContent: "space-around",
               alignItems: "flex-end",
               width: "100%",
-              height: "380px",
+              height: "320px",
+              gap: "12px",
+              paddingBottom: "8px",
             }}
           >
             {/* Loading skeleton */}
@@ -210,21 +213,22 @@ export default function FinanceOverviewPage() {
               <div
                 key={index}
                 className="flex flex-col items-center group"
-                style={{ flex: 1, position: "relative" }}
+                style={{ flex: "0 1 60px", position: "relative" }}
                 title={formatNaira(bar.raw.toString())}
               >
                 <div className="w-full flex items-end justify-center" style={{ height: "240px" }}>
                   <div
                     style={{
-                      width: "50%",
+                      width: "32px",
                       height: `${bar.heightPct}%`,
                       background: "#0066FF",
-                      borderRadius: "4px 4px 0 0",
+                      borderRadius: "6px 6px 0 0",
                       transition: "height 0.5s ease",
                     }}
+                    className="hover:opacity-80 cursor-pointer"
                   />
                 </div>
-                <p className="text-xs text-gray-600 mt-2">{bar.label}</p>
+                <p className="text-[10px] font-medium text-gray-500 mt-3">{bar.label}</p>
               </div>
             ))}
 
@@ -287,16 +291,16 @@ export default function FinanceOverviewPage() {
                   : (
                     // Fallback to existing financials-API data when overview has no payoutVolume
                     (() => {
-                      const gmvToday = Number(stats?.gmv.today ?? 0);
-                      const gmvYesterday = Number(stats?.gmv.yesterday ?? 0);
+                      const gmvToday = Number(stats?.gmv?.today ?? 0);
+                      const gmvYesterday = Number(stats?.gmv?.yesterday ?? 0);
                       const payoutsPending = Number(stats?.payoutsPending ?? 0);
-                      const livestreamRevenue = Number(stats?.livestreamRevenue.totalAmount ?? 0);
+                      const livestreamRevenue = Number(stats?.livestreamRevenue?.totalAmount ?? 0);
                       const maxVal = Math.max(gmvToday, gmvYesterday, payoutsPending, livestreamRevenue, 1);
                       return [
-                        { label: "GMV Today",  width: Math.round((gmvToday / maxVal) * 100),          amount: formatNaira(stats?.gmv.today) },
-                        { label: "GMV Yest.",  width: Math.round((gmvYesterday / maxVal) * 100),       amount: formatNaira(stats?.gmv.yesterday) },
+                        { label: "GMV Today",  width: Math.round((gmvToday / maxVal) * 100),          amount: formatNaira(stats?.gmv?.today) },
+                        { label: "GMV Yest.",  width: Math.round((gmvYesterday / maxVal) * 100),       amount: formatNaira(stats?.gmv?.yesterday) },
                         { label: "Pending",    width: Math.round((payoutsPending / maxVal) * 100),     amount: formatNaira(stats?.payoutsPending) },
-                        { label: "Livestream", width: Math.round((livestreamRevenue / maxVal) * 100),  amount: formatNaira(stats?.livestreamRevenue.totalAmount) },
+                        { label: "Livestream", width: Math.round((livestreamRevenue / maxVal) * 100),  amount: formatNaira(stats?.livestreamRevenue?.totalAmount) },
                       ].map((row, i) => (
                         <div key={i} className="flex items-center gap-4">
                           <p className="text-sm text-gray-700 w-20">{row.label}</p>
