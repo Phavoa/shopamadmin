@@ -2,11 +2,22 @@ import { createApi, fetchBaseQuery } from "@reduxjs/toolkit/query/react";
 import type { ApiResponse } from "../types/auth";
 import { authStorage } from "@/lib/auth/authUtils";
 
-export type DisciplineRole = "BUYER" | "SELLER";
-export type DisciplineType = "STRIKE" | "SUSPENSION" | "APPEAL";
+// ─── Enums ───────────────────────────────────────────────────────────────────
+export type DisciplineRole = "BUYER" | "SELLER" | "ADMIN";
+export type DisciplineType = "STRIKE" | "SUSPENSION" | "WARNING" | "APPEAL";
 export type DisciplineStatus = "ACTIVE" | "RESOLVED" | "EXPIRED";
-export type AppealStatus = "APPROVED" | "REJECTED";
+export type AppealStatus = "APPROVED" | "REJECTED" | "INFO_REQUESTED" | "PENDING";
 
+// ─── Audit Trail Entry ────────────────────────────────────────────────────────
+export interface AuditTrailEntry {
+  id: string;
+  actorName: string | null;
+  event: string;
+  note: string;
+  createdAt: string;
+}
+
+// ─── Core Discipline Record (list response shape) ─────────────────────────────
 export interface DisciplineRecord {
   id: string;
   userId: string;
@@ -19,13 +30,14 @@ export interface DisciplineRecord {
   suspendedUntil: string | null;
   durationDays: number | null;
   appealText: string | null;
-  appealStatus: string | null;
+  appealStatus: AppealStatus | null;
   appealResponse: string | null;
   adminNote: string | null;
-  evidence?: string[];
+  evidence?: string[];         // evidence submitted with appeal
+  appealEvidence?: string[];   // alias used in case detail response
   createdAt: string;
   updatedAt: string;
-  // populated fields — only present if backend populates them
+  // Populated if ?populate=user was sent OR from case detail
   user?: {
     id: string;
     firstName: string;
@@ -34,8 +46,13 @@ export interface DisciplineRecord {
     phone?: string;
     imageUrl?: string;
   };
+  // Case detail only fields
+  sellerName?: string;
+  sellerEmail?: string;
+  auditTrail?: AuditTrailEntry[];
 }
 
+// ─── Paginated list wrapper ───────────────────────────────────────────────────
 export interface PaginatedDiscipline {
   items: DisciplineRecord[];
   nextCursor: string | null;
@@ -43,12 +60,15 @@ export interface PaginatedDiscipline {
   hasNext: boolean;
   hasPrev: boolean;
   pageSize: number;
+  total?: number;
 }
 
+// ─── Query Params ─────────────────────────────────────────────────────────────
 export interface ListDisciplineParams {
   populate?: string[];
   q?: string;
   limit?: number;
+  page?: number;
   after?: string;
   before?: string;
   sortBy?: "createdAt" | "name";
@@ -59,20 +79,30 @@ export interface ListDisciplineParams {
   userId?: string;
 }
 
+// ─── Request payload types ────────────────────────────────────────────────────
+export interface IssueWarningRequest { role: DisciplineRole; reason: string; }
 export interface IssueStrikeRequest { role: DisciplineRole; reason: string; }
 export interface IssueSuspensionRequest { role: DisciplineRole; durationDays: number; reason: string; }
 export interface ReinstateRequest { reason: string; }
 export interface ClearStrikeRequest { reason: string; }
 export interface ExtendSuspensionRequest { additionalDays: number; reason: string; }
 export interface SubmitAppealRequest { appealText: string; evidence?: string[]; }
-export interface AppealDecisionRequest { appealStatus: AppealStatus; adminNote: string; }
+export interface AppealDecisionRequest {
+  appealStatus: "APPROVED" | "REJECTED" | "INFO_REQUESTED";
+  adminNote: string;
+}
+export interface SaveDraftRequest { adminNote: string; }
+export interface RequestEvidenceRequest { message: string; }
 
+// ─── Base URL ─────────────────────────────────────────────────────────────────
 const API_BASE_URL =
   process.env.NEXT_PUBLIC_API_URL ||
   "https://shapam-ecomerce-backend.onrender.com/api";
 
-// ─── Helper: fetch a single user by ID (used when populate doesn't return user) ─
-export const fetchUserById = async (userId: string): Promise<{ firstName: string; lastName: string; email: string }> => {
+// ─── Helper: fetch a single user by ID (kept for backward compat) ─────────────
+export const fetchUserById = async (
+  userId: string
+): Promise<{ firstName: string; lastName: string; email: string }> => {
   const token = authStorage.getAccessToken();
   try {
     const res = await fetch(`${API_BASE_URL}/user/${userId}`, {
@@ -94,22 +124,20 @@ export const fetchUserById = async (userId: string): Promise<{ firstName: string
   }
 };
 
-/**
- * Helper to fetch a user's discipline summary from the raw /discipline endpoint.
- * This aggregates active strikes and suspensions.
- */
+// ─── Helper: aggregate discipline summary for a user ─────────────────────────
 export const getUserDisciplineSummary = async (userId: string) => {
   const token = authStorage.getAccessToken();
   try {
-    const res = await fetch(`${API_BASE_URL}/discipline?userId=${userId}&limit=50`, {
-      headers: {
-        "Content-Type": "application/json",
-        ...(token && { Authorization: `Bearer ${token}` }),
-      },
-    });
-
+    const res = await fetch(
+      `${API_BASE_URL}/discipline?userId=${userId}&limit=50`,
+      {
+        headers: {
+          "Content-Type": "application/json",
+          ...(token && { Authorization: `Bearer ${token}` }),
+        },
+      }
+    );
     if (!res.ok) throw new Error("Failed to fetch discipline records");
-    
     const data = await res.json();
     const records: DisciplineRecord[] = data.data.items || [];
 
@@ -117,30 +145,26 @@ export const getUserDisciplineSummary = async (userId: string) => {
       (r) => r.type === "STRIKE" && r.status === "ACTIVE"
     ).length;
 
-    // A suspension is considered active if:
-    // 1. Its status is "ACTIVE"
-    // 2. OR it is under appeal but the appeal hasn't been APPROVED yet
     const activeSuspensionsRecords = records.filter(
-      (r) => r.type === "SUSPENSION" && (r.status === "ACTIVE" || (r.appealStatus !== "APPROVED" && r.appealText))
+      (r) =>
+        r.type === "SUSPENSION" &&
+        (r.status === "ACTIVE" ||
+          (r.appealStatus !== "APPROVED" && r.appealText))
     );
 
     return {
       activeStrikes,
       isSuspended: activeSuspensionsRecords.length > 0,
       activeSuspensions: activeSuspensionsRecords.length,
-      records
+      records,
     };
   } catch (err) {
     console.error("Error in getUserDisciplineSummary:", err);
-    return {
-      activeStrikes: 0,
-      isSuspended: false,
-      activeSuspensions: 0,
-      records: []
-    };
+    return { activeStrikes: 0, isSuspended: false, activeSuspensions: 0, records: [] };
   }
 };
 
+// ─── Base query with token refresh ───────────────────────────────────────────
 const baseQuery = fetchBaseQuery({
   baseUrl: API_BASE_URL,
   prepareHeaders: (headers) => {
@@ -167,7 +191,10 @@ const baseQueryWithReauth = async (
           extraOptions
         );
         if (refreshResult?.data && typeof refreshResult.data === "object") {
-          const refreshData = refreshResult.data as { accessToken: string; refreshToken?: string };
+          const refreshData = refreshResult.data as {
+            accessToken: string;
+            refreshToken?: string;
+          };
           authStorage.setTokens(refreshData.accessToken, refreshData.refreshToken);
           result = await baseQuery(args, api, extraOptions);
           return result;
@@ -181,49 +208,185 @@ const baseQueryWithReauth = async (
   return result;
 };
 
+// ─── RTK Query API ────────────────────────────────────────────────────────────
 export const disciplineApi = createApi({
   reducerPath: "disciplineApi",
   baseQuery: baseQueryWithReauth,
   tagTypes: ["Discipline"],
   endpoints: (builder) => ({
-    getDisciplineRecords: builder.query<ApiResponse<PaginatedDiscipline>, ListDisciplineParams>({
+
+    // ── 8. List records ────────────────────────────────────────────────────
+    getDisciplineRecords: builder.query<
+      ApiResponse<PaginatedDiscipline>,
+      ListDisciplineParams
+    >({
       query: (params = {}) => ({ url: "/discipline", method: "GET", params }),
       providesTags: (result) =>
         result
-          ? [...result.data.items.map(({ id }) => ({ type: "Discipline" as const, id })), { type: "Discipline" as const, id: "LIST" }]
+          ? [
+              ...result.data.items.map(({ id }) => ({ type: "Discipline" as const, id })),
+              { type: "Discipline" as const, id: "LIST" },
+            ]
           : [{ type: "Discipline" as const, id: "LIST" }],
     }),
+
+    // ── 15. Single case detail (with sellerName, sellerEmail, auditTrail) ──
+    getDisciplineRecord: builder.query<ApiResponse<DisciplineRecord>, string>({
+      query: (actionId) => ({ url: `/discipline/${actionId}`, method: "GET" }),
+      providesTags: (result, error, actionId) => [{ type: "Discipline", id: actionId }],
+    }),
+
+    // ── Summary (existing) ─────────────────────────────────────────────────
     getDisciplineSummary: builder.query<ApiResponse<Record<string, unknown>>, void>({
       query: () => ({ url: "/discipline/summary", method: "GET" }),
       providesTags: ["Discipline"],
     }),
-    issueStrike: builder.mutation<ApiResponse<string>, { userId: string; data: IssueStrikeRequest }>({
-      query: ({ userId, data }) => ({ url: `/discipline/${userId}/strike`, method: "POST", body: data }),
+
+    // ── 1. Issue Warning ───────────────────────────────────────────────────
+    issueWarning: builder.mutation<
+      ApiResponse<DisciplineRecord>,
+      { userId: string; data: IssueWarningRequest }
+    >({
+      query: ({ userId, data }) => ({
+        url: `/discipline/${userId}/warning`,
+        method: "POST",
+        body: data,
+      }),
       invalidatesTags: [{ type: "Discipline", id: "LIST" }],
     }),
-    issueSuspension: builder.mutation<ApiResponse<string>, { userId: string; data: IssueSuspensionRequest }>({
-      query: ({ userId, data }) => ({ url: `/discipline/${userId}/suspension`, method: "POST", body: data }),
+
+    // ── Issue Strike ───────────────────────────────────────────────────────
+    issueStrike: builder.mutation<
+      ApiResponse<string>,
+      { userId: string; data: IssueStrikeRequest }
+    >({
+      query: ({ userId, data }) => ({
+        url: `/discipline/${userId}/strike`,
+        method: "POST",
+        body: data,
+      }),
       invalidatesTags: [{ type: "Discipline", id: "LIST" }],
     }),
-    reinstateSuspension: builder.mutation<ApiResponse<string>, { actionId: string; data: ReinstateRequest }>({
-      query: ({ actionId, data }) => ({ url: `/discipline/${actionId}/suspension/reinstate`, method: "POST", body: data }),
+
+    // ── 9. Issue Suspension ────────────────────────────────────────────────
+    issueSuspension: builder.mutation<
+      ApiResponse<string>,
+      { userId: string; data: IssueSuspensionRequest }
+    >({
+      query: ({ userId, data }) => ({
+        url: `/discipline/${userId}/suspension`,
+        method: "POST",
+        body: data,
+      }),
       invalidatesTags: [{ type: "Discipline", id: "LIST" }],
     }),
-    clearStrike: builder.mutation<ApiResponse<string>, { actionId: string; data: ClearStrikeRequest }>({
-      query: ({ actionId, data }) => ({ url: `/discipline/${actionId}/strike/clear`, method: "POST", body: data }),
-      invalidatesTags: (result, error, { actionId }) => [{ type: "Discipline", id: actionId }, { type: "Discipline", id: "LIST" }],
+
+    // ── 10. Reinstate Suspension ───────────────────────────────────────────
+    reinstateSuspension: builder.mutation<
+      ApiResponse<string>,
+      { actionId: string; data: ReinstateRequest }
+    >({
+      query: ({ actionId, data }) => ({
+        url: `/discipline/${actionId}/suspension/reinstate`,
+        method: "POST",
+        body: data,
+      }),
+      invalidatesTags: (result, error, { actionId }) => [
+        { type: "Discipline", id: actionId },
+        { type: "Discipline", id: "LIST" },
+      ],
     }),
-    extendSuspension: builder.mutation<ApiResponse<string>, { actionId: string; data: ExtendSuspensionRequest }>({
-      query: ({ actionId, data }) => ({ url: `/discipline/${actionId}/suspension/extend`, method: "PATCH", body: data }),
-      invalidatesTags: (result, error, { actionId }) => [{ type: "Discipline", id: actionId }, { type: "Discipline", id: "LIST" }],
+
+    // ── 11. Extend Suspension ──────────────────────────────────────────────
+    extendSuspension: builder.mutation<
+      ApiResponse<string>,
+      { actionId: string; data: ExtendSuspensionRequest }
+    >({
+      query: ({ actionId, data }) => ({
+        url: `/discipline/${actionId}/suspension/extend`,
+        method: "PATCH",
+        body: data,
+      }),
+      invalidatesTags: (result, error, { actionId }) => [
+        { type: "Discipline", id: actionId },
+        { type: "Discipline", id: "LIST" },
+      ],
     }),
-    submitAppeal: builder.mutation<ApiResponse<string>, { actionId: string; data: SubmitAppealRequest }>({
-      query: ({ actionId, data }) => ({ url: `/discipline/${actionId}/appeal`, method: "POST", body: data }),
+
+    // ── 12. Clear Strike ───────────────────────────────────────────────────
+    clearStrike: builder.mutation<
+      ApiResponse<string>,
+      { actionId: string; data: ClearStrikeRequest }
+    >({
+      query: ({ actionId, data }) => ({
+        url: `/discipline/${actionId}/strike/clear`,
+        method: "POST",
+        body: data,
+      }),
+      invalidatesTags: (result, error, { actionId }) => [
+        { type: "Discipline", id: actionId },
+        { type: "Discipline", id: "LIST" },
+      ],
+    }),
+
+    // ── 13. Submit Appeal ──────────────────────────────────────────────────
+    submitAppeal: builder.mutation<
+      ApiResponse<string>,
+      { actionId: string; data: SubmitAppealRequest }
+    >({
+      query: ({ actionId, data }) => ({
+        url: `/discipline/${actionId}/appeal`,
+        method: "POST",
+        body: data,
+      }),
       invalidatesTags: [{ type: "Discipline", id: "LIST" }],
     }),
-    appealDecision: builder.mutation<ApiResponse<string>, { actionId: string; data: AppealDecisionRequest }>({
-      query: ({ actionId, data }) => ({ url: `/discipline/${actionId}/appeal/decision`, method: "POST", body: data }),
-      invalidatesTags: (result, error, { actionId }) => [{ type: "Discipline", id: actionId }, { type: "Discipline", id: "LIST" }],
+
+    // ── 16. Decide Appeal ──────────────────────────────────────────────────
+    appealDecision: builder.mutation<
+      ApiResponse<string>,
+      { actionId: string; data: AppealDecisionRequest }
+    >({
+      query: ({ actionId, data }) => ({
+        url: `/discipline/${actionId}/appeal/decision`,
+        method: "POST",
+        body: data,
+      }),
+      invalidatesTags: (result, error, { actionId }) => [
+        { type: "Discipline", id: actionId },
+        { type: "Discipline", id: "LIST" },
+      ],
+    }),
+
+    // ── 17. Save Draft Notes ───────────────────────────────────────────────
+    saveDraftNotes: builder.mutation<
+      ApiResponse<DisciplineRecord>,
+      { actionId: string; data: SaveDraftRequest }
+    >({
+      query: ({ actionId, data }) => ({
+        url: `/discipline/${actionId}/appeal/draft`,
+        method: "PATCH",
+        body: data,
+      }),
+      invalidatesTags: (result, error, { actionId }) => [
+        { type: "Discipline", id: actionId },
+      ],
+    }),
+
+    // ── 18. Request More Evidence ──────────────────────────────────────────
+    requestMoreEvidence: builder.mutation<
+      ApiResponse<DisciplineRecord>,
+      { actionId: string; data: RequestEvidenceRequest }
+    >({
+      query: ({ actionId, data }) => ({
+        url: `/discipline/${actionId}/appeal/request-evidence`,
+        method: "POST",
+        body: data,
+      }),
+      invalidatesTags: (result, error, { actionId }) => [
+        { type: "Discipline", id: actionId },
+        { type: "Discipline", id: "LIST" },
+      ],
     }),
   }),
 });
@@ -231,12 +394,17 @@ export const disciplineApi = createApi({
 export const {
   useGetDisciplineRecordsQuery,
   useLazyGetDisciplineRecordsQuery,
+  useGetDisciplineRecordQuery,
+  useLazyGetDisciplineRecordQuery,
   useGetDisciplineSummaryQuery,
+  useIssueWarningMutation,
   useIssueStrikeMutation,
   useIssueSuspensionMutation,
   useReinstateSuspensionMutation,
-  useClearStrikeMutation,
   useExtendSuspensionMutation,
+  useClearStrikeMutation,
   useSubmitAppealMutation,
   useAppealDecisionMutation,
+  useSaveDraftNotesMutation,
+  useRequestMoreEvidenceMutation,
 } = disciplineApi;

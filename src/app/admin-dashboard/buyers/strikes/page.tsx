@@ -40,6 +40,7 @@ const BuyerStrikesPage: React.FC = () => {
     sortBy: "createdAt",
     sortDir: "desc",
     limit: 200,
+    populate: ["user"],
   });
 
   const [issueSuspension, { isLoading: suspending }] = useIssueSuspensionMutation();
@@ -50,14 +51,13 @@ const BuyerStrikesPage: React.FC = () => {
   const actionLoading = suspending || clearing || reinstating || extending;
   const records = data?.data?.items ?? [];
 
-  // Build grouped + user-enriched strikes
+  // Build grouped strikes — user data comes from populate:["user"] in the query
   useEffect(() => {
     if (!records.length) { setStrikes([]); return; }
 
     const build = async () => {
       setBuildingStrikes(true);
 
-      // Group by userId
       const userMap = new Map<string, DisciplineRecord[]>();
       records.forEach((r) => {
         if (!userMap.has(r.userId)) userMap.set(r.userId, []);
@@ -75,19 +75,16 @@ const BuyerStrikesPage: React.FC = () => {
 
         if (!target) continue;
 
-        // ✅ Try populated user first, fall back to fetchUserById
-        let firstName = target.user?.firstName;
-        let lastName = target.user?.lastName;
-        let email = target.user?.email ?? "N/A";
+        // Try: sellerName from detail API, then populated user, then fetch individually
+        let name  = target.sellerName ?? (target.user ? `${target.user.firstName} ${target.user.lastName}` : null);
+        let email = target.sellerEmail ?? target.user?.email ?? null;
 
-        if (!firstName || !lastName) {
+        if (!name || !email) {
           const fetched = await fetchUserById(userId);
-          firstName = fetched.firstName;
-          lastName = fetched.lastName;
-          email = fetched.email;
+          name  = name  ?? `${fetched.firstName} ${fetched.lastName}`;
+          email = email ?? fetched.email;
         }
 
-        const name = `${firstName} ${lastName}`;
         const status = activeSuspension
           ? "Suspended"
           : `${activeStrikes.length}/3 Strike${activeStrikes.length > 1 ? "s" : ""}`;

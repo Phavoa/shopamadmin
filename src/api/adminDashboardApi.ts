@@ -36,7 +36,53 @@ export interface FinancialStats {
   };
 }
 
-// ─── Base setup (mirrors adminApi pattern) ────────────────────────────────────
+// ─── Finance Overview VM (endpoint 20) ───────────────────────────────────────
+
+export type FinanceOverviewPeriod = "today" | "week" | "month" | "year" | "all" | "custom";
+
+export interface FinanceOverviewParams {
+  period?: FinanceOverviewPeriod;
+  from?: string; // ISO date, for custom period
+  to?: string;   // ISO date, for custom period
+}
+
+export interface TrendPoint {
+  label: string;
+  value: string; // amount in kobo
+}
+
+export interface FinanceAlert {
+  type: string;
+  title: string;
+  subtitle: string;
+  actionLabel: string;
+}
+
+export interface FinanceOverviewVM {
+  gmvToday: {
+    amount: string;
+    percentChange: number;
+    comparedToLabel: string;
+  };
+  escrowBalance: {
+    amount: string;
+    subtitle: string;
+  };
+  payoutsProcessed: {
+    count: number;
+    totalAmount: string;
+    periodLabel: string;
+  };
+  shopamRevenue: {
+    amount: string;
+    subtitle: string;
+  };
+  revenueTrend: TrendPoint[];   // daily/weekly data points for the bar chart
+  payoutVolume: TrendPoint[];   // weekly payout volume data
+  alerts: FinanceAlert[];
+}
+
+// ─── Base setup ───────────────────────────────────────────────────────────────
 
 const API_BASE_URL =
   process.env.NEXT_PUBLIC_API_URL ||
@@ -96,7 +142,7 @@ const baseQueryWithReauth = async (
 export const adminDashboardApi = createApi({
   reducerPath: "adminDashboardApi",
   baseQuery: baseQueryWithReauth,
-  tagTypes: ["FinancialStats"],
+  tagTypes: ["FinancialStats", "FinanceOverview"],
   endpoints: (builder) => ({
 
     // GET /api/admin/dashboard/financials
@@ -108,10 +154,22 @@ export const adminDashboardApi = createApi({
       providesTags: ["FinancialStats"],
     }),
 
+    // GET /api/admin/dashboard/finance-overview  (endpoint 20)
+    getFinanceOverview: builder.query<ApiResponse<FinanceOverviewVM>, FinanceOverviewParams>({
+      query: (params = {}) => ({
+        url: "/admin/dashboard/finance-overview",
+        method: "GET",
+        params,
+      }),
+      providesTags: ["FinanceOverview"],
+    }),
+
   }),
 });
 
 export const {
   useGetFinancialStatsQuery,
   useLazyGetFinancialStatsQuery,
+  useGetFinanceOverviewQuery,
+  useLazyGetFinanceOverviewQuery,
 } = adminDashboardApi;
