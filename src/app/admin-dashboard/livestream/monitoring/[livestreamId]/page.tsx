@@ -2,7 +2,11 @@
 
 import React, { useMemo } from "react";
 import { useParams, useRouter } from "next/navigation";
-import { useGetLiveStreamByIdQuery } from "@/api/liveStreamApi";
+import {
+  useGetLiveStreamByIdQuery,
+  useGetStreamInsightsQuery,
+  useGetStreamDetailsQuery,
+} from "@/api/liveStreamApi";
 import VideoPlayer from "@/components/livestream/VideoPlayer";
 import { useAdminLivestreamMonitor } from "@/hooks/useAdminLivestreamMonitor";
 import type { ActivityItem, AuctionState } from "@/types/monitoring";
@@ -106,6 +110,16 @@ export default function WatchLivePage() {
   // ── WebSocket: real-time monitoring (read-only) ────────────────────────────
   const { activities, auctionState, viewerCount, isConnected } =
     useAdminLivestreamMonitor(livestreamId);
+
+  // ── Endpoint 3: Post-stream insights ──────────────────────────────────────
+  const { data: insightsData, isLoading: insightsLoading } =
+    useGetStreamInsightsQuery(livestreamId, { skip: !livestreamId });
+  const insights = insightsData?.data;
+
+  // ── Endpoint 4: Stream details + seller metrics ───────────────────────────
+  const { data: detailsData, isLoading: detailsLoading } =
+    useGetStreamDetailsQuery(livestreamId, { skip: !livestreamId });
+  const details = detailsData?.data;
 
   // Format price helper — values from server are in kobo, divide by 100 for Naira
   const fmt = (koboStr: string) => {
@@ -294,6 +308,7 @@ export default function WatchLivePage() {
             </div>
           </div>
 
+          {/* Insights card */}
           <div className="mt-6">
             <div
               className="bg-white p-5"
@@ -306,40 +321,102 @@ export default function WatchLivePage() {
                 Insights
               </h2>
 
-              <div className="gap-6">
-                <div>
-                  <p className="text-sm text-[rgba(0,0,0,0.7)]">
-                    Total Sales this Stream
-                  </p>
-                  <p className="font-semibold text-[rgba(0,0,0,0.9)] mt-1">
-                    ₦620,000
-                  </p>
+              {insightsLoading ? (
+                <Loader2 className="h-5 w-5 animate-spin text-gray-400" />
+              ) : insights ? (
+                <div className="gap-6 space-y-3">
+                  <div>
+                    <p className="text-sm text-[rgba(0,0,0,0.7)]">
+                      Total Sales this Stream
+                    </p>
+                    <p className="font-semibold text-[rgba(0,0,0,0.9)] mt-1">
+                      {fmt(insights.totalSales)}
+                    </p>
+                  </div>
+                  <div>
+                    <p className="text-sm text-[rgba(0,0,0,0.7)]">
+                      Products Sold
+                    </p>
+                    <p className="font-semibold text-[rgba(0,0,0,0.9)] mt-1">
+                      {insights.productsSold}
+                    </p>
+                  </div>
+                  <div>
+                    <p className="text-sm text-[rgba(0,0,0,0.7)]">Engagement</p>
+                    <p className="font-semibold text-[rgba(0,0,0,0.9)] mt-1">
+                      Avg watch {insights.avgWatchTimeMinutes}m | Peak{" "}
+                      {insights.peakWatchers} viewers
+                    </p>
+                  </div>
+                  {insights.topBuyers.length > 0 && (
+                    <div>
+                      <p className="text-sm font-semibold text-[rgba(0,0,0,0.9)] mb-1">
+                        Top Buyers
+                      </p>
+                      <ol className="text-sm text-[rgba(0,0,0,0.7)] space-y-1">
+                        {insights.topBuyers.map((buyer, idx) => (
+                          <li key={idx}>
+                            {idx + 1}. {buyer.name} — {fmt(buyer.amountSpent)}
+                          </li>
+                        ))}
+                      </ol>
+                    </div>
+                  )}
                 </div>
-                <div>
-                  <p className="text-sm text-[rgba(0,0,0,0.7)]">
-                    Products Sold
-                  </p>
-                  <p className="font-semibold text-[rgba(0,0,0,0.9)] mt-1">
-                    12
-                  </p>
-                </div>
-                <div>
-                  <p className="text-sm text-[rgba(0,0,0,0.7)]">Engagement</p>
-                  <p className="font-semibold text-[rgba(0,0,0,0.9)] mt-1">
-                    Avg watch 14m | Peak {viewerCount > 0 ? viewerCount : 340}{" "}
-                    viewers
-                  </p>
-                </div>
-                <div>
-                  <p className="text-sm font-semibold text-[rgba(0,0,0,0.9)] mb-1">
-                    Top Buyers
-                  </p>
-                  <ol className="text-sm text-[rgba(0,0,0,0.7)] space-y-1">
-                    <li>1. John B. — ₦320,000</li>
-                    <li>2. Ahmed H. — ₦120,000</li>
-                    <li>3. Mary K. — ₦30,000</li>
-                  </ol>
-                </div>
+              ) : (
+                <p className="text-sm text-gray-400">
+                  {stream?.status === "ENDED"
+                    ? "Insights unavailable"
+                    : "Insights available after stream ends"}
+                </p>
+              )}
+
+              {/* Stream Details (Seller Metrics) — Endpoint 4 */}
+              <div className="mt-6 pt-5 border-t border-gray-100">
+                <h3 className="text-base font-semibold text-[rgba(0,0,0,0.9)] mb-3">
+                  Seller Metrics
+                </h3>
+                {detailsLoading ? (
+                  <Loader2 className="h-5 w-5 animate-spin text-gray-400" />
+                ) : details ? (
+                  <div className="space-y-2 text-sm">
+                    <div className="flex justify-between">
+                      <span className="text-[rgba(0,0,0,0.6)]">Reliability Score</span>
+                      <span className="font-semibold">{details.reliabilityScore}%</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-[rgba(0,0,0,0.6)]">Queued Products</span>
+                      <span className="font-semibold">{details.queuedProducts}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-[rgba(0,0,0,0.6)]">No-Shows</span>
+                      <span className="font-semibold">{details.lastNoShow}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-[rgba(0,0,0,0.6)]">Active Strikes</span>
+                      <span className={`font-semibold ${
+                        details.activeStrikes > 0 ? "text-red-600" : "text-green-600"
+                      }`}>
+                        {details.activeStrikes}
+                      </span>
+                    </div>
+                    {details.standbySellers.length > 0 && (
+                      <div className="pt-2">
+                        <p className="text-xs font-semibold text-[rgba(0,0,0,0.7)] mb-1">
+                          Standby Sellers
+                        </p>
+                        {details.standbySellers.map((s) => (
+                          <div key={s.id} className="flex items-center justify-between py-1">
+                            <span className="text-[rgba(0,0,0,0.7)]">{s.shopName}</span>
+                            <span className="text-xs text-gray-400">{s.reliabilityScore}%</span>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                ) : (
+                  <p className="text-sm text-gray-400">No seller data available</p>
+                )}
               </div>
             </div>
           </div>

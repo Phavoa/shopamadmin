@@ -22,6 +22,8 @@ import { filesApi } from "../../api/filesApi";
 import { revenueApi } from "../../api/revenueApi";
 import { livestreamCategoriesApi } from "../../api/livestreamCategoriesApi";
 import { systemAlertsApi } from "../../api/systemAlertsApi";
+import { revenueReportsApi } from "../../api/revenueReportsApi";
+import { weeklySummaryApi } from "../../api/weeklySummaryApi";
 import {
   FLUSH,
   REHYDRATE,
@@ -63,6 +65,8 @@ const rootReducer = combineReducers({
   [revenueApi.reducerPath]: revenueApi.reducer,
   [livestreamCategoriesApi.reducerPath]: livestreamCategoriesApi.reducer,
   [systemAlertsApi.reducerPath]: systemAlertsApi.reducer,
+  [revenueReportsApi.reducerPath]: revenueReportsApi.reducer,
+  [weeklySummaryApi.reducerPath]: weeklySummaryApi.reducer,
   auth: authReducer,
   header: headerReducer,
   search: searchReducer,
@@ -98,6 +102,8 @@ export const store = configureStore({
       revenueApi.middleware,
       livestreamCategoriesApi.middleware,
       systemAlertsApi.middleware,
+      revenueReportsApi.middleware,
+      weeklySummaryApi.middleware,
     ),
   devTools: process.env.NODE_ENV !== "production",
 });

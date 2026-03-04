@@ -93,6 +93,7 @@ export interface AppealDecisionRequest {
 }
 export interface SaveDraftRequest { adminNote: string; }
 export interface RequestEvidenceRequest { message: string; }
+export interface ProvideEvidenceRequest { note?: string; evidence: string[]; }
 
 // ─── Base URL ─────────────────────────────────────────────────────────────────
 const API_BASE_URL =
@@ -388,6 +389,22 @@ export const disciplineApi = createApi({
         { type: "Discipline", id: "LIST" },
       ],
     }),
+
+    // ── 21. Provide Appeal Evidence (Seller/Buyer response) ────────────────
+    provideAppealEvidence: builder.mutation<
+      ApiResponse<DisciplineRecord>,
+      { actionId: string; data: ProvideEvidenceRequest }
+    >({
+      query: ({ actionId, data }) => ({
+        url: `/discipline/${actionId}/appeal/evidence`,
+        method: "PATCH",
+        body: data,
+      }),
+      invalidatesTags: (result, error, { actionId }) => [
+        { type: "Discipline", id: actionId },
+        { type: "Discipline", id: "LIST" },
+      ],
+    }),
   }),
 });
 
@@ -407,4 +424,5 @@ export const {
   useAppealDecisionMutation,
   useSaveDraftNotesMutation,
   useRequestMoreEvidenceMutation,
+  useProvideAppealEvidenceMutation,
 } = disciplineApi;
