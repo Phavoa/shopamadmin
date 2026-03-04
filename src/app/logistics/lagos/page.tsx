@@ -99,7 +99,7 @@ export default function LagosHubDashboard() {
   } = useGetOrdersQuery({
     pickup: true,
     populate: ["buyer", "seller", "shipment"],
-    isLagosOrder: true,
+    // isLagosOrder: true,
     sortBy: "createdAt",
     sortDir: "desc",
     limit: 50,
@@ -245,11 +245,11 @@ export default function LagosHubDashboard() {
         (deliveryOrdersData?.data?.items?.length || 0),
       pickRequests: pickupRequests.length,
       atHub: deliveries.filter(
-        (d: LogisticsOrder) => d.status === "AT_SHOPAM_HUB"
+        (d: LogisticsOrder) => d.status === "AT_SHOPAM_HUB",
       ).length,
       waitingForDelivery: deliveries.filter(
         (d: LogisticsOrder) =>
-          d.status !== "DELIVERED" && d.status !== "CANCELLED"
+          d.status !== "DELIVERED" && d.status !== "CANCELLED",
       ).length,
       exceptions: totalExceptions,
     };
@@ -286,7 +286,7 @@ export default function LagosHubDashboard() {
       { name: "Rider Seyi", status: "Picking Up", color: "blue-700" },
       { name: "Rider Ahmed", status: "Offline", color: "gray" },
     ],
-    []
+    [],
   );
 
   // Event handlers
@@ -298,7 +298,7 @@ export default function LagosHubDashboard() {
   const handleInvestigate = useCallback(
     (exceptionId: string) => {
       const exception = orderExceptionsData?.data?.items?.find(
-        (ex: OrderException) => ex.id === exceptionId
+        (ex: OrderException) => ex.id === exceptionId,
       );
       if (exception) {
         setSelectedExceptionData(exception);
@@ -306,7 +306,7 @@ export default function LagosHubDashboard() {
         setShowInvestigateModal(true);
       }
     },
-    [orderExceptionsData]
+    [orderExceptionsData],
   );
 
   const handleRequestMoreEvidence = useCallback((exceptionId: string) => {
@@ -338,7 +338,7 @@ export default function LagosHubDashboard() {
         showErrorToast: true,
       });
     },
-    [createRider, showSuccess, refetchRiders, handleAsyncOperation]
+    [createRider, showSuccess, refetchRiders, handleAsyncOperation],
   );
 
   const handleAssignRiderToShipment = useCallback(
@@ -354,10 +354,10 @@ export default function LagosHubDashboard() {
           },
           successMessage: "",
           showErrorToast: true,
-        }
+        },
       );
     },
-    [assignRiderToShipment, showSuccess, refreshAllData, handleAsyncOperation]
+    [assignRiderToShipment, showSuccess, refreshAllData, handleAsyncOperation],
   );
 
   const handleShowAssignedMessage = useCallback(
@@ -366,10 +366,10 @@ export default function LagosHubDashboard() {
         `A rider has already been assigned to this order. Order ID: ${orderId}`,
         {
           duration: 5000,
-        }
+        },
       );
     },
-    [showError]
+    [showError],
   );
 
   const handleOpenTrackOrderModal = useCallback(() => {
@@ -393,7 +393,7 @@ export default function LagosHubDashboard() {
     async (orderId: string, note: string) => {
       // Find the exception to get the actual order ID
       const exception = orderExceptionsData?.data?.items?.find(
-        (ex: OrderException) => ex.id === selectedException
+        (ex: OrderException) => ex.id === selectedException,
       );
       if (!exception) {
         showError("Exception not found");
@@ -417,7 +417,7 @@ export default function LagosHubDashboard() {
           },
           successMessage: "",
           showErrorToast: true,
-        }
+        },
       );
     },
     [
@@ -427,14 +427,14 @@ export default function LagosHubDashboard() {
       refetchExceptions,
       showSuccess,
       handleAsyncOperation,
-    ]
+    ],
   );
 
   const handleResolveExceptionSubmit = useCallback(
     async (orderId: string, status: "RESOLVED" | "REJECTED") => {
       // Find the exception to get the actual order ID
       const exception = orderExceptionsData?.data?.items?.find(
-        (ex: OrderException) => ex.id === selectedException
+        (ex: OrderException) => ex.id === selectedException,
       );
       if (!exception) {
         showError("Exception not found");
@@ -458,7 +458,7 @@ export default function LagosHubDashboard() {
           },
           successMessage: "",
           showErrorToast: true,
-        }
+        },
       );
     },
     [
@@ -468,7 +468,7 @@ export default function LagosHubDashboard() {
       refetchExceptions,
       showSuccess,
       handleAsyncOperation,
-    ]
+    ],
   );
 
   // Derived loading state
@@ -654,7 +654,7 @@ export default function LagosHubDashboard() {
           exceptionId={selectedException}
           orderId={
             orderExceptionsData?.data?.items?.find(
-              (ex: OrderException) => ex.id === selectedException
+              (ex: OrderException) => ex.id === selectedException,
             )?.orderId || ""
           }
           onSubmit={handleRequestMoreEvidenceSubmit}
@@ -670,7 +670,7 @@ export default function LagosHubDashboard() {
           exceptionId={selectedException}
           orderId={
             orderExceptionsData?.data?.items?.find(
-              (ex: OrderException) => ex.id === selectedException
+              (ex: OrderException) => ex.id === selectedException,
             )?.orderId || ""
           }
           onResolve={handleResolveExceptionSubmit}

@@ -177,17 +177,17 @@ export default function LoginPage() {
         </div>
 
         {/* Divider with "Or" */}
-        <div className="relative my-6">
+        {/* <div className="relative my-6">
           <div className="absolute inset-0 flex items-center" aria-hidden>
             <div className="w-full border-t border-[#E5E7EB]" />
           </div>
           <div className="relative flex justify-center">
             <span className="bg-white px-3 text-sm text-[#9CA3AF]">Or</span>
           </div>
-        </div>
+        </div> */}
 
         {/* Social buttons */}
-        <div className="space-y-3">
+        {/* <div className="space-y-3">
           <button
             type="button"
             className="w-full h-12 flex items-center justify-center gap-3 rounded border border-[#E5E7EB] bg-white text-[#374151] text-sm font-medium hover:bg-[#F9FAFB] focus:outline-none focus:ring-2 focus:ring-[#E67E22]"
@@ -199,7 +199,6 @@ export default function LoginPage() {
               xmlns="http://www.w3.org/2000/svg"
               aria-hidden
             >
-              {/* Google "G" simplified mark */}
               <path
                 d="M533.5 278.4c0-17.6-1.6-34.4-4.7-50.8H272v96.1h147.5c-6.4 34-25.6 62.8-54.6 82v68.5h88.2c51.6-47.6 81.4-117.6 81.4-196z"
                 fill="#4285f4"
@@ -225,7 +224,6 @@ export default function LoginPage() {
             className="w-full h-12 flex items-center justify-center gap-3 rounded border border-[#E5E7EB] bg-white text-[#374151] text-sm font-medium hover:bg-[#F9FAFB] focus:outline-none focus:ring-2 focus:ring-[#E67E22]"
           >
             <svg width="18" height="18" viewBox="0 0 24 24" aria-hidden>
-              {/* Apple mark simplified */}
               <path
                 d="M16.365 1.43c-.93.001-2.08.637-2.76.637-.67 0-1.73-.629-2.86-.615-1.48.016-2.86.855-3.63 2.16-1.55 2.57-.4 6.38 1.16 8.47.78 1.04 1.71 2.22 2.92 2.19 1.12-.03 1.55-.69 3.01-.69 1.46 0 1.85.69 3.01.67 1.37-.01 2.24-1.05 3.02-2.08.98-1.34 1.38-2.63 1.4-2.69-.03-.01-2.53-.97-2.56-3.84-.02-2.28 1.86-3.3 1.94-3.36-.99-1.44-2.53-1.62-3.06-1.64z"
                 fill="currentColor"
@@ -233,7 +231,7 @@ export default function LoginPage() {
             </svg>
             Continue with Apple
           </button>
-        </div>
+        </div> */}
       </form>
     </Card>
   );
