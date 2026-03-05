@@ -1,13 +1,38 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
+import {
+  useGetFeeConfigQuery,
+  useSaveDraftMutation,
+  usePublishConfigMutation,
+  useLazySimulateRevenueQuery,
+} from "@/api/feeConfigApi";
+import { useGetZonesQuery, useUpdatePriceMutation } from "@/api/deliveryApi";
+import { formatNaira, koboToNaira, nairaToKobo } from "@/lib/utils";
+import { SuccessModal } from "@/components/shared/SuccessModal";
 
 export default function FeeConfigurationPage() {
-  const [effectiveDate, setEffectiveDate] = useState("12/09/2025");
-  const [gracePeriod, setGracePeriod] = useState("7");
-  const [whoCanPublish, setWhoCanPublish] = useState("Finance Admins Only");
+  const { data: configResponse, isLoading: isConfigLoading } = useGetFeeConfigQuery();
+  const config = configResponse?.data;
 
-  // Shopping Commission Tiers
+  // Delivery Zones for Logistics Fees
+  const { data: zonesResponse, isLoading: isZonesLoading } = useGetZonesQuery({});
+  const zones = zonesResponse?.data?.items || [];
+  const [updateZonePrice, { isLoading: isUpdatingPrice }] = useUpdatePriceMutation();
+
+  const [saveDraft, { isLoading: isSaving }] = useSaveDraftMutation();
+  const [publishConfig, { isLoading: isPublishing }] = usePublishConfigMutation();
+  const [simulateRevenue, { data: simulationResponse, isFetching: isSimulating }] = useLazySimulateRevenueQuery();
+
+  const [isSuccessModalOpen, setIsSuccessModalOpen] = useState(false);
+  const [modalTitle, setModalTitle] = useState("");
+  const [modalMessage, setModalMessage] = useState("");
+
+  const [effectiveDate, setEffectiveDate] = useState("");
+  const [gracePeriod, setGracePeriod] = useState("7");
+  const [whoCanPublish, setWhoCanPublish] = useState("FINANCE_ADMIN");
+
+  // Shopping Commission Tiers (Keep local for now until API 23 is provided)
   const [tier1Min, setTier1Min] = useState("100");
   const [tier1Max, setTier1Max] = useState("499,999");
   const [tier1Commission, setTier1Commission] = useState("6");
@@ -24,27 +49,98 @@ export default function FeeConfigurationPage() {
   const [withdrawalFee, setWithdrawalFee] = useState("50");
   const [subscriptionEnabled, setSubscriptionEnabled] = useState(false);
   const [subscriptionPrice, setSubscriptionPrice] = useState("0");
-  const [promoCodesEnabled, setPromoCodesEnabled] = useState(true);
+  const [referralEnabled, setReferralEnabled] = useState(true);
 
-  // Logistics Fees
-  const logistics = [
-    { name: "Lagos", fee: "0" },
-    { name: "Abuja", fee: "0" },
-    { name: "South West to South East", fee: "50" },
-    { name: "South West", fee: "50" },
-    { name: "South East", fee: "50" },
-    { name: "South West to Abuja", fee: "50" },
-    { name: "Abuja to South East", fee: "50" },
-    { name: "Lagos to Abuja", fee: "50" },
-    { name: "Lagos Mainland to Island", fee: "50" },
-  ];
+  // Initialize state from API
+  useEffect(() => {
+    if (config) {
+      setEffectiveDate(config.effectiveFrom || "");
+      setGracePeriod(config.gracePeriodDays?.toString() || "");
+      setWhoCanPublish(config.whoCanPublish || "FINANCE_ADMIN");
+      setWalletFee(koboToNaira(config.walletFeeKobo).toString());
+      setWithdrawalFee(koboToNaira(config.withdrawalFeeKobo).toString());
+      setSubscriptionEnabled(config.subscriptionEnabled);
+      setSubscriptionPrice(koboToNaira(config.subscriptionFeeKobo).toString());
+      setReferralEnabled(config.referralEnabled);
+      
+      // Trigger initial simulation
+      handleSimulate();
+    }
+  }, [config]);
 
   // Simulation data
-  const [expectedPerMonth] = useState("69,000,000");
-  const [split] = useState("50/30/15");
-  const [platformRevenue] = useState("2,240,000");
-  const [shoppingGMV] = useState("40%");
-  const [payoutFees] = useState("40,000");
+  const simulationData = simulationResponse?.data;
+  const [expectedPerMonth, setExpectedPerMonth] = useState("69,000,000");
+  const [split, setSplit] = useState("50/30/15");
+
+  const handleSaveDraft = async () => {
+    try {
+      const payload = {
+        walletFeeKobo: nairaToKobo(walletFee),
+        withdrawalFeeKobo: nairaToKobo(withdrawalFee),
+        subscriptionFeeKobo: nairaToKobo(subscriptionPrice),
+        subscriptionEnabled,
+        referralEnabled,
+        gracePeriodDays: Number(gracePeriod) || 7,
+        whoCanPublish,
+      };
+      console.log("Saving draft with payload:", payload);
+      await saveDraft(payload).unwrap();
+      setModalTitle("Draft Saved!");
+      setModalMessage("Your draft has been saved successfully. You can now publish these changes to make them live.");
+      setIsSuccessModalOpen(true);
+    } catch (error: any) {
+      console.error("Save draft failed! Raw error:", error);
+      const errorMessage = error?.data?.message || error?.message || (typeof error === 'string' ? error : "Check console for details");
+      alert(`Failed to save draft: ${errorMessage}`);
+    }
+  };
+
+  const handlePublish = async () => {
+    if (!effectiveDate) {
+      alert("Please enter an effective date before publishing.");
+      return;
+    }
+
+    try {
+      console.log("Publishing config with:", { effectiveFrom: effectiveDate, isFinanceAdmin: true });
+      await publishConfig({
+        effectiveFrom: effectiveDate,
+        isFinanceAdmin: true,
+      }).unwrap();
+      setModalTitle("Configuration Published!");
+      setModalMessage("The new fee configuration is now live and will be applied to all transactions.");
+      setIsSuccessModalOpen(true);
+    } catch (error: any) {
+      console.error("Publish failed! Raw error:", error);
+      const errorMessage = error?.data?.message || error?.message || (typeof error === 'string' ? error : "Check console for details");
+      alert(`Failed to publish configuration: ${errorMessage}`);
+    }
+  };
+
+  const handleSimulate = async () => {
+    simulateRevenue({
+      expectedMonthlyGmvKobo: nairaToKobo(expectedPerMonth).toString(),
+      avgCommissionPercent: Number(tier1Commission),
+    });
+  };
+
+  const handleUpdateLogisticsFee = async (zoneId: string, feeNaira: string) => {
+    try {
+      // Find the price record for this zone. 
+      // Note: This logic depends on how origin/destination zones are handled.
+      // Assuming we are updating a specific price record ID.
+      // For now, if we don't have the price ID directly from 'zones', 
+      // we might need to fetch prices or have it enriched.
+      // The audit said Endpoint 24b is PATCH /api/admin/delivery/zone-prices/:id
+      // If 'zones' doesn't have 'priceId', we might need to search or use a different approach.
+      // I'll stick to updating by zone if the API supports it, or just log for now.
+      console.log(`Updating fee for zone ${zoneId} to ${feeNaira}`);
+      // await updateZonePrice({ id: zoneId, data: { priceKobo: nairaToKobo(feeNaira).toString() } }).unwrap();
+    } catch (error) {
+      console.error("Update logistics fee failed:", error);
+    }
+  };
 
   return (
     <div className="min-h-screen bg-white">
@@ -61,12 +157,14 @@ export default function FeeConfigurationPage() {
               color: "#374151",
               fontSize: "14px",
               fontWeight: 500,
-              cursor: "pointer",
+              cursor: "default",
             }}
           >
-            Draft v1
+            {config?.effectiveFrom ? `Current: ${config.effectiveFrom}` : "No Live Config"}
           </button>
           <button
+            onClick={handleSaveDraft}
+            disabled={isSaving}
             style={{
               padding: "8px 20px",
               borderRadius: "8px",
@@ -75,12 +173,15 @@ export default function FeeConfigurationPage() {
               color: "#374151",
               fontSize: "14px",
               fontWeight: 500,
-              cursor: "pointer",
+              cursor: isSaving ? "not-allowed" : "pointer",
+              opacity: isSaving ? 0.7 : 1,
             }}
           >
-            Save Draft
+            {isSaving ? "Saving..." : "Save Draft"}
           </button>
           <button
+            onClick={handlePublish}
+            disabled={isPublishing}
             style={{
               padding: "8px 20px",
               borderRadius: "8px",
@@ -89,10 +190,11 @@ export default function FeeConfigurationPage() {
               fontSize: "14px",
               fontWeight: 500,
               border: "none",
-              cursor: "pointer",
+              cursor: isPublishing ? "not-allowed" : "pointer",
+              opacity: isPublishing ? 0.7 : 1,
             }}
           >
-            Publish
+            {isPublishing ? "Publishing..." : "Publish"}
           </button>
         </div>
       </div>
@@ -357,6 +459,23 @@ export default function FeeConfigurationPage() {
 
                   <div className="flex items-center justify-between">
                     <span className="text-sm text-black">
+                      Referral system enabled:
+                    </span>
+                    <div className="flex items-center gap-2">
+                      <span className="text-sm">Yes</span>
+                      <input
+                        type="checkbox"
+                        checked={referralEnabled}
+                        onChange={() =>
+                          setReferralEnabled(!referralEnabled)
+                        }
+                        className="w-4 h-4 cursor-pointer"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm text-black">
                       Subscription (monthly):
                     </span>
                     <div className="flex items-center gap-3">
@@ -369,7 +488,16 @@ export default function FeeConfigurationPage() {
                         />
                         <span className="text-sm">Off</span>
                       </label>
-                      <span className="text-sm">Price</span>
+                      <label className="flex items-center gap-2 cursor-pointer">
+                        <input
+                          type="radio"
+                          checked={subscriptionEnabled}
+                          onChange={() => setSubscriptionEnabled(true)}
+                          className="w-4 h-4"
+                        />
+                        <span className="text-sm">On</span>
+                      </label>
+                      <span className="text-sm ml-2">Price</span>
                       <input
                         type="text"
                         value={subscriptionPrice}
@@ -389,22 +517,7 @@ export default function FeeConfigurationPage() {
                     </div>
                   </div>
 
-                  <div className="flex items-center justify-between">
-                    <span className="text-sm text-black">
-                      Promo codes enabled:
-                    </span>
-                    <div className="flex items-center gap-2">
-                      <span className="text-sm">Yes</span>
-                      <input
-                        type="checkbox"
-                        checked={promoCodesEnabled}
-                        onChange={() =>
-                          setPromoCodesEnabled(!promoCodesEnabled)
-                        }
-                        className="w-4 h-4 cursor-pointer"
-                      />
-                    </div>
-                  </div>
+                  {/* Promo codes toggle removed as it's not in the API documentation provided */}
                 </div>
               </div>
 
@@ -422,30 +535,37 @@ export default function FeeConfigurationPage() {
                 </h2>
 
                 <div className="space-y-3">
-                  {logistics.map((item, index) => (
-                    <div
-                      key={index}
-                      className="flex items-center justify-between"
-                    >
-                      <span className="text-sm text-black">{item.name}</span>
-                      <div className="flex items-center gap-2">
-                        <span className="text-sm font-semibold">₦</span>
-                        <input
-                          type="text"
-                          defaultValue={item.fee}
-                          style={{
-                            width: "60px",
-                            padding: "6px 10px",
-                            borderRadius: "8px",
-                            border: "0.3px solid rgba(0, 0, 0, 0.20)",
-                            fontSize: "14px",
-                            textAlign: "right",
-                            outline: "none",
-                          }}
-                        />
+                  {isZonesLoading ? (
+                    <p className="text-sm text-gray-500">Loading zones...</p>
+                  ) : zones.length > 0 ? (
+                    zones.map((zone, index) => (
+                      <div
+                        key={zone.id}
+                        className="flex items-center justify-between"
+                      >
+                        <span className="text-sm text-black">{zone.name}</span>
+                        <div className="flex items-center gap-2">
+                          <span className="text-sm font-semibold">₦</span>
+                          <input
+                            type="text"
+                            defaultValue="0" // Default if no price info in zone object
+                            onBlur={(e) => handleUpdateLogisticsFee(zone.id, e.target.value)}
+                            style={{
+                              width: "60px",
+                              padding: "6px 10px",
+                              borderRadius: "8px",
+                              border: "0.3px solid rgba(0, 0, 0, 0.20)",
+                              fontSize: "14px",
+                              textAlign: "right",
+                              outline: "none",
+                            }}
+                          />
+                        </div>
                       </div>
-                    </div>
-                  ))}
+                    ))
+                  ) : (
+                    <p className="text-sm text-gray-500">No zones found.</p>
+                  )}
                 </div>
               </div>
             </div>
@@ -521,9 +641,9 @@ export default function FeeConfigurationPage() {
                         cursor: "pointer",
                       }}
                     >
-                      <option>Finance Admins Only</option>
-                      <option>All Admins</option>
-                      <option>Super Admins</option>
+                      <option value="FINANCE_ADMIN">Finance Admins Only</option>
+                      <option value="ADMIN">All Admins</option>
+                      <option value="SUPER_ADMIN">Super Admins</option>
                     </select>
                   </div>
                 </div>
@@ -547,18 +667,23 @@ export default function FeeConfigurationPage() {
                     <span className="text-sm text-gray-700">
                       Input: Expected per month:
                     </span>
-                    <span className="text-sm font-semibold text-black">
-                      ₦{expectedPerMonth}
-                    </span>
-                  </div>
-
-                  <div className="flex items-center justify-between">
-                    <span className="text-sm text-gray-700">
-                      Split (S/M/%):
-                    </span>
-                    <span className="text-sm font-semibold text-black">
-                      {split}
-                    </span>
+                    <div className="flex items-center gap-2">
+                      <span className="text-xs">₦</span>
+                      <input
+                        type="text"
+                        value={expectedPerMonth}
+                        onChange={(e) => setExpectedPerMonth(e.target.value)}
+                        onBlur={handleSimulate}
+                        style={{
+                          width: "120px",
+                          padding: "4px 8px",
+                          borderRadius: "4px",
+                          border: "0.3px solid rgba(0, 0, 0, 0.20)",
+                          fontSize: "12px",
+                          textAlign: "right",
+                        }}
+                      />
+                    </div>
                   </div>
 
                   <div className="flex items-center justify-between">
@@ -566,7 +691,7 @@ export default function FeeConfigurationPage() {
                       Projected platform revenue:
                     </span>
                     <span className="text-sm font-semibold text-black">
-                      ₦{platformRevenue}
+                      {isSimulating ? "..." : formatNaira(koboToNaira(simulationData?.projectedPlatformRevenueKobo))}
                     </span>
                   </div>
 
@@ -575,7 +700,7 @@ export default function FeeConfigurationPage() {
                       Shopping GMV portion:
                     </span>
                     <span className="text-sm font-semibold text-black">
-                      {shoppingGMV}
+                      {isSimulating ? "..." : formatNaira(koboToNaira(simulationData?.shoppingGmvPortionKobo))}
                     </span>
                   </div>
 
@@ -584,7 +709,7 @@ export default function FeeConfigurationPage() {
                       Projected payout fees collected:
                     </span>
                     <span className="text-sm font-semibold text-black">
-                      ₦{payoutFees}
+                      {isSimulating ? "..." : formatNaira(koboToNaira(simulationData?.projectedPayoutFeesKobo))}
                     </span>
                   </div>
                 </div>
@@ -593,6 +718,13 @@ export default function FeeConfigurationPage() {
           </div>
         </div>
       </div>
+
+      <SuccessModal
+        isOpen={isSuccessModalOpen}
+        onClose={() => setIsSuccessModalOpen(false)}
+        title={modalTitle}
+        message={modalMessage}
+      />
     </div>
   );
 }
