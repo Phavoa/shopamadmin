@@ -1,0 +1,24 @@
+
+> shopam_admin@0.1.0 build
+> next build
+
+   ▲ Next.js 15.5.7
+
+   Creating an optimized production build ...
+ ✓ Compiled successfully in 5.1min
+   Skipping linting
+   Checking validity of types ...
+Failed to compile.
+
+./src/app/admin-dashboard/settings/livestream-categories/page.tsx:135:20
+Type error: Conversion of type 'LivestreamCategoriesListResponse' to type 'Record<string, unknown>' may be a mistake because neither type sufficiently overlaps with the other. If this was intentional, convert the expression to 'unknown' first.
+  Index signature for type 'string' is missing in type 'LivestreamCategoriesListResponse'.
+
+[0m [90m 133 |[39m     [36mif[39m ([33m![39mrawData) [36mreturn[39m [][33m;[39m
+ [90m 134 |[39m     [36mif[39m ([33mArray[39m[33m.[39misArray(rawData)) [36mreturn[39m rawData [36mas[39m [33mLivestreamCategory[39m[][33m;[39m
+[31m[1m>[22m[39m[90m 135 |[39m     [36mconst[39m nested [33m=[39m rawData [36mas[39m [33mRecord[39m[33m<[39m[33mstring[39m[33m,[39m unknown[33m>[39m[33m;[39m
+ [90m     |[39m                    [31m[1m^[22m[39m
+ [90m 136 |[39m     [36mif[39m ([33mArray[39m[33m.[39misArray(nested[33m.[39mitems))
+ [90m 137 |[39m       [36mreturn[39m nested[33m.[39mitems [36mas[39m [33mLivestreamCategory[39m[][33m;[39m
+ [90m 138 |[39m     [36mif[39m ([33mArray[39m[33m.[39misArray(nested[33m.[39mdata)) [36mreturn[39m nested[33m.[39mdata [36mas[39m [33mLivestreamCategory[39m[][33m;[39m[0m
+Next.js build worker exited with code: 1 and signal: null

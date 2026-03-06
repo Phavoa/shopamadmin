@@ -35,8 +35,9 @@ interface DisplaySeller {
   walletBalance?: string;
   activeListings?: number;
   nextSlot?: string;
-  // Enriched Profile Fields (#19)
   disciplineStatus?: string;
+  totalOrders?: number;
+  completedOrders?: number;
 }
 
 const SellerProfilePage = () => {
@@ -82,7 +83,7 @@ const SellerProfilePage = () => {
       setOrderStatsError(null);
 
       try {
-        // Use the seller profile ID, or user ID depending on endpoint requirement. 
+        // Use the seller profile ID, or user ID depending on endpoint requirement.
         // Based on ordersApi, it uses sellerId.
         const response = await getOrderStatisticsBySeller(seller.id);
         if (response.success) {
@@ -104,18 +105,20 @@ const SellerProfilePage = () => {
           status: "ENDED",
           limit: 1,
           sortBy: "createdAt",
-          sortDir: "desc"
+          sortDir: "desc",
         }).unwrap();
 
         if (liveResult.data?.items?.length > 0) {
           const stream = liveResult.data.items[0];
           const date = stream.endedAt || stream.startedAt || stream.createdAt;
           if (date) {
-            setLastLiveDate(new Date(date).toLocaleDateString("en-NG", {
-              month: "short",
-              day: "numeric",
-              year: "numeric"
-            }));
+            setLastLiveDate(
+              new Date(date).toLocaleDateString("en-NG", {
+                month: "short",
+                day: "numeric",
+                year: "numeric",
+              }),
+            );
           }
         }
       } catch (err) {
@@ -179,11 +182,11 @@ const SellerProfilePage = () => {
           location: `${seller.locationCity}, ${seller.locationState}`,
           totalSales: seller.totalSales,
           createdAt: seller.createdAt,
-          reliability: "95%", 
-          strikes: 0, 
+          reliability: "95%",
+          strikes: 0,
           lastLive: lastLiveDate || "None",
-          walletBalance: seller.totalSales 
-            ? `₦${(parseInt(seller.totalSales) / 100).toLocaleString(undefined, { minimumFractionDigits: 2 })}` 
+          walletBalance: seller.totalSales
+            ? `₦${(parseInt(seller.totalSales) / 100).toLocaleString(undefined, { minimumFractionDigits: 2 })}`
             : "₦0.00",
           totalOrders: user.totalOrders ?? orderStatistics?.totalOrders ?? 0,
           completedOrders: orderStatistics?.completedOrders || 0,

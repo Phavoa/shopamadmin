@@ -27,7 +27,7 @@ export interface LiveStreamItem {
 
 export interface LiveStream {
   id: string;
-  status: "SCHEDULED" | "LIVE" | "ENDED"; // Inferring status
+  status: "SCHEDULED" | "LIVE" | "ENDED";
   title: string;
   startedAt: string | null;
   endedAt: string | null;
@@ -36,6 +36,8 @@ export interface LiveStream {
   scheduledStartAt: string;
   scheduledEndAt: string;
   categoryIds: string[];
+  createdAt: string;        // ← ADDED
+  updatedAt?: string;       // ← ADDED
   seller?: LiveStreamSeller;
   tier?: LiveStreamTier;
   items?: LiveStreamItem[];

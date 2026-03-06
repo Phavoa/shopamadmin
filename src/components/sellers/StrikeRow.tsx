@@ -22,6 +22,7 @@ interface StrikeRowProps {
   onExtendSuspension?: (strike: StrikeRecord) => void;
   onRevoke?: (strike: StrikeRecord) => void;
   onUpgradeToSuspension?: (strike: StrikeRecord) => void;
+  onContact?: (strike: StrikeRecord) => void;
 }
 
 const getStatusBadgeStyles = (status: string) => {
@@ -52,7 +53,8 @@ export const StrikeRow: React.FC<StrikeRowProps> = ({
   strike, 
   onExtendSuspension,
   onRevoke,
-  onUpgradeToSuspension
+  onUpgradeToSuspension,
+  onContact
 }) => {
   return (
     <tr className="border-b border-[#E5E7EB] bg-white hover:bg-[#F9FAFB]">
@@ -119,6 +121,14 @@ export const StrikeRow: React.FC<StrikeRowProps> = ({
               </Button>
             </>
           ) : null}
+          <Button
+            onClick={() => onContact?.(strike)}
+            size="sm"
+            variant="outline"
+            className="border-gray-200 text-gray-600 hover:bg-gray-50 px-3 py-1 h-8 text-xs flex-1"
+          >
+            Contact
+          </Button>
         </div>
       </td>
     </tr>

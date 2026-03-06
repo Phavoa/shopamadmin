@@ -102,6 +102,8 @@ export interface UserProfileVM {
   blocks: string[];
   blockedBy: string[];
   seller?: SellerProfileVM;
+  totalOrders?: number;
+  disciplineStatus?: string;
 }
 
 export const approveSeller = async (

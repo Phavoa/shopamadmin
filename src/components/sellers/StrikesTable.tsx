@@ -29,6 +29,7 @@ interface StrikesTableProps {
   onClearStrike?: (strike: StrikeRecord) => void;
   onUpgradeToSuspension?: (strike: StrikeRecord) => void;
   onReinstate?: (strike: StrikeRecord) => void;
+  onContact?: (strike: StrikeRecord) => void;
 }
 
 export const StrikesTable: React.FC<StrikesTableProps> = ({
@@ -41,6 +42,7 @@ export const StrikesTable: React.FC<StrikesTableProps> = ({
   onClearStrike,
   onUpgradeToSuspension,
   onReinstate,
+  onContact,
 }) => {
   return (
     <div className="bg-white rounded-lg shadow-sm border border-[#E5E7EB] mb-8">
@@ -121,6 +123,7 @@ export const StrikesTable: React.FC<StrikesTableProps> = ({
                     onExtendSuspension={onExtendSuspension}
                     onRevoke={strike.status === "Suspended" ? onReinstate : onClearStrike}
                     onUpgradeToSuspension={onUpgradeToSuspension}
+                    onContact={onContact}
                   />
                 ))
               )}
