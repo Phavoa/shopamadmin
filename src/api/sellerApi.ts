@@ -1,3 +1,5 @@
+import { authStorage } from "@/lib/auth/authUtils";
+
 const API_BASE_URL =
   process.env.NEXT_PUBLIC_API_URL ||
   "https://shapam-ecomerce-backend.onrender.com/api";
@@ -109,7 +111,7 @@ export interface UserProfileVM {
 export const approveSeller = async (
   userId: string
 ): Promise<ApiResponse<SellerProfileVM>> => {
-  const token = localStorage.getItem("authToken"); // Assuming token is stored in localStorage
+  const token = authStorage.getAccessToken(); // Use authStorage utility
   const response = await fetch(`${API_BASE_URL}/seller/approve/${userId}`, {
     method: "POST",
     headers: {
@@ -128,7 +130,7 @@ export const approveSeller = async (
 export const suspendSeller = async (
   userId: string
 ): Promise<ApiResponse<SellerProfileVM>> => {
-  const token = localStorage.getItem("authToken"); // Assuming token is stored in localStorage
+  const token = authStorage.getAccessToken(); // Use authStorage utility
   const response = await fetch(`${API_BASE_URL}/seller/suspend/${userId}`, {
     method: "POST",
     headers: {
@@ -147,7 +149,7 @@ export const suspendSeller = async (
 export const getSellers = async (
   params: SellerListParams = {}
 ): Promise<ApiResponse<SellerListResponse>> => {
-  const token = localStorage.getItem("authToken"); // Assuming token is stored in localStorage
+  const token = authStorage.getAccessToken(); // Use authStorage utility
 
   const url = new URL(`${API_BASE_URL}/seller`);
 
@@ -176,7 +178,7 @@ export const getSellers = async (
 export const getSellerById = async (
   userId: string
 ): Promise<ApiResponse<SellerListResponse>> => {
-  const token = localStorage.getItem("authToken");
+  const token = authStorage.getAccessToken();
 
   const url = new URL(`${API_BASE_URL}/seller`);
   url.searchParams.append("q", userId);
@@ -199,7 +201,7 @@ export const getSellerById = async (
 };
 
 export const getSellerMe = async (): Promise<ApiResponse<SellerProfileVM>> => {
-  const token = localStorage.getItem("authToken");
+  const token = authStorage.getAccessToken();
   const response = await fetch(`${API_BASE_URL}/seller/me`, {
     method: "GET",
     headers: {
@@ -218,7 +220,7 @@ export const getSellerMe = async (): Promise<ApiResponse<SellerProfileVM>> => {
 export const updateSellerMe = async (
   payload: SellerUpdatePayload
 ): Promise<ApiResponse<SellerProfileVM>> => {
-  const token = localStorage.getItem("authToken");
+  const token = authStorage.getAccessToken();
   const response = await fetch(`${API_BASE_URL}/seller/me`, {
     method: "PUT",
     headers: {
@@ -238,7 +240,7 @@ export const updateSellerMe = async (
 export const applyToBecomeSeller = async (
   payload: SellerApplyPayload
 ): Promise<ApiResponse<SellerProfileVM>> => {
-  const token = localStorage.getItem("authToken");
+  const token = authStorage.getAccessToken();
   const response = await fetch(`${API_BASE_URL}/seller/apply`, {
     method: "POST",
     headers: {
@@ -256,7 +258,7 @@ export const applyToBecomeSeller = async (
 };
 
 export const submitSellerApplication = async (): Promise<ApiResponse<SellerProfileVM>> => {
-  const token = localStorage.getItem("authToken");
+  const token = authStorage.getAccessToken();
   const response = await fetch(`${API_BASE_URL}/seller/submit`, {
     method: "POST",
     headers: {
@@ -273,7 +275,7 @@ export const submitSellerApplication = async (): Promise<ApiResponse<SellerProfi
 };
 
 export const getUserById = async (userId: string): Promise<UserProfileVM> => {
-  const token = localStorage.getItem("authToken");
+  const token = authStorage.getAccessToken();
   const response = await fetch(`${API_BASE_URL}/user/${userId}`, {
     method: "GET",
     headers: {
