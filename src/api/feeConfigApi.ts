@@ -47,6 +47,26 @@ export interface SimulationResult {
   // Based on UI screenshot/needs, might need more fields if API returns them
 }
 
+export interface CommissionTier {
+  id: string;
+  name: string;
+  minAmount: string; // Backend returns as string
+  maxAmount: string; // Backend returns as string
+  percentage: number;
+  createdAt: string;
+}
+
+export interface CreateCommissionTierRequest {
+  name: string;
+  minAmount: number;
+  maxAmount: number;
+  percentage: number;
+}
+
+export interface UpdateCommissionTierRequest extends CreateCommissionTierRequest {
+  id: string;
+}
+
 const API_BASE_URL =
   process.env.NEXT_PUBLIC_API_URL ||
   "https://shapam-ecomerce-backend.onrender.com/api";
@@ -105,7 +125,7 @@ const baseQueryWithReauth = async (
 export const feeConfigApi = createApi({
   reducerPath: "feeConfigApi",
   baseQuery: baseQueryWithReauth,
-  tagTypes: ["FeeConfig"],
+  tagTypes: ["FeeConfig", "CommissionTier"],
   endpoints: (builder) => ({
     // GET /api/admin/fee-config
     getFeeConfig: builder.query<ApiResponse<FeeConfig>, void>({
@@ -144,6 +164,47 @@ export const feeConfigApi = createApi({
         params,
       }),
     }),
+
+    // ─── Commission Tiers endpoints ───
+
+    // GET /api/admin/commission-tiers
+    getCommissionTiers: builder.query<ApiResponse<CommissionTier[]>, any>({
+      query: (params) => ({
+        url: "/admin/commission-tiers",
+        method: "GET",
+        params,
+      }),
+      providesTags: ["CommissionTier"],
+    }),
+
+    // POST /api/admin/commission-tiers
+    createCommissionTier: builder.mutation<ApiResponse<CommissionTier>, CreateCommissionTierRequest>({
+      query: (body) => ({
+        url: "/admin/commission-tiers",
+        method: "POST",
+        body,
+      }),
+      invalidatesTags: ["CommissionTier"],
+    }),
+
+    // PUT /api/admin/commission-tiers/{id}
+    updateCommissionTier: builder.mutation<ApiResponse<CommissionTier>, UpdateCommissionTierRequest>({
+      query: ({ id, ...body }) => ({
+        url: `/admin/commission-tiers/${id}`,
+        method: "PUT",
+        body,
+      }),
+      invalidatesTags: ["CommissionTier"],
+    }),
+
+    // DELETE /api/admin/commission-tiers/{id}
+    deleteCommissionTier: builder.mutation<ApiResponse<any>, string>({
+      query: (id) => ({
+        url: `/admin/commission-tiers/${id}`,
+        method: "DELETE",
+      }),
+      invalidatesTags: ["CommissionTier"],
+    }),
   }),
 });
 
@@ -153,4 +214,8 @@ export const {
   usePublishConfigMutation,
   useSimulateRevenueQuery,
   useLazySimulateRevenueQuery,
+  useGetCommissionTiersQuery,
+  useCreateCommissionTierMutation,
+  useUpdateCommissionTierMutation,
+  useDeleteCommissionTierMutation,
 } = feeConfigApi;

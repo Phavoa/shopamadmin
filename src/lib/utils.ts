@@ -25,3 +25,9 @@ export const nairaToKobo = (naira: string | number | undefined): number => {
   const val = parseFloat(cleanStr);
   return isNaN(val) ? 0 : Math.round(val * 100);
 };
+export const formatNumber = (num: number | string | undefined): string => {
+  if (num === undefined || num === null || num === "") return "0";
+  const n = typeof num === "string" ? Number(num.replace(/,/g, "")) : num;
+  if (isNaN(n)) return "0";
+  return n.toLocaleString("en-US");
+};

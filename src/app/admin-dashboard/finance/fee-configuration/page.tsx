@@ -6,10 +6,15 @@ import {
   useSaveDraftMutation,
   usePublishConfigMutation,
   useLazySimulateRevenueQuery,
+  useGetCommissionTiersQuery,
+  useCreateCommissionTierMutation,
+  useUpdateCommissionTierMutation,
+  useDeleteCommissionTierMutation,
 } from "@/api/feeConfigApi";
 import { useGetZonesQuery, useUpdatePriceMutation } from "@/api/deliveryApi";
-import { formatNaira, koboToNaira, nairaToKobo } from "@/lib/utils";
+import { formatNaira, koboToNaira, nairaToKobo, formatNumber } from "@/lib/utils";
 import { SuccessModal } from "@/components/shared/SuccessModal";
+import { Trash2, Plus, Save, Loader2 } from "lucide-react";
 
 export default function FeeConfigurationPage() {
   const { data: configResponse, isLoading: isConfigLoading } = useGetFeeConfigQuery();
@@ -24,6 +29,16 @@ export default function FeeConfigurationPage() {
   const [publishConfig, { isLoading: isPublishing }] = usePublishConfigMutation();
   const [simulateRevenue, { data: simulationResponse, isFetching: isSimulating }] = useLazySimulateRevenueQuery();
 
+  const { data: tiersResponse, isLoading: isTiersLoading } = useGetCommissionTiersQuery({});
+  // Handle both direct array and { items: [] } pattern
+  const tiers = Array.isArray(tiersResponse?.data) 
+    ? tiersResponse.data 
+    : (tiersResponse?.data as any)?.items || [];
+
+  const [createTier, { isLoading: isCreatingTier }] = useCreateCommissionTierMutation();
+  const [updateTier, { isLoading: isUpdatingTier }] = useUpdateCommissionTierMutation();
+  const [deleteTier, { isLoading: isDeletingTier }] = useDeleteCommissionTierMutation();
+
   const [isSuccessModalOpen, setIsSuccessModalOpen] = useState(false);
   const [modalTitle, setModalTitle] = useState("");
   const [modalMessage, setModalMessage] = useState("");
@@ -31,18 +46,6 @@ export default function FeeConfigurationPage() {
   const [effectiveDate, setEffectiveDate] = useState("");
   const [gracePeriod, setGracePeriod] = useState("7");
   const [whoCanPublish, setWhoCanPublish] = useState("FINANCE_ADMIN");
-
-  // Shopping Commission Tiers (Keep local for now until API 23 is provided)
-  const [tier1Min, setTier1Min] = useState("100");
-  const [tier1Max, setTier1Max] = useState("499,999");
-  const [tier1Commission, setTier1Commission] = useState("6");
-
-  const [tier2Min, setTier2Min] = useState("500,000");
-  const [tier2Max, setTier2Max] = useState("999,999");
-  const [tier2Commission, setTier2Commission] = useState("5");
-
-  const [tier3Min, setTier3Min] = useState("1,000,000");
-  const [tier3Commission, setTier3Commission] = useState("3");
 
   // Wallet and Subscription
   const [walletFee, setWalletFee] = useState("0");
@@ -68,6 +71,7 @@ export default function FeeConfigurationPage() {
     }
   }, [config]);
 
+
   // Simulation data
   const simulationData = simulationResponse?.data;
   const [expectedPerMonth, setExpectedPerMonth] = useState("69,000,000");
@@ -90,8 +94,7 @@ export default function FeeConfigurationPage() {
       setModalMessage("Your draft has been saved successfully. You can now publish these changes to make them live.");
       setIsSuccessModalOpen(true);
     } catch (error: any) {
-      console.error("Save draft failed! Raw error:", error);
-      const errorMessage = error?.data?.message || error?.message || (typeof error === 'string' ? error : "Check console for details");
+      const errorMessage = error?.data?.message || error?.message || "Check console for details";
       alert(`Failed to save draft: ${errorMessage}`);
     }
   };
@@ -112,8 +115,7 @@ export default function FeeConfigurationPage() {
       setModalMessage("The new fee configuration is now live and will be applied to all transactions.");
       setIsSuccessModalOpen(true);
     } catch (error: any) {
-      console.error("Publish failed! Raw error:", error);
-      const errorMessage = error?.data?.message || error?.message || (typeof error === 'string' ? error : "Check console for details");
+      const errorMessage = error?.data?.message || error?.message || "Check console for details";
       alert(`Failed to publish configuration: ${errorMessage}`);
     }
   };
@@ -121,8 +123,50 @@ export default function FeeConfigurationPage() {
   const handleSimulate = async () => {
     simulateRevenue({
       expectedMonthlyGmvKobo: nairaToKobo(expectedPerMonth).toString(),
-      avgCommissionPercent: Number(tier1Commission),
+      avgCommissionPercent: tiers.length > 0 ? tiers[0].percentage : 0,
     });
+  };
+
+  const handleAddTier = async () => {
+    try {
+      const nextNum = (tiers?.length || 0) + 1;
+      const payload = {
+        name: `Tier ${nextNum}`,
+        minAmount: 0,
+        maxAmount: 0,
+        percentage: 0,
+      };
+      await createTier(payload).unwrap();
+    } catch (err: any) {
+      const errMsg = err?.data?.message || err?.error || "Failed to create tier";
+      alert(errMsg);
+    }
+  };
+
+  const handleUpdateTier = async (tier: any, updates: any) => {
+    try {
+      const payload = {
+        id: tier.id,
+        name: updates.name ?? tier.name,
+        minAmount: updates.minAmount !== undefined ? Number(updates.minAmount.replace(/,/g, "")) : Number(tier.minAmount),
+        maxAmount: updates.maxAmount !== undefined ? Number(updates.maxAmount.replace(/,/g, "")) : Number(tier.maxAmount),
+        percentage: updates.percentage !== undefined ? Number(updates.percentage) : tier.percentage,
+      };
+      await updateTier(payload).unwrap();
+    } catch (err: any) {
+      console.error("Update failed:", err?.data?.message || err?.error);
+    }
+  };
+
+  const handleDeleteTier = async (id: string) => {
+    if (confirm("Are you sure you want to delete this tier?")) {
+      try {
+        await deleteTier(id).unwrap();
+      } catch (err: any) {
+        const errMsg = err?.data?.message || err?.error || "Failed to delete tier";
+        alert(errMsg);
+      }
+    }
   };
 
   const handleUpdateLogisticsFee = async (zoneId: string, feeNaira: string) => {
@@ -215,181 +259,89 @@ export default function FeeConfigurationPage() {
               background: "#FFF",
             }}
           >
-            <h2 className="text-base font-semibold text-black mb-6">
-              Shopping Commission (All Goods)
-            </h2>
+            <div className="flex items-center justify-between mb-6">
+              <h2 className="text-base font-semibold text-black">
+                Shopping Commission (All Goods)
+              </h2>
+              <button
+                onClick={handleAddTier}
+                disabled={isCreatingTier}
+                className="flex items-center gap-2 px-3 py-1.5 text-xs font-medium text-[var(--sidebar-primary)] border border-[var(--sidebar-primary)] rounded-lg hover:bg-orange-50 transition-colors"
+              >
+                {isCreatingTier ? <Loader2 className="w-3 h-3 animate-spin" /> : <Plus className="w-3 h-3" />}
+                Add Tier
+              </button>
+            </div>
 
-            <div className="grid grid-cols-3 gap-6">
-              {/* Tier 1 */}
-              <div>
-                <h3 className="text-sm font-medium text-black mb-4">
-                  Tier 1 - ₦100 to ₦499,999
-                </h3>
-                <div className="space-y-3">
-                  <div>
-                    <label className="text-xs text-gray-600 block mb-1">
-                      Min amount (₦):
-                    </label>
-                    <input
-                      type="text"
-                      value={tier1Min}
-                      onChange={(e) => setTier1Min(e.target.value)}
-                      style={{
-                        width: "100%",
-                        padding: "8px 12px",
-                        borderRadius: "8px",
-                        border: "0.3px solid rgba(0, 0, 0, 0.20)",
-                        fontSize: "14px",
-                        outline: "none",
-                      }}
-                    />
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              {isTiersLoading ? (
+                Array(3).fill(0).map((_, i) => (
+                  <div key={i} className="h-48 bg-gray-50 animate-pulse rounded-xl" />
+                ))
+              ) : tiers.length > 0 ? (
+                tiers.map((tier) => (
+                  <div
+                    key={tier.id}
+                    className="p-4 rounded-xl border border-gray-100 bg-gray-50/30 group relative"
+                  >
+                    <div className="flex items-center justify-between mb-4">
+                      <input
+                        type="text"
+                        defaultValue={tier.name}
+                        onBlur={(e) => handleUpdateTier(tier, { name: e.target.value })}
+                        className="text-sm font-medium text-black bg-transparent border-none outline-none focus:ring-1 focus:ring-orange-200 rounded px-1 w-2/3"
+                      />
+                      <button
+                        onClick={() => handleDeleteTier(tier.id)}
+                        className="p-1.5 text-red-500 hover:bg-red-50 rounded-lg transition-colors opacity-0 group-hover:opacity-100"
+                        title="Delete Tier"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </button>
+                    </div>
+                    
+                    <div className="space-y-3">
+                      <div>
+                        <label className="text-xs text-gray-500 block mb-1">
+                          Min amount (₦):
+                        </label>
+                        <input
+                          type="text"
+                          defaultValue={formatNumber(Number(tier.minAmount))}
+                          onBlur={(e) => handleUpdateTier(tier, { minAmount: e.target.value })}
+                          className="w-full px-3 py-2 rounded-lg border border-gray-200 text-sm outline-none focus:border-orange-500 transition-colors"
+                        />
+                      </div>
+                      <div>
+                        <label className="text-xs text-gray-500 block mb-1">
+                          Max amount (₦):
+                        </label>
+                        <input
+                          type="text"
+                          defaultValue={formatNumber(Number(tier.maxAmount))}
+                          onBlur={(e) => handleUpdateTier(tier, { maxAmount: e.target.value })}
+                          className="w-full px-3 py-2 rounded-lg border border-gray-200 text-sm outline-none focus:border-orange-500 transition-colors"
+                        />
+                      </div>
+                      <div>
+                        <label className="text-xs text-gray-500 block mb-1">
+                          Commission %:
+                        </label>
+                        <input
+                          type="text"
+                          defaultValue={tier.percentage}
+                          onBlur={(e) => handleUpdateTier(tier, { percentage: e.target.value })}
+                          className="w-full px-3 py-2 rounded-lg border border-gray-200 text-sm outline-none focus:border-orange-500 transition-colors font-semibold text-orange-600"
+                        />
+                      </div>
+                    </div>
                   </div>
-                  <div>
-                    <label className="text-xs text-gray-600 block mb-1">
-                      Max amount (₦):
-                    </label>
-                    <input
-                      type="text"
-                      value={tier1Max}
-                      onChange={(e) => setTier1Max(e.target.value)}
-                      style={{
-                        width: "100%",
-                        padding: "8px 12px",
-                        borderRadius: "8px",
-                        border: "0.3px solid rgba(0, 0, 0, 0.20)",
-                        fontSize: "14px",
-                        outline: "none",
-                      }}
-                    />
-                  </div>
-                  <div>
-                    <label className="text-xs text-gray-600 block mb-1">
-                      Commission %:
-                    </label>
-                    <input
-                      type="text"
-                      value={tier1Commission}
-                      onChange={(e) => setTier1Commission(e.target.value)}
-                      style={{
-                        width: "100%",
-                        padding: "8px 12px",
-                        borderRadius: "8px",
-                        border: "0.3px solid rgba(0, 0, 0, 0.20)",
-                        fontSize: "14px",
-                        outline: "none",
-                      }}
-                    />
-                  </div>
+                ))
+              ) : (
+                <div className="col-span-full py-8 text-center text-gray-400 text-sm bg-gray-50 rounded-xl border border-dashed border-gray-200">
+                  No commission tiers defined. Click "Add Tier" to create one.
                 </div>
-              </div>
-
-              {/* Tier 2 */}
-              <div>
-                <h3 className="text-sm font-medium text-black mb-4">
-                  Tier 2 - ₦500,000 to ₦999,999
-                </h3>
-                <div className="space-y-3">
-                  <div>
-                    <label className="text-xs text-gray-600 block mb-1">
-                      Min amount (₦):
-                    </label>
-                    <input
-                      type="text"
-                      value={tier2Min}
-                      onChange={(e) => setTier2Min(e.target.value)}
-                      style={{
-                        width: "100%",
-                        padding: "8px 12px",
-                        borderRadius: "8px",
-                        border: "0.3px solid rgba(0, 0, 0, 0.20)",
-                        fontSize: "14px",
-                        outline: "none",
-                      }}
-                    />
-                  </div>
-                  <div>
-                    <label className="text-xs text-gray-600 block mb-1">
-                      Max amount (₦):
-                    </label>
-                    <input
-                      type="text"
-                      value={tier2Max}
-                      onChange={(e) => setTier2Max(e.target.value)}
-                      style={{
-                        width: "100%",
-                        padding: "8px 12px",
-                        borderRadius: "8px",
-                        border: "0.3px solid rgba(0, 0, 0, 0.20)",
-                        fontSize: "14px",
-                        outline: "none",
-                      }}
-                    />
-                  </div>
-                  <div>
-                    <label className="text-xs text-gray-600 block mb-1">
-                      Commission %:
-                    </label>
-                    <input
-                      type="text"
-                      value={tier2Commission}
-                      onChange={(e) => setTier2Commission(e.target.value)}
-                      style={{
-                        width: "100%",
-                        padding: "8px 12px",
-                        borderRadius: "8px",
-                        border: "0.3px solid rgba(0, 0, 0, 0.20)",
-                        fontSize: "14px",
-                        outline: "none",
-                      }}
-                    />
-                  </div>
-                </div>
-              </div>
-
-              {/* Tier 3 */}
-              <div>
-                <h3 className="text-sm font-medium text-black mb-4">
-                  Tier 3 - ₦1,000,000 and above
-                </h3>
-                <div className="space-y-3">
-                  <div>
-                    <label className="text-xs text-gray-600 block mb-1">
-                      Min amount (₦):
-                    </label>
-                    <input
-                      type="text"
-                      value={tier3Min}
-                      onChange={(e) => setTier3Min(e.target.value)}
-                      style={{
-                        width: "100%",
-                        padding: "8px 12px",
-                        borderRadius: "8px",
-                        border: "0.3px solid rgba(0, 0, 0, 0.20)",
-                        fontSize: "14px",
-                        outline: "none",
-                      }}
-                    />
-                  </div>
-                  <div>
-                    <label className="text-xs text-gray-600 block mb-1">
-                      Commission %:
-                    </label>
-                    <input
-                      type="text"
-                      value={tier3Commission}
-                      onChange={(e) => setTier3Commission(e.target.value)}
-                      style={{
-                        width: "100%",
-                        padding: "8px 12px",
-                        borderRadius: "8px",
-                        border: "0.3px solid rgba(0, 0, 0, 0.20)",
-                        fontSize: "14px",
-                        outline: "none",
-                      }}
-                    />
-                  </div>
-                </div>
-              </div>
+              )}
             </div>
           </div>
 
