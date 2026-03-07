@@ -10,11 +10,14 @@ import {
   useCreateCommissionTierMutation,
   useUpdateCommissionTierMutation,
   useDeleteCommissionTierMutation,
+  type CommissionTier,   // 👈 add this
 } from "@/api/feeConfigApi";
 import { useGetZonesQuery, useUpdatePriceMutation } from "@/api/deliveryApi";
 import { formatNaira, koboToNaira, nairaToKobo, formatNumber } from "@/lib/utils";
 import { SuccessModal } from "@/components/shared/SuccessModal";
 import { Trash2, Plus, Save, Loader2 } from "lucide-react";
+
+
 
 export default function FeeConfigurationPage() {
   const { data: configResponse, isLoading: isConfigLoading } = useGetFeeConfigQuery();
@@ -31,9 +34,9 @@ export default function FeeConfigurationPage() {
 
   const { data: tiersResponse, isLoading: isTiersLoading } = useGetCommissionTiersQuery({});
   // Handle both direct array and { items: [] } pattern
-  const tiers = Array.isArray(tiersResponse?.data) 
-    ? tiersResponse.data 
-    : (tiersResponse?.data as any)?.items || [];
+const tiers: CommissionTier[] = Array.isArray(tiersResponse?.data)
+  ? tiersResponse.data
+  : (tiersResponse?.data as { items: CommissionTier[] } | undefined)?.items || [];
 
   const [createTier, { isLoading: isCreatingTier }] = useCreateCommissionTierMutation();
   const [updateTier, { isLoading: isUpdatingTier }] = useUpdateCommissionTierMutation();
