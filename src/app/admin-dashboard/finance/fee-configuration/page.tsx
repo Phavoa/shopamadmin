@@ -12,7 +12,7 @@ import {
   useDeleteCommissionTierMutation,
   type CommissionTier,   // 👈 add this
 } from "@/api/feeConfigApi";
-import { useGetZonesQuery, useUpdatePriceMutation } from "@/api/deliveryApi";
+import { useGetZonesQuery, useUpdatePriceMutation, useGetPricesQuery, useSeedZonesMutation } from "@/api/deliveryApi";
 import { formatNaira, koboToNaira, nairaToKobo, formatNumber } from "@/lib/utils";
 import { SuccessModal } from "@/components/shared/SuccessModal";
 import { Trash2, Plus, Save, Loader2 } from "lucide-react";
@@ -26,7 +26,11 @@ export default function FeeConfigurationPage() {
   // Delivery Zones for Logistics Fees
   const { data: zonesResponse, isLoading: isZonesLoading } = useGetZonesQuery({});
   const zones = zonesResponse?.data?.items || [];
+  const { data: pricesResponse, isLoading: isPricesLoading } = useGetPricesQuery({});
+  const prices = Array.isArray(pricesResponse?.data) ? pricesResponse.data : [];
+
   const [updateZonePrice, { isLoading: isUpdatingPrice }] = useUpdatePriceMutation();
+  const [seedZones, { isLoading: isSeeding }] = useSeedZonesMutation();
 
   const [saveDraft, { isLoading: isSaving }] = useSaveDraftMutation();
   const [publishConfig, { isLoading: isPublishing }] = usePublishConfigMutation();
@@ -172,20 +176,33 @@ const tiers: CommissionTier[] = Array.isArray(tiersResponse?.data)
     }
   };
 
-  const handleUpdateLogisticsFee = async (zoneId: string, feeNaira: string) => {
+  const handleUpdateLogisticsFee = async (priceId: string, feeNaira: string) => {
     try {
-      // Find the price record for this zone. 
-      // Note: This logic depends on how origin/destination zones are handled.
-      // Assuming we are updating a specific price record ID.
-      // For now, if we don't have the price ID directly from 'zones', 
-      // we might need to fetch prices or have it enriched.
-      // The audit said Endpoint 24b is PATCH /api/admin/delivery/zone-prices/:id
-      // If 'zones' doesn't have 'priceId', we might need to search or use a different approach.
-      // I'll stick to updating by zone if the API supports it, or just log for now.
-      console.log(`Updating fee for zone ${zoneId} to ${feeNaira}`);
-      // await updateZonePrice({ id: zoneId, data: { priceKobo: nairaToKobo(feeNaira).toString() } }).unwrap();
+      if (!priceId) {
+        alert("This zone does not have an active price record. Please click 'Initialize Matrix' first.");
+        return;
+      }
+      console.log(`Updating fee for price record ${priceId} to ${feeNaira}`);
+      await updateZonePrice({ 
+        id: priceId, 
+        data: { priceKobo: nairaToKobo(feeNaira).toString() } 
+      }).unwrap();
     } catch (error) {
       console.error("Update logistics fee failed:", error);
+    }
+  };
+
+  const handleSeedLogistics = async () => {
+    if (!confirm("This will initialize the delivery pricing matrix for all zones. Existing prices might be affected if you choose to reset. Continue?")) {
+      return;
+    }
+    try {
+      await seedZones({ defaultPriceKobo: "0", reset: false }).unwrap();
+      setModalTitle("Matrix Initialized");
+      setModalMessage("The delivery pricing matrix has been successfully initialized. You can now set individual zone fees.");
+      setIsSuccessModalOpen(true);
+    } catch (error: any) {
+      alert(`Failed to seed zones: ${error?.data?.message || error?.message}`);
     }
   };
 
@@ -485,39 +502,63 @@ const tiers: CommissionTier[] = Array.isArray(tiersResponse?.data)
                   background: "#FFF",
                 }}
               >
-                <h2 className="text-base font-semibold text-black mb-6">
-                  Logistics Fees
-                </h2>
+                <div className="flex items-center justify-between mb-6">
+                  <h2 className="text-base font-semibold text-black">
+                    Logistics Fees
+                  </h2>
+                  <button
+                    onClick={handleSeedLogistics}
+                    disabled={isSeeding}
+                    className="text-xs font-medium text-[var(--sidebar-primary)] px-3 py-1.5 border border-[var(--sidebar-primary)] rounded-lg hover:bg-orange-50 transition-colors flex items-center gap-2"
+                  >
+                    {isSeeding ? <Loader2 className="w-3 h-3 animate-spin" /> : <Save className="w-3 h-3" />}
+                    Initialize Matrix
+                  </button>
+                </div>
 
                 <div className="space-y-3">
-                  {isZonesLoading ? (
-                    <p className="text-sm text-gray-500">Loading zones...</p>
+                  {isZonesLoading || isPricesLoading ? (
+                    <p className="text-sm text-gray-500">Loading zones and prices...</p>
                   ) : zones.length > 0 ? (
-                    zones.map((zone, index) => (
-                      <div
-                        key={zone.id}
-                        className="flex items-center justify-between"
-                      >
-                        <span className="text-sm text-black">{zone.name}</span>
-                        <div className="flex items-center gap-2">
-                          <span className="text-sm font-semibold">₦</span>
-                          <input
-                            type="text"
-                            defaultValue="0" // Default if no price info in zone object
-                            onBlur={(e) => handleUpdateLogisticsFee(zone.id, e.target.value)}
-                            style={{
-                              width: "60px",
-                              padding: "6px 10px",
-                              borderRadius: "8px",
-                              border: "0.3px solid rgba(0, 0, 0, 0.20)",
-                              fontSize: "14px",
-                              textAlign: "right",
-                              outline: "none",
-                            }}
-                          />
+                    zones.map((zone, index) => {
+                      // Find the price record where origin and destination are the same zone
+                      const zonePrice = prices.find(
+                        (p) => p.originZoneId === zone.id && p.destinationZoneId === zone.id
+                      );
+                      
+                      return (
+                        <div
+                          key={zone.id}
+                          className="flex items-center justify-between"
+                        >
+                          <span className="text-sm text-black">{zone.name}</span>
+                          <div className="flex items-center gap-2">
+                            <span className="text-sm font-semibold">₦</span>
+                            <input
+                              type="text"
+                              defaultValue={zonePrice ? koboToNaira(zonePrice.priceKobo) : "0"}
+                              onBlur={(e) => {
+                                if (zonePrice) {
+                                  handleUpdateLogisticsFee(zonePrice.id, e.target.value);
+                                } else {
+                                  console.error(`No intra-zone price found for zone ${zone.name}`);
+                                }
+                              }}
+                              style={{
+                                width: "80px",
+                                padding: "6px 10px",
+                                borderRadius: "8px",
+                                border: "0.3px solid rgba(0, 0, 0, 0.20)",
+                                fontSize: "14px",
+                                textAlign: "right",
+                                outline: "none",
+                              }}
+                            />
+                            {isUpdatingPrice && <Loader2 className="w-3 h-3 animate-spin text-orange-500" />}
+                          </div>
                         </div>
-                      </div>
-                    ))
+                      );
+                    })
                   ) : (
                     <p className="text-sm text-gray-500">No zones found.</p>
                   )}

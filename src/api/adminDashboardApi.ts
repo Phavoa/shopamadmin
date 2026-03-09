@@ -82,6 +82,68 @@ export interface FinanceOverviewVM {
   alerts: FinanceAlert[];
 }
 
+// ─── Seller Leaderboard (endpoint 26) ────────────────────────────────────────
+
+export interface LeaderboardSeller {
+  rank: number;
+  sellerId: string;
+  shopName: string;
+  logoUrl?: string;
+  businessCategory: string;
+  totalOrders: number;
+  gmvKobo: string;
+  ratingAverage: number;
+  status: string;
+}
+
+export interface SellerLeaderboardResponse {
+  top3: LeaderboardSeller[];
+  items: LeaderboardSeller[];
+  total: number;
+  page: number;
+  limit: number;
+}
+
+export interface SellerLeaderboardParams {
+  category?: string;
+  page?: number;
+  limit?: number;
+  period: FinanceOverviewPeriod;
+  from?: string;
+  to?: string;
+}
+
+// ─── Buyer Insights (endpoint 28) ───────────────────────────────────────────
+
+export interface BuyerInsightsResponse {
+  period: string;
+  totalBuyers: number;
+  activeBuyers: number;
+  avgSpendPerBuyerKobo: string;
+  regionsCovered: number;
+  activity: {
+    activeBuyers: number;
+    inactiveBuyers: number;
+    newBuyers: number;
+  };
+  topRegions: {
+    name: string;
+    buyerCount: number;
+  }[];
+  segments: {
+    segment: string;
+    avgOrders: number;
+    avgGmvKobo: string;
+    avgSpendKobo: string;
+  }[];
+}
+
+export interface BuyerInsightsParams {
+  period?: "today" | "week" | "month" | "quarter" | "year" | "custom";
+  from?: string;
+  to?: string;
+}
+
 // ─── Base setup ───────────────────────────────────────────────────────────────
 
 const API_BASE_URL =
@@ -164,6 +226,24 @@ export const adminDashboardApi = createApi({
       providesTags: ["FinanceOverview"],
     }),
 
+    // GET /api/admin/dashboard/seller-leaderboard (endpoint 26)
+    getSellerLeaderboard: builder.query<ApiResponse<SellerLeaderboardResponse>, SellerLeaderboardParams>({
+      query: (params) => ({
+        url: "/admin/dashboard/seller-leaderboard",
+        method: "GET",
+        params,
+      }),
+    }),
+
+    // GET /api/admin/dashboard/buyer-insights (endpoint 28)
+    getBuyerInsights: builder.query<ApiResponse<BuyerInsightsResponse>, BuyerInsightsParams>({
+      query: (params) => ({
+        url: "/admin/dashboard/buyer-insights",
+        method: "GET",
+        params,
+      }),
+    }),
+
   }),
 });
 
@@ -172,4 +252,8 @@ export const {
   useLazyGetFinancialStatsQuery,
   useGetFinanceOverviewQuery,
   useLazyGetFinanceOverviewQuery,
+  useGetSellerLeaderboardQuery,
+  useLazyGetSellerLeaderboardQuery,
+  useGetBuyerInsightsQuery,
+  useLazyGetBuyerInsightsQuery,
 } = adminDashboardApi;
