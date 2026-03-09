@@ -130,18 +130,57 @@ export interface OrdersListResponse {
   totalCount?: number;
 }
 
+const fetchWithReauth = async (url: string, options: RequestInit = {}): Promise<Response> => {
+  let token = authStorage.getAccessToken();
+  const headers = {
+    ...options.headers,
+    "Content-Type": "application/json",
+    Authorization: `Bearer ${token}`,
+  };
+
+  let response = await fetch(url, { ...options, headers });
+
+  if (response.status === 401) {
+    const refreshToken = authStorage.getRefreshToken();
+    if (refreshToken) {
+      try {
+        const refreshResp = await fetch(`${API_BASE_URL}/auth/refresh`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ refreshToken }),
+        });
+
+        if (refreshResp.ok) {
+          const refreshData = await refreshResp.json();
+          authStorage.setTokens(refreshData.accessToken, refreshData.refreshToken);
+          
+          // Retry with new token
+          const newHeaders = {
+            ...headers,
+            Authorization: `Bearer ${refreshData.accessToken}`,
+          };
+          response = await fetch(url, { ...options, headers: newHeaders });
+        } else {
+          authStorage.clearTokens();
+        }
+      } catch (error) {
+        console.error("Token refresh failed:", error);
+      }
+    }
+  }
+
+  return response;
+};
+
 export const getOrders = async (
   params: OrdersListParams = {}
 ): Promise<ApiResponse<OrdersListResponse>> => {
-  const token = authStorage.getAccessToken();
-
   const url = new URL(`${API_BASE_URL}/orders`);
 
   // Add query parameters
   Object.entries(params).forEach(([key, value]) => {
     if (value !== undefined && value !== null && value !== "") {
       if (key === "populate" && Array.isArray(value)) {
-        // Handle array parameters for populate
         value.forEach((item) => {
           url.searchParams.append("populate", item);
         });
@@ -151,16 +190,14 @@ export const getOrders = async (
     }
   });
 
-  const response = await fetch(url.toString(), {
+  const response = await fetchWithReauth(url.toString(), {
     method: "GET",
-    headers: {
-      "Content-Type": "application/json",
-      Authorization: `Bearer ${token}`,
-    },
   });
 
   if (!response.ok) {
-    throw new Error(`Failed to fetch orders: ${response.statusText}`);
+    const errorBody = await response.text();
+    console.error(`❌ getOrders Error [${response.status}]:`, errorBody);
+    throw new Error(`Failed to fetch orders: ${response.status} ${response.statusText}`);
   }
 
   return response.json();
@@ -181,16 +218,14 @@ export const getOrderById = async (
     });
   }
 
-  const response = await fetch(url.toString(), {
+  const response = await fetchWithReauth(url.toString(), {
     method: "GET",
-    headers: {
-      "Content-Type": "application/json",
-      Authorization: `Bearer ${token}`,
-    },
   });
 
   if (!response.ok) {
-    throw new Error(`Failed to fetch order: ${response.statusText}`);
+    const errorBody = await response.text();
+    console.error(`❌ getOrderById Error [${response.status}]:`, errorBody);
+    throw new Error(`Failed to fetch order: ${response.status} ${response.statusText}`);
   }
 
   return response.json();
@@ -203,12 +238,8 @@ export const updateOrderStatus = async (
 ): Promise<ApiResponse<OrderVM>> => {
   const token = authStorage.getAccessToken();
 
-  const response = await fetch(`${API_BASE_URL}/orders/${orderId}/status`, {
+  const response = await fetchWithReauth(`${API_BASE_URL}/orders/${orderId}/status`, {
     method: "PUT",
-    headers: {
-      "Content-Type": "application/json",
-      Authorization: `Bearer ${token}`,
-    },
     body: JSON.stringify({
       status,
       notes,

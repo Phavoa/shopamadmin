@@ -60,6 +60,10 @@ const tiers: CommissionTier[] = Array.isArray(tiersResponse?.data)
   const [subscriptionEnabled, setSubscriptionEnabled] = useState(false);
   const [subscriptionPrice, setSubscriptionPrice] = useState("0");
   const [referralEnabled, setReferralEnabled] = useState(true);
+  
+  // Local state for Tiers and Logistics to avoid desync/reset issues
+  const [localTiers, setLocalTiers] = useState<CommissionTier[]>([]);
+  const [localLogisticsFees, setLocalLogisticsFees] = useState<Record<string, string>>({});
 
   // Initialize state from API
   useEffect(() => {
@@ -73,10 +77,35 @@ const tiers: CommissionTier[] = Array.isArray(tiersResponse?.data)
       setSubscriptionPrice(koboToNaira(config.subscriptionFeeKobo).toString());
       setReferralEnabled(config.referralEnabled);
       
-      // Trigger initial simulation
+      // Initialize local tiers
+      if (tiers.length > 0) {
+        setLocalTiers(tiers);
+      }
+      
       handleSimulate();
     }
-  }, [config]);
+  }, [config, tiers]);
+
+  // Sync tiers to local state when they load
+  useEffect(() => {
+    if (tiers.length > 0) {
+      setLocalTiers(tiers);
+    }
+  }, [tiers]);
+
+  // Sync logistics prices to local state
+  useEffect(() => {
+    if (prices.length > 0 && zones.length > 0) {
+      const fees: Record<string, string> = {};
+      zones.forEach(zone => {
+        const zonePrice = prices.find(p => p.originZoneId === zone.id && p.destinationZoneId === zone.id);
+        if (zonePrice) {
+          fees[zone.id] = koboToNaira(zonePrice.priceKobo).toString();
+        }
+      });
+      setLocalLogisticsFees(fees);
+    }
+  }, [prices, zones]);
 
 
   // Simulation data
@@ -150,18 +179,35 @@ const tiers: CommissionTier[] = Array.isArray(tiersResponse?.data)
     }
   };
 
-  const handleUpdateTier = async (tier: any, updates: any) => {
+  const handleUpdateTierState = (tierId: string, updates: Partial<CommissionTier>) => {
+    setLocalTiers(prev => prev.map(t => t.id === tierId ? { ...t, ...updates } : t));
+  };
+
+  const handleUpdateTierApi = async (tierId: string) => {
+    const tier = localTiers.find(t => t.id === tierId);
+    if (!tier) return;
+
     try {
+      // Ensure we don't send malformed data or NaN
+      const minVal = typeof tier.minAmount === "string" ? Number(tier.minAmount.replace(/,/g, "")) : Number(tier.minAmount);
+      const maxVal = typeof tier.maxAmount === "string" ? Number(tier.maxAmount.replace(/,/g, "")) : Number(tier.maxAmount);
+
       const payload = {
         id: tier.id,
-        name: updates.name ?? tier.name,
-        minAmount: updates.minAmount !== undefined ? Number(updates.minAmount.replace(/,/g, "")) : Number(tier.minAmount),
-        maxAmount: updates.maxAmount !== undefined ? Number(updates.maxAmount.replace(/,/g, "")) : Number(tier.maxAmount),
-        percentage: updates.percentage !== undefined ? Number(updates.percentage) : tier.percentage,
+        name: tier.name,
+        minAmount: isNaN(minVal) ? 0 : minVal,
+        maxAmount: isNaN(maxVal) ? 0 : maxVal,
+        percentage: Number(tier.percentage) || 0,
       };
+      
+      console.log("Updating tier API:", payload);
       await updateTier(payload).unwrap();
+      
+      // Force simulation update after tier change
+      handleSimulate();
     } catch (err: any) {
       console.error("Update failed:", err?.data?.message || err?.error);
+      // Optional: Refresh tiers from API on failure
     }
   };
 
@@ -176,15 +222,19 @@ const tiers: CommissionTier[] = Array.isArray(tiersResponse?.data)
     }
   };
 
-  const handleUpdateLogisticsFee = async (priceId: string, feeNaira: string) => {
+  const handleUpdateLogisticsFeeApi = async (zoneId: string) => {
+    const feeNaira = localLogisticsFees[zoneId];
+    const zonePrice = prices.find(p => p.originZoneId === zoneId && p.destinationZoneId === zoneId);
+    
+    if (!zonePrice) {
+      alert("This zone does not have an active price record. Please click 'Initialize Matrix' first.");
+      return;
+    }
+
     try {
-      if (!priceId) {
-        alert("This zone does not have an active price record. Please click 'Initialize Matrix' first.");
-        return;
-      }
-      console.log(`Updating fee for price record ${priceId} to ${feeNaira}`);
+      console.log(`Updating fee for price record ${zonePrice.id} to ${feeNaira}`);
       await updateZonePrice({ 
-        id: priceId, 
+        id: zonePrice.id, 
         data: { priceKobo: nairaToKobo(feeNaira).toString() } 
       }).unwrap();
     } catch (error) {
@@ -298,8 +348,8 @@ const tiers: CommissionTier[] = Array.isArray(tiersResponse?.data)
                 Array(3).fill(0).map((_, i) => (
                   <div key={i} className="h-48 bg-gray-50 animate-pulse rounded-xl" />
                 ))
-              ) : tiers.length > 0 ? (
-                tiers.map((tier) => (
+              ) : localTiers.length > 0 ? (
+                localTiers.map((tier) => (
                   <div
                     key={tier.id}
                     className="p-4 rounded-xl border border-gray-100 bg-gray-50/30 group relative"
@@ -307,8 +357,9 @@ const tiers: CommissionTier[] = Array.isArray(tiersResponse?.data)
                     <div className="flex items-center justify-between mb-4">
                       <input
                         type="text"
-                        defaultValue={tier.name}
-                        onBlur={(e) => handleUpdateTier(tier, { name: e.target.value })}
+                        value={tier.name}
+                        onChange={(e) => handleUpdateTierState(tier.id, { name: e.target.value })}
+                        onBlur={() => handleUpdateTierApi(tier.id)}
                         className="text-sm font-medium text-black bg-transparent border-none outline-none focus:ring-1 focus:ring-orange-200 rounded px-1 w-2/3"
                       />
                       <button
@@ -327,8 +378,9 @@ const tiers: CommissionTier[] = Array.isArray(tiersResponse?.data)
                         </label>
                         <input
                           type="text"
-                          defaultValue={formatNumber(Number(tier.minAmount))}
-                          onBlur={(e) => handleUpdateTier(tier, { minAmount: e.target.value })}
+                          value={tier.minAmount}
+                          onChange={(e) => handleUpdateTierState(tier.id, { minAmount: e.target.value.replace(/[^0-9.]/g, "") })}
+                          onBlur={() => handleUpdateTierApi(tier.id)}
                           className="w-full px-3 py-2 rounded-lg border border-gray-200 text-sm outline-none focus:border-orange-500 transition-colors"
                         />
                       </div>
@@ -338,8 +390,9 @@ const tiers: CommissionTier[] = Array.isArray(tiersResponse?.data)
                         </label>
                         <input
                           type="text"
-                          defaultValue={formatNumber(Number(tier.maxAmount))}
-                          onBlur={(e) => handleUpdateTier(tier, { maxAmount: e.target.value })}
+                          value={tier.maxAmount}
+                          onChange={(e) => handleUpdateTierState(tier.id, { maxAmount: e.target.value.replace(/[^0-9.]/g, "") })}
+                          onBlur={() => handleUpdateTierApi(tier.id)}
                           className="w-full px-3 py-2 rounded-lg border border-gray-200 text-sm outline-none focus:border-orange-500 transition-colors"
                         />
                       </div>
@@ -349,8 +402,9 @@ const tiers: CommissionTier[] = Array.isArray(tiersResponse?.data)
                         </label>
                         <input
                           type="text"
-                          defaultValue={tier.percentage}
-                          onBlur={(e) => handleUpdateTier(tier, { percentage: e.target.value })}
+                          value={tier.percentage}
+                          onChange={(e) => handleUpdateTierState(tier.id, { percentage: Number(e.target.value.replace(/[^0-9.]/g, "")) || 0 })}
+                          onBlur={() => handleUpdateTierApi(tier.id)}
                           className="w-full px-3 py-2 rounded-lg border border-gray-200 text-sm outline-none focus:border-orange-500 transition-colors font-semibold text-orange-600"
                         />
                       </div>
@@ -536,14 +590,9 @@ const tiers: CommissionTier[] = Array.isArray(tiersResponse?.data)
                             <span className="text-sm font-semibold">₦</span>
                             <input
                               type="text"
-                              defaultValue={zonePrice ? koboToNaira(zonePrice.priceKobo) : "0"}
-                              onBlur={(e) => {
-                                if (zonePrice) {
-                                  handleUpdateLogisticsFee(zonePrice.id, e.target.value);
-                                } else {
-                                  console.error(`No intra-zone price found for zone ${zone.name}`);
-                                }
-                              }}
+                              value={localLogisticsFees[zone.id] || "0"}
+                              onChange={(e) => setLocalLogisticsFees(prev => ({ ...prev, [zone.id]: e.target.value }))}
+                              onBlur={() => handleUpdateLogisticsFeeApi(zone.id)}
                               style={{
                                 width: "80px",
                                 padding: "6px 10px",

@@ -153,7 +153,7 @@ export const feeConfigApi = createApi({
         method: "POST",
         body,
       }),
-      invalidatesTags: ["FeeConfig"],
+      invalidatesTags: ["FeeConfig", "CommissionTier"],
     }),
 
     // GET /api/admin/fee-config/simulate
