@@ -5,7 +5,8 @@ import { Search, ChevronLeft, ChevronRight, Loader2, AlertCircle } from "lucide-
 import {
   useGetSellerLeaderboardQuery,
   useGetFinancialStatsQuery,
-  FinanceOverviewPeriod
+  FinanceOverviewPeriod,
+  exportSellerLeaderboardCsv,
 } from "@/api/adminDashboardApi";
 
 // Trophy Icon
@@ -36,6 +37,7 @@ export default function SellerLeaderboardPage() {
   const [currentPage, setCurrentPage] = useState(1);
   const [selectedPeriod, setSelectedPeriod] = useState<FinanceOverviewPeriod>("month");
   const [searchQuery, setSearchQuery] = useState("");
+  const [isExporting, setIsExporting] = useState(false);
   const LIMIT = 10;
 
   const { data, isLoading, error, isFetching } = useGetSellerLeaderboardQuery({
@@ -70,6 +72,19 @@ export default function SellerLeaderboardPage() {
     if (rank === 2) return { background: "#374151", color: "#FFF" };
     if (rank === 3) return { background: "#6B7280", color: "#FFF" };
     return { background: "#F3F4F6", color: "#374151" };
+  };
+
+  const handleExportCsv = async () => {
+    setIsExporting(true);
+    try {
+      await exportSellerLeaderboardCsv({
+        period: selectedPeriod,
+      });
+    } catch {
+      alert("Failed to export CSV. Please try again.");
+    } finally {
+      setIsExporting(false);
+    }
   };
 
   // Combine top3 and items if top3 is not empty, but ensure no duplicates
@@ -234,13 +249,17 @@ export default function SellerLeaderboardPage() {
           </div>
 
           <div className="flex gap-3">
-            <button className="px-4 py-2 text-sm border border-gray-300 rounded-lg hover:bg-gray-50">
-              Export: CSV
+            <button
+              onClick={handleExportCsv}
+              disabled={isExporting || isLoading}
+              className="flex items-center gap-2 px-4 py-2 text-sm border border-gray-300 rounded-lg hover:bg-gray-50 disabled:opacity-50 transition-opacity"
+            >
+              {isExporting ? <Loader2 className="w-4 h-4 animate-spin" /> : "Export: CSV"}
             </button>
-            <button className="px-4 py-2 text-sm border border-gray-300 rounded-lg hover:bg-gray-50">
+            <button className="px-4 py-2 text-sm border border-gray-300 rounded-lg hover:bg-gray-50 opacity-50 cursor-not-allowed" disabled>
               XLSX
             </button>
-            <button className="px-4 py-2 text-sm border border-gray-300 rounded-lg hover:bg-gray-50">
+            <button className="px-4 py-2 text-sm border border-gray-300 rounded-lg hover:bg-gray-50 opacity-50 cursor-not-allowed" disabled>
               PDF
             </button>
           </div>

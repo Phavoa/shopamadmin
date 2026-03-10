@@ -2,7 +2,7 @@
 
 import React, { useState } from "react";
 import { Search, Loader2, AlertCircle } from "lucide-react";
-import { useGetBuyerInsightsQuery } from "@/api/adminDashboardApi";
+import { useGetBuyerInsightsQuery, exportBuyerInsightsCsv } from "@/api/adminDashboardApi";
 
 // Bar Chart Icon
 const ChartIcon = () => (
@@ -32,12 +32,26 @@ const PERIOD_OPTIONS: { label: string; value: PeriodValue }[] = [
 
 export default function BuyerInsightsPage() {
   const [selectedPeriod, setSelectedPeriod] = useState<PeriodValue>("month");
+  const [isExporting, setIsExporting] = useState(false);
 
   const { data, isLoading, error } = useGetBuyerInsightsQuery({
     period: selectedPeriod,
   });
 
   const insights = data?.data;
+
+  const handleExportCsv = async () => {
+    setIsExporting(true);
+    try {
+      await exportBuyerInsightsCsv({
+        period: selectedPeriod,
+      });
+    } catch {
+      alert("Failed to export CSV. Please try again.");
+    } finally {
+      setIsExporting(false);
+    }
+  };
 
   return (
     <div className="min-h-screen bg-white">
@@ -172,13 +186,17 @@ export default function BuyerInsightsPage() {
           </select>
 
           <div className="flex gap-3">
-            <button className="px-4 py-2 text-sm border border-gray-300 rounded-lg hover:bg-gray-50">
-              Export: CSV
+            <button
+              onClick={handleExportCsv}
+              disabled={isExporting || isLoading}
+              className="flex items-center gap-2 px-4 py-2 text-sm border border-gray-300 rounded-lg hover:bg-gray-50 disabled:opacity-50 transition-opacity"
+            >
+              {isExporting ? <Loader2 className="w-4 h-4 animate-spin" /> : "Export: CSV"}
             </button>
-            <button className="px-4 py-2 text-sm border border-gray-300 rounded-lg hover:bg-gray-50">
+            <button className="px-4 py-2 text-sm border border-gray-300 rounded-lg hover:bg-gray-50 opacity-50 cursor-not-allowed" disabled>
               XLSX
             </button>
-            <button className="px-4 py-2 text-sm border border-gray-300 rounded-lg hover:bg-gray-50">
+            <button className="px-4 py-2 text-sm border border-gray-300 rounded-lg hover:bg-gray-50 opacity-50 cursor-not-allowed" disabled>
               PDF
             </button>
           </div>

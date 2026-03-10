@@ -19,7 +19,6 @@ import { disciplineApi } from "../../api/disciplineApi";
 import { liveStreamApi } from "../../api/liveStreamApi";
 import { slotApi } from "../../api/slotApi";
 import { filesApi } from "../../api/filesApi";
-import { revenueApi } from "../../api/revenueApi";
 import { livestreamCategoriesApi } from "../../api/livestreamCategoriesApi";
 import { systemAlertsApi } from "../../api/systemAlertsApi";
 import { revenueReportsApi } from "../../api/revenueReportsApi";
@@ -64,7 +63,6 @@ const rootReducer = combineReducers({
   [liveStreamApi.reducerPath]: liveStreamApi.reducer,
   [slotApi.reducerPath]: slotApi.reducer,
   [filesApi.reducerPath]: filesApi.reducer,
-  [revenueApi.reducerPath]: revenueApi.reducer,
   [livestreamCategoriesApi.reducerPath]: livestreamCategoriesApi.reducer,
   [systemAlertsApi.reducerPath]: systemAlertsApi.reducer,
   [revenueReportsApi.reducerPath]: revenueReportsApi.reducer,
@@ -103,7 +101,6 @@ export const store = configureStore({
       liveStreamApi.middleware,
       slotApi.middleware,
       filesApi.middleware,
-      revenueApi.middleware,
       livestreamCategoriesApi.middleware,
       systemAlertsApi.middleware,
       revenueReportsApi.middleware,

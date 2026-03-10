@@ -113,6 +113,8 @@ export interface SellerLeaderboardParams {
   to?: string;
 }
 
+export type SellerLeaderboardExportParams = Omit<SellerLeaderboardParams, "page" | "limit">;
+
 // ─── Buyer Insights (endpoint 28) ───────────────────────────────────────────
 
 export interface BuyerInsightsResponse {
@@ -143,6 +145,8 @@ export interface BuyerInsightsParams {
   from?: string;
   to?: string;
 }
+
+export type BuyerInsightsExportParams = Omit<BuyerInsightsParams, "from" | "to"> & { from?: string; to?: string };
 
 // ─── Base setup ───────────────────────────────────────────────────────────────
 
@@ -257,3 +261,69 @@ export const {
   useGetBuyerInsightsQuery,
   useLazyGetBuyerInsightsQuery,
 } = adminDashboardApi;
+
+// ─── Export Helpers ───────────────────────────────────────────────────────────
+
+export const exportSellerLeaderboardCsv = async (
+  params: SellerLeaderboardExportParams
+): Promise<void> => {
+  const token = authStorage.getAccessToken();
+  const query = new URLSearchParams();
+  Object.entries(params).forEach(([k, v]) => {
+    if (v !== undefined && v !== null && v !== "") query.set(k, String(v));
+  });
+
+  const res = await fetch(
+    `${API_BASE_URL}/admin/dashboard/seller-leaderboard/export?${query.toString()}`,
+    {
+      headers: {
+        ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      },
+    }
+  );
+
+  if (!res.ok) throw new Error("CSV export failed");
+
+  const blob = await res.blob();
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  link.href = url;
+  const dateStr = new Date().toISOString().slice(0, 10);
+  link.download = `seller-leaderboard-${dateStr}.csv`;
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+  URL.revokeObjectURL(url);
+};
+
+export const exportBuyerInsightsCsv = async (
+  params: BuyerInsightsExportParams
+): Promise<void> => {
+  const token = authStorage.getAccessToken();
+  const query = new URLSearchParams();
+  Object.entries(params).forEach(([k, v]) => {
+    if (v !== undefined && v !== null && v !== "") query.set(k, String(v));
+  });
+
+  const res = await fetch(
+    `${API_BASE_URL}/admin/dashboard/buyer-insights/export?${query.toString()}`,
+    {
+      headers: {
+        ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      },
+    }
+  );
+
+  if (!res.ok) throw new Error("CSV export failed");
+
+  const blob = await res.blob();
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  link.href = url;
+  const dateStr = new Date().toISOString().slice(0, 10);
+  link.download = `buyer-insights-${dateStr}.csv`;
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+  URL.revokeObjectURL(url);
+};
