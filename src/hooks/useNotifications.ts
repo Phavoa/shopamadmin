@@ -1,7 +1,7 @@
 // src/hooks/useNotifications.ts
 
 import { useCallback } from "react";
-import { toast } from "sonner";
+import { toast } from "react-hot-toast";
 
 interface NotificationOptions {
   duration?: number;
@@ -26,8 +26,6 @@ export function useNotifications() {
     (message: string, options?: NotificationOptions) => {
       toast.success(message, {
         duration: options?.duration || 4000,
-        description: options?.description,
-        action: options?.action,
       });
     },
     []
@@ -37,8 +35,6 @@ export function useNotifications() {
     (message: string, options?: NotificationOptions) => {
       toast.error(message, {
         duration: options?.duration || 6000,
-        description: options?.description,
-        action: options?.action,
       });
     },
     []
@@ -46,10 +42,9 @@ export function useNotifications() {
 
   const showInfo = useCallback(
     (message: string, options?: NotificationOptions) => {
-      toast.info(message, {
+      toast(message, {
         duration: options?.duration || 4000,
-        description: options?.description,
-        action: options?.action,
+        icon: "ℹ️",
       });
     },
     []
@@ -57,10 +52,9 @@ export function useNotifications() {
 
   const showWarning = useCallback(
     (message: string, options?: NotificationOptions) => {
-      toast.warning(message, {
+      toast(message, {
         duration: options?.duration || 5000,
-        description: options?.description,
-        action: options?.action,
+        icon: "⚠️",
       });
     },
     []

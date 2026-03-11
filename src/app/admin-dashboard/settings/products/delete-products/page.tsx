@@ -5,9 +5,13 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { ArrowLeft } from "lucide-react";
 import {
   useGetProductsQuery,
+  useDeleteProductMutation,
+  useArchiveProductMutation,
   type Product,
 } from "../../../../../api/productsApi";
 import { Button } from "../../../../../components/ui/button";
+import { useNotifications } from "@/hooks/useNotifications";
+import { ConfirmationDialog } from "@/components/ui/confirmation-dialog";
 import { useDispatch } from "react-redux";
 import { setHeaderTitle } from "@/features/shared/headerSice";
 import {
@@ -25,6 +29,11 @@ export default function DeleteProductsPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const [searchQuery, setSearchQuery] = useState("");
+  const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
+  const [productIdToDelete, setProductIdToDelete] = useState<string | null>(
+    null
+  );
+  const [isArchiveDialogOpen, setIsArchiveDialogOpen] = useState(false);
 
   const dispatch = useDispatch();
   useEffect(() => {
@@ -47,6 +56,11 @@ export default function DeleteProductsPage() {
     // Remove category filter for now to see if products exist at all
     // ...(categoryId && { categoryId }),
   });
+
+  const [deleteProduct, { isLoading: isDeleting }] = useDeleteProductMutation();
+  const [archiveProduct, { isLoading: isArchiving }] =
+    useArchiveProductMutation();
+  const { showSuccess, showError } = useNotifications();
 
   console.log("API Response:", { productsData, isLoading, error });
 
@@ -79,17 +93,76 @@ export default function DeleteProductsPage() {
     return matchesSearch;
   });
 
-  const handleDelete = async (productId: string) => {
-    if (
-      confirm(
-        "Are you sure you want to delete this product? This action cannot be undone."
-      )
-    ) {
-      // Add delete logic here - API call
-      console.log("Deleting product:", productId);
-      // TODO: Implement actual delete API call
-      alert("Product deletion functionality needs to be implemented");
+  const handleDelete = (productId: string) => {
+    setProductIdToDelete(productId);
+    setIsDeleteDialogOpen(true);
+  };
+
+  const confirmDelete = async () => {
+    if (!productIdToDelete) return;
+
+    try {
+      const response = await deleteProduct(productIdToDelete).unwrap();
+      showSuccess(response.message || "Product deleted successfully");
+      setIsDeleteDialogOpen(false);
+      setProductIdToDelete(null);
       refetch();
+    } catch (err: any) {
+      console.error("Delete failed:", err);
+
+      // Check for 409 Conflict - Active Orders
+      const isConflict =
+        err?.status === 409 ||
+        err?.statusCode === 409 ||
+        err?.data?.statusCode === 409 ||
+        err?.data?.message?.toLowerCase().includes("active orders");
+
+      if (isConflict) {
+        // Switch to archive dialog
+        setIsDeleteDialogOpen(false);
+        setIsArchiveDialogOpen(true);
+        return;
+      }
+
+      // Extract the most relevant error message from the backend response
+      let errorMessage = "Failed to delete product";
+
+      if (err?.data?.message) {
+        errorMessage = err.data.message;
+      } else if (err?.message) {
+        errorMessage = err.message;
+      } else if (typeof err === "string") {
+        errorMessage = err;
+      }
+
+      showError(errorMessage);
+      setIsDeleteDialogOpen(false);
+      setProductIdToDelete(null);
+    }
+  };
+
+  const confirmArchive = async () => {
+    if (!productIdToDelete) return;
+
+    try {
+      const response = await archiveProduct({ id: productIdToDelete }).unwrap();
+      showSuccess(response.message || "Product archived successfully");
+      setIsArchiveDialogOpen(false);
+      setProductIdToDelete(null);
+      refetch();
+    } catch (err: any) {
+      console.error("Archive failed:", err);
+
+      let errorMessage = "Failed to archive product";
+      if (err?.data?.message) {
+        errorMessage = err.data.message;
+      } else if (err?.message) {
+        errorMessage = err.message;
+      }
+
+      showError(errorMessage);
+      setIsArchiveDialogOpen(false);
+      setProductIdToDelete(null);
     }
   };
 
@@ -219,9 +292,10 @@ export default function DeleteProductsPage() {
                       <TableCell>
                         <Button
                           onClick={() => handleDelete(product.id)}
-                          className="min-w-26 px-4 py-2 rounded-sm bg-[#EF4444] text-sm font-medium border border-red-200 cursor-pointer hover:bg-[#EF4444]/90 transition-colors"
+                          disabled={isDeleting}
+                          className="min-w-26 px-4 py-2 rounded-sm bg-[#EF4444] text-sm font-medium border border-red-200 cursor-pointer hover:bg-[#EF4444]/90 transition-colors disabled:opacity-50"
                         >
-                          Delete
+                          {isDeleting ? "Deleting..." : "Delete"}
                         </Button>
                       </TableCell>
                     </TableRow>
@@ -242,6 +316,34 @@ export default function DeleteProductsPage() {
           )}
         </div>
       </div>
+
+      <ConfirmationDialog
+        isOpen={isDeleteDialogOpen}
+        onClose={() => {
+          setIsDeleteDialogOpen(false);
+          setProductIdToDelete(null);
+        }}
+        onConfirm={confirmDelete}
+        title="Delete Product"
+        description="Are you sure you want to delete this product? This action cannot be undone and will permanently remove all associated data."
+        confirmText="Delete"
+        cancelText="Cancel"
+        isLoading={isDeleting}
+      />
+
+      <ConfirmationDialog
+        isOpen={isArchiveDialogOpen}
+        onClose={() => {
+          setIsArchiveDialogOpen(false);
+          setProductIdToDelete(null);
+        }}
+        onConfirm={confirmArchive}
+        title="Archive Product Instead?"
+        description="This product cannot be deleted because it has active orders. Would you like to archive it instead? Archiving will hide it from the shop but keep data for existing orders."
+        confirmText="Archive Product"
+        cancelText="Cancel"
+        isLoading={isArchiving}
+      />
     </PageWrapper>
   );
 }

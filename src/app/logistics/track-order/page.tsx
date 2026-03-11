@@ -32,6 +32,31 @@ interface TrackingStep {
   isCurrent: boolean;
 }
 
+interface DeliveryZone {
+  id: string;
+  code: string;
+  name: string;
+  active: boolean;
+  createdAt: string;
+  updatedAt: string;
+}
+
+interface AddressSnapshot {
+  id: string;
+  city: string;
+  label: string;
+  line1: string;
+  line2?: string;
+  phone: string;
+  state: string;
+  userId: string;
+  country: string;
+  fullName: string;
+  postalCode: string;
+  deliveryZone?: DeliveryZone;
+  deliveryZoneId?: string;
+}
+
 export default function TrackOrderPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -63,7 +88,7 @@ export default function TrackOrderPage() {
       id: orderId!,
       params: { populate: ["buyer", "seller", "shipment", "items"] },
     },
-    { skip: !orderId }
+    { skip: !orderId },
   );
 
   const orderData = orderResponse?.data;
@@ -112,7 +137,7 @@ export default function TrackOrderPage() {
         isCurrent: false,
       },
     ],
-    []
+    [],
   );
 
   // Calculate tracking steps based on shipment events
@@ -121,12 +146,12 @@ export default function TrackOrderPage() {
 
     const currentStatus = orderData.shipment.status;
     const currentStatusIndex = defaultTrackingSteps.findIndex(
-      (step) => step.status === currentStatus
+      (step) => step.status === currentStatus,
     );
 
     return defaultTrackingSteps.map((step, index) => {
       const event = orderData.shipment?.events?.find(
-        (e) => e.status === step.status
+        (e) => e.status === step.status,
       );
 
       return {
@@ -174,7 +199,7 @@ export default function TrackOrderPage() {
         showError("Failed to update shipment status. Please try again.");
       }
     },
-    [orderData, updateShipmentStatus, showSuccess, showError, refetch]
+    [orderData, updateShipmentStatus, showSuccess, showError, refetch],
   );
 
   const getStatusColor = (status: string) => {
@@ -310,7 +335,7 @@ export default function TrackOrderPage() {
                   <Badge
                     style={{
                       backgroundColor: getStatusColor(
-                        orderData.shipment?.status || ""
+                        orderData.shipment?.status || "",
                       ).bg,
                       color: getStatusColor(orderData.shipment?.status || "")
                         .color,
@@ -341,9 +366,134 @@ export default function TrackOrderPage() {
                 <div className="flex justify-between">
                   <span className="text-gray-600">Phone:</span>
                   <span className="font-medium">
-                    {orderData.buyer?.phone || "N/A"}
+                    {(orderData.shipToSnapshot as unknown as AddressSnapshot)
+                      ?.phone ||
+                      orderData.buyer?.phone ||
+                      "N/A"}
                   </span>
                 </div>
+
+                {/* Consolidated Addresses */}
+                <div className="pt-3 border-t space-y-4">
+                  {/* Buyer Address Section */}
+                  <div>
+                    <h3 className="text-sm font-semibold text-blue-600 flex items-center gap-1 mb-1">
+                      <MapPin className="w-3.5 h-3.5" />
+                      Ship To (Buyer)
+                    </h3>
+                    {orderData.shipToSnapshot ? (
+                      <div className="text-sm text-gray-700 bg-blue-50/50 p-2 rounded">
+                        <p className="font-medium">
+                          {(
+                            orderData.shipToSnapshot as unknown as AddressSnapshot
+                          ).fullName}
+                        </p>
+                        <p className="text-xs font-medium text-blue-700 mb-1">
+                          Phone:{" "}
+                          {(
+                            orderData.shipToSnapshot as unknown as AddressSnapshot
+                          ).phone}
+                        </p>
+                        <p>
+                          {(
+                            orderData.shipToSnapshot as unknown as AddressSnapshot
+                          ).line1}
+                        </p>
+                        {(
+                          orderData.shipToSnapshot as unknown as AddressSnapshot
+                        ).line2 && (
+                          <p>
+                            {(
+                              orderData.shipToSnapshot as unknown as AddressSnapshot
+                            ).line2}
+                          </p>
+                        )}
+                        <p>
+                          {(
+                            orderData.shipToSnapshot as unknown as AddressSnapshot
+                          ).city}
+                          ,{" "}
+                          {(
+                            orderData.shipToSnapshot as unknown as AddressSnapshot
+                          ).state}{" "}
+                          {(
+                            orderData.shipToSnapshot as unknown as AddressSnapshot
+                          ).postalCode}
+                        </p>
+                        <p className="text-xs text-gray-500 mt-1">
+                          Zone:{" "}
+                          {(
+                            orderData.shipToSnapshot as unknown as AddressSnapshot
+                          ).deliveryZone?.name || "N/A"}
+                        </p>
+                      </div>
+                    ) : (
+                      <p className="text-xs text-gray-500 italic">
+                        No shipping data
+                      </p>
+                    )}
+                  </div>
+
+                  {/* Seller Address Section */}
+                  <div>
+                    <h3 className="text-sm font-semibold text-orange-600 flex items-center gap-1 mb-1">
+                      <MapPin className="w-3.5 h-3.5" />
+                      Ship From (Seller)
+                    </h3>
+                    {orderData.shipFromSnapshot ? (
+                      <div className="text-sm text-gray-700 bg-orange-50/50 p-2 rounded">
+                        <p className="font-medium">
+                          {(
+                            orderData.shipFromSnapshot as unknown as AddressSnapshot
+                          ).fullName}
+                        </p>
+                        <p className="text-xs font-medium text-orange-700 mb-1">
+                          Phone:{" "}
+                          {(
+                            orderData.shipFromSnapshot as unknown as AddressSnapshot
+                          ).phone}
+                        </p>
+                        <p>
+                          {(
+                            orderData.shipFromSnapshot as unknown as AddressSnapshot
+                          ).line1}
+                        </p>
+                        {(
+                          orderData.shipFromSnapshot as unknown as AddressSnapshot
+                        ).line2 && (
+                          <p>
+                            {(
+                              orderData.shipFromSnapshot as unknown as AddressSnapshot
+                            ).line2}
+                          </p>
+                        )}
+                        <p>
+                          {(
+                            orderData.shipFromSnapshot as unknown as AddressSnapshot
+                          ).city}
+                          ,{" "}
+                          {(
+                            orderData.shipFromSnapshot as unknown as AddressSnapshot
+                          ).state}{" "}
+                          {(
+                            orderData.shipFromSnapshot as unknown as AddressSnapshot
+                          ).postalCode}
+                        </p>
+                        <p className="text-xs text-gray-500 mt-1">
+                          Zone:{" "}
+                          {(
+                            orderData.shipFromSnapshot as unknown as AddressSnapshot
+                          ).deliveryZone?.name || "N/A"}
+                        </p>
+                      </div>
+                    ) : (
+                      <p className="text-xs text-gray-500 italic">
+                        No pickup data
+                      </p>
+                    )}
+                  </div>
+                </div>
+
                 <div className="pt-3 border-t">
                   <div className="flex justify-between">
                     <span className="text-gray-600">Subtotal:</span>
@@ -367,49 +517,34 @@ export default function TrackOrderPage() {
               </div>
             </Card>
 
-            {/* Address Card */}
+            {/* Timeline & Items Card */}
             <Card className="p-6">
               <h2 className="text-lg font-semibold mb-4 flex items-center gap-2">
-                <MapPin className="w-5 h-5 text-green-500" />
-                Addresses & Timeline
+                <Clock className="w-5 h-5 text-green-500" />
+                Timeline & Items
               </h2>
               <div className="space-y-4">
-                <div>
-                  <span className="text-sm text-gray-500">Pickup Location</span>
-                  <p className="font-medium">
-                    {orderData.sellerProfile?.locationCity},{" "}
-                    {orderData.sellerProfile?.locationState}
-                  </p>
-                </div>
-                <div>
-                  <span className="text-sm text-gray-500">
-                    Delivery Address
-                  </span>
-                  <p className="font-medium">
-                    {orderData.shipToSnapshot?.lga},{" "}
-                    {orderData.shipToSnapshot?.state}
-                  </p>
-                </div>
-                <div className="pt-2 border-t">
+                <div className="space-y-2">
                   <div className="flex justify-between text-sm">
                     <span className="text-gray-500">Order Date:</span>
-                    <span>
+                    <span className="font-medium">
                       {new Date(orderData.createdAt).toLocaleDateString()}
                     </span>
                   </div>
-                  <div className="flex justify-between text-sm mt-1">
+                  <div className="flex justify-between text-sm">
                     <span className="text-gray-500">Last Updated:</span>
-                    <span>
+                    <span className="font-medium">
                       {new Date(orderData.updatedAt).toLocaleDateString()}
                     </span>
                   </div>
                 </div>
+
                 {orderData.items && orderData.items.length > 0 && (
-                  <div className="pt-2 border-t">
+                  <div className="pt-3 border-t">
                     <span className="text-sm text-gray-500 block mb-2">
                       Order Items ({orderData.items.length})
                     </span>
-                    <div className="space-y-2 max-h-40 overflow-y-auto">
+                    <div className="space-y-2 max-h-60 overflow-y-auto pr-2">
                       {orderData.items.map((item) => (
                         <div
                           key={item.id}
@@ -493,8 +628,8 @@ export default function TrackOrderPage() {
                         step.isCompleted
                           ? "bg-green-500 text-white"
                           : step.isCurrent
-                          ? "bg-orange-500 text-white"
-                          : "bg-gray-200 text-gray-400"
+                            ? "bg-orange-500 text-white"
+                            : "bg-gray-200 text-gray-400"
                       }`}
                     >
                       {step.isCompleted ? (

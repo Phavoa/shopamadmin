@@ -288,6 +288,14 @@ export const productsApi = createApi({
         { type: "Product", id },
       ],
     }),
+    // Hard-delete product (seller owner or admin)
+    deleteProduct: builder.mutation<ApiResponse<{ deleted: boolean }>, string>({
+      query: (id) => ({
+        url: `/products/${id}`,
+        method: "DELETE",
+      }),
+      invalidatesTags: ["Products", "Product"],
+    }),
   }),
 });
 
@@ -300,4 +308,5 @@ export const {
   useGetProductQuery,
   useLazyGetProductQuery,
   useArchiveProductMutation,
+  useDeleteProductMutation,
 } = productsApi;
