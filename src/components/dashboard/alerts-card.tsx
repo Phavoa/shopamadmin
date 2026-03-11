@@ -2,7 +2,6 @@ import React from "react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import {
-  useGetSystemAlertsQuery,
   useResolveSystemAlertMutation,
 } from "@/api/systemAlertsApi";
 import type { AlertDomain } from "@/api/systemAlertsApi";
@@ -15,6 +14,8 @@ import {
   ExternalLink,
   Loader2,
 } from "lucide-react";
+
+import { SystemAlert } from "@/api/adminApi";
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -62,20 +63,21 @@ function AlertRowSkeleton() {
 
 // ─── Component ────────────────────────────────────────────────────────────────
 
-function AlertsCard() {
-  // Fetch only active (unresolved) alerts, limit to 5 for dashboard widget
-  const { data, isLoading, isError } = useGetSystemAlertsQuery(
-    { isResolved: false, limit: 5 },
-    { refetchOnMountOrArgChange: true },
-  );
+interface AlertsCardProps {
+  alerts?: SystemAlert[];
+  isLoading?: boolean;
+}
 
+function AlertsCard({ alerts: propsAlerts, isLoading: propsLoading }: AlertsCardProps) {
   const [resolveAlert, { isLoading: isResolving }] =
     useResolveSystemAlertMutation();
 
   const [resolvingId, setResolvingId] = React.useState<string | null>(null);
 
-  // Swagger response has items at the top level (no data wrapper)
-  const alerts = data?.items ?? [];
+  // Use props if provided, otherwise empty array
+  const alerts = propsAlerts ?? [];
+  const isLoading = propsLoading ?? false;
+  const isError = false; // We don't have isError from props yet, but we can assume success if alerts are passed
 
   const handleResolve = async (id: string) => {
     setResolvingId(id);

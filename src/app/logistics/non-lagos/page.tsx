@@ -208,8 +208,10 @@ export default function NonLagosHubDashboard() {
         order.sellerProfile?.shopName ||
         order.sellerProfile?.businessName ||
         "Unknown Seller",
-      pickupAddress: order.shipFromSnapshot?.state || "Address not available",
-      phone: order.buyer?.phone || "Phone not available",
+      pickupAddress:
+        `${order.shipFromSnapshot?.state}, ${order.shipFromSnapshot?.city}, ${order.shipFromSnapshot?.line1}` ||
+        "Address not available",
+      phone: order.shipFromSnapshot?.phone || order.buyer?.phone || "Phone not available",
       status: order.shipment?.status || "AWAITING_SELLER_SHIPMENT",
       shipment: order.shipment,
     }));
@@ -227,10 +229,9 @@ export default function NonLagosHubDashboard() {
           ? `${order.buyer.firstName} ${order.buyer.lastName}`
           : order.buyer?.email || "Unknown Buyer",
       deliveryAddress:
-        order.shipToSnapshot?.lga ||
-        order.shipToSnapshot?.state ||
+        `${order.shipToSnapshot?.state}, ${order.shipToSnapshot?.city}, ${order.shipToSnapshot?.line1}` ||
         "Address not available",
-      phone: order.buyer?.phone || "Phone not available",
+      phone: order.shipToSnapshot?.phone || order.buyer?.phone || "Phone not available",
       status: order.shipment?.status || "AWAITING_SELLER_SHIPMENT",
       shipment: order.shipment,
     }));

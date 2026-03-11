@@ -32,30 +32,7 @@ interface TrackingStep {
   isCurrent: boolean;
 }
 
-interface DeliveryZone {
-  id: string;
-  code: string;
-  name: string;
-  active: boolean;
-  createdAt: string;
-  updatedAt: string;
-}
-
-interface AddressSnapshot {
-  id: string;
-  city: string;
-  label: string;
-  line1: string;
-  line2?: string;
-  phone: string;
-  state: string;
-  userId: string;
-  country: string;
-  fullName: string;
-  postalCode: string;
-  deliveryZone?: DeliveryZone;
-  deliveryZoneId?: string;
-}
+// Address types are now imported from orderApi via the Order interface
 
 export default function TrackOrderPage() {
   const router = useRouter();
@@ -366,8 +343,7 @@ export default function TrackOrderPage() {
                 <div className="flex justify-between">
                   <span className="text-gray-600">Phone:</span>
                   <span className="font-medium">
-                    {(orderData.shipToSnapshot as unknown as AddressSnapshot)
-                      ?.phone ||
+                    {orderData.shipToSnapshot?.phone ||
                       orderData.buyer?.phone ||
                       "N/A"}
                   </span>
@@ -384,47 +360,29 @@ export default function TrackOrderPage() {
                     {orderData.shipToSnapshot ? (
                       <div className="text-sm text-gray-700 bg-blue-50/50 p-2 rounded">
                         <p className="font-medium">
-                          {(
-                            orderData.shipToSnapshot as unknown as AddressSnapshot
-                          ).fullName}
+                          {orderData.shipToSnapshot.fullName}
                         </p>
                         <p className="text-xs font-medium text-blue-700 mb-1">
                           Phone:{" "}
-                          {(
-                            orderData.shipToSnapshot as unknown as AddressSnapshot
-                          ).phone}
+                          {orderData.shipToSnapshot.phone}
                         </p>
                         <p>
-                          {(
-                            orderData.shipToSnapshot as unknown as AddressSnapshot
-                          ).line1}
+                          {orderData.shipToSnapshot.line1}
                         </p>
-                        {(
-                          orderData.shipToSnapshot as unknown as AddressSnapshot
-                        ).line2 && (
+                        {orderData.shipToSnapshot.line2 && (
                           <p>
-                            {(
-                              orderData.shipToSnapshot as unknown as AddressSnapshot
-                            ).line2}
+                            {orderData.shipToSnapshot.line2}
                           </p>
                         )}
                         <p>
-                          {(
-                            orderData.shipToSnapshot as unknown as AddressSnapshot
-                          ).city}
+                          {orderData.shipToSnapshot.city}
                           ,{" "}
-                          {(
-                            orderData.shipToSnapshot as unknown as AddressSnapshot
-                          ).state}{" "}
-                          {(
-                            orderData.shipToSnapshot as unknown as AddressSnapshot
-                          ).postalCode}
+                          {orderData.shipToSnapshot.state}{" "}
+                          {orderData.shipToSnapshot.postalCode}
                         </p>
                         <p className="text-xs text-gray-500 mt-1">
                           Zone:{" "}
-                          {(
-                            orderData.shipToSnapshot as unknown as AddressSnapshot
-                          ).deliveryZone?.name || "N/A"}
+                          {orderData.shipToSnapshot.deliveryZone?.name || "N/A"}
                         </p>
                       </div>
                     ) : (
@@ -443,47 +401,29 @@ export default function TrackOrderPage() {
                     {orderData.shipFromSnapshot ? (
                       <div className="text-sm text-gray-700 bg-orange-50/50 p-2 rounded">
                         <p className="font-medium">
-                          {(
-                            orderData.shipFromSnapshot as unknown as AddressSnapshot
-                          ).fullName}
+                          {orderData.shipFromSnapshot.fullName}
                         </p>
                         <p className="text-xs font-medium text-orange-700 mb-1">
                           Phone:{" "}
-                          {(
-                            orderData.shipFromSnapshot as unknown as AddressSnapshot
-                          ).phone}
+                          {orderData.shipFromSnapshot.phone}
                         </p>
                         <p>
-                          {(
-                            orderData.shipFromSnapshot as unknown as AddressSnapshot
-                          ).line1}
+                          {orderData.shipFromSnapshot.line1}
                         </p>
-                        {(
-                          orderData.shipFromSnapshot as unknown as AddressSnapshot
-                        ).line2 && (
+                        {orderData.shipFromSnapshot.line2 && (
                           <p>
-                            {(
-                              orderData.shipFromSnapshot as unknown as AddressSnapshot
-                            ).line2}
+                            {orderData.shipFromSnapshot.line2}
                           </p>
                         )}
                         <p>
-                          {(
-                            orderData.shipFromSnapshot as unknown as AddressSnapshot
-                          ).city}
+                          {orderData.shipFromSnapshot.city}
                           ,{" "}
-                          {(
-                            orderData.shipFromSnapshot as unknown as AddressSnapshot
-                          ).state}{" "}
-                          {(
-                            orderData.shipFromSnapshot as unknown as AddressSnapshot
-                          ).postalCode}
+                          {orderData.shipFromSnapshot.state}{" "}
+                          {orderData.shipFromSnapshot.postalCode}
                         </p>
                         <p className="text-xs text-gray-500 mt-1">
                           Zone:{" "}
-                          {(
-                            orderData.shipFromSnapshot as unknown as AddressSnapshot
-                          ).deliveryZone?.name || "N/A"}
+                          {orderData.shipFromSnapshot.deliveryZone?.name || "N/A"}
                         </p>
                       </div>
                     ) : (

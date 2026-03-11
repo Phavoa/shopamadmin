@@ -82,6 +82,27 @@ export interface Shipment {
   events: ShipmentEvent[];
 }
 
+export interface AddressSnapshot {
+  id: string;
+  fullName: string;
+  email?: string;
+  phone: string;
+  line1: string;
+  line2?: string;
+  city: string;
+  state: string;
+  postalCode: string;
+  country: string;
+  userId: string;
+  deliveryZoneId?: string;
+  deliveryZone?: {
+    id: string;
+    code: string;
+    name: string;
+    active: boolean;
+  };
+}
+
 export interface Order {
   id: string;
   buyerId: string;
@@ -93,12 +114,9 @@ export interface Order {
   trackingCode: string;
   createdAt: string;
   updatedAt: string;
-  shipToSnapshot: {
-    lga: string;
-    state: string;
-  } | null;
-  shipFromSnapshot: Record<string, never> | null;
-  deliverySnapshot: Record<string, never> | null;
+  shipToSnapshot: AddressSnapshot | null;
+  shipFromSnapshot: AddressSnapshot | null;
+  deliverySnapshot: Record<string, any> | null;
   isPaid: boolean;
   subtotalKobo: string;
   shippingKobo: string;
