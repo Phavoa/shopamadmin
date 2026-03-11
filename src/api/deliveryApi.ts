@@ -251,20 +251,37 @@ export const deliveryApi = createApi({
     // List zone-to-zone prices
     // GET /api/delivery/prices
     getPrices: builder.query<PricesNormalisedResponse, ListPricesParams>({
-      query: (params = {}) => ({
-        url: "/delivery/prices",
-        method: "GET",
-        params,
-      }),
+      query: (params = {}) => {
+        // Build query string manually so array params are sent as repeated keys
+        // e.g. populate=originZone&populate=destinationZone (not populate[0]=...)
+        const qs = new URLSearchParams();
+        if (params.populate) {
+          params.populate.forEach((v) => qs.append("populate", v));
+        }
+        if (params.limit) qs.set("limit", String(params.limit));
+        if (params.sortBy) qs.set("sortBy", params.sortBy);
+        if (params.sortDir) qs.set("sortDir", params.sortDir);
+        if (params.originZoneId) qs.set("originZoneId", params.originZoneId);
+        if (params.destinationZoneId) qs.set("destinationZoneId", params.destinationZoneId);
+        if (params.q) qs.set("q", params.q);
+        return {
+          url: `/delivery/prices?${qs.toString()}`,
+          method: "GET",
+        };
+      },
       // Normalise: API may return { data: DeliveryPrice[] } OR { data: { items: DeliveryPrice[] } }
       transformResponse: (raw: unknown): PricesNormalisedResponse => {
-        const r = raw as Record<string, unknown>;
-        const payload = (r.data ?? r) as unknown;
-        if (Array.isArray(payload)) {
-          return { items: payload as DeliveryPrice[] };
+        try {
+          const r = raw as Record<string, unknown>;
+          const payload = (r.data ?? r) as unknown;
+          if (Array.isArray(payload)) {
+            return { items: payload as DeliveryPrice[] };
+          }
+          const paginated = payload as { items?: DeliveryPrice[] };
+          return { items: paginated?.items ?? [] };
+        } catch {
+          return { items: [] };
         }
-        const paginated = payload as { items?: DeliveryPrice[] };
-        return { items: paginated?.items ?? [] };
       },
       providesTags: (result) =>
         result?.items?.length

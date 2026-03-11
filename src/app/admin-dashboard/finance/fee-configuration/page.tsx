@@ -12,7 +12,7 @@ import {
   useDeleteCommissionTierMutation,
   type CommissionTier,   // 👈 add this
 } from "@/api/feeConfigApi";
-import { useUpdatePriceMutation, useGetPricesQuery, useSeedZonesMutation } from "@/api/deliveryApi";
+import { useUpdatePriceMutation, useGetPricesQuery, useSeedZonesMutation, useGetZonesQuery } from "@/api/deliveryApi";
 import { formatNaira, koboToNaira, nairaToKobo, formatNumber } from "@/lib/utils";
 import { SuccessModal } from "@/components/shared/SuccessModal";
 import { Trash2, Plus, Save, Loader2 } from "lucide-react";
@@ -23,12 +23,14 @@ export default function FeeConfigurationPage() {
   const { data: configResponse, isLoading: isConfigLoading } = useGetFeeConfigQuery();
   const config = configResponse?.data;
 
-  const { data: pricesResponse, isLoading: isPricesLoading } = useGetPricesQuery({
-    populate: ["originZone", "destinationZone"],
-    limit: 50,
-    sortBy: "createdAt",
-  });
+  // Fetch zones for name lookup and prices separately (populate causes 500 on backend)
+  const { data: zonesResponse, isLoading: isZonesLoading } = useGetZonesQuery({});
+  const zones = zonesResponse?.data?.items ?? [];
+
+  const { data: pricesResponse, isLoading: isPricesLoading } = useGetPricesQuery({ limit: 100, sortBy: "createdAt" });
   const prices = pricesResponse?.items ?? [];
+  console.log("[DeliveryPrices] zones:", zones.length, "prices:", prices.length, "pricesResponse:", pricesResponse);
+
 
   const [updateZonePrice, { isLoading: isUpdatingPrice }] = useUpdatePriceMutation();
   const [seedZones, { isLoading: isSeeding }] = useSeedZonesMutation();
@@ -564,15 +566,17 @@ const tiers: CommissionTier[] = Array.isArray(tiersResponse?.data)
                 </div>
 
                 <div className="space-y-3">
-                  {isPricesLoading ? (
+                  {isZonesLoading || isPricesLoading ? (
                     <p className="text-sm text-gray-500">Loading logistics fees...</p>
                   ) : prices.length > 0 ? (
                     prices.map((price) => {
-                      // Use the populated originZone name as label; fall back to zone IDs
-                      const label =
-                        price.originZone?.name ??
-                        price.destinationZone?.name ??
-                        price.originZoneId;
+                      // Look up zone name from local zones list by originZoneId
+                      const originZone = zones.find((z) => z.id === price.originZoneId);
+                      const destZone = zones.find((z) => z.id === price.destinationZoneId);
+                      const isSameZone = price.originZoneId === price.destinationZoneId;
+                      const label = isSameZone
+                        ? (originZone?.name ?? price.originZoneId)
+                        : `${originZone?.name ?? price.originZoneId} → ${destZone?.name ?? price.destinationZoneId}`;
 
                       return (
                         <div
