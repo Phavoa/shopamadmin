@@ -174,8 +174,23 @@ export interface ZonesListResponse {
 
 export interface PricesListResponse {
   message: string;
-  data: DeliveryPrice[] | string;
+  data:
+    | DeliveryPrice[]
+    | {
+        items: DeliveryPrice[];
+        nextCursor?: string | null;
+        prevCursor?: string | null;
+        pageSize?: number;
+        hasNext?: boolean;
+        hasPrev?: boolean;
+      }
+    | string;
   statusCode: number;
+}
+
+// Normalised shape used inside components
+export interface PricesNormalisedResponse {
+  items: DeliveryPrice[];
 }
 
 export const deliveryApi = createApi({
@@ -235,16 +250,26 @@ export const deliveryApi = createApi({
 
     // List zone-to-zone prices
     // GET /api/delivery/prices
-    getPrices: builder.query<PricesListResponse, ListPricesParams>({
+    getPrices: builder.query<PricesNormalisedResponse, ListPricesParams>({
       query: (params = {}) => ({
         url: "/delivery/prices",
         method: "GET",
         params,
       }),
+      // Normalise: API may return { data: DeliveryPrice[] } OR { data: { items: DeliveryPrice[] } }
+      transformResponse: (raw: unknown): PricesNormalisedResponse => {
+        const r = raw as Record<string, unknown>;
+        const payload = (r.data ?? r) as unknown;
+        if (Array.isArray(payload)) {
+          return { items: payload as DeliveryPrice[] };
+        }
+        const paginated = payload as { items?: DeliveryPrice[] };
+        return { items: paginated?.items ?? [] };
+      },
       providesTags: (result) =>
-        result && Array.isArray(result.data)
+        result?.items?.length
           ? [
-              ...result.data.map(({ id }) => ({
+              ...result.items.map(({ id }) => ({
                 type: "DeliveryPrice" as const,
                 id,
               })),

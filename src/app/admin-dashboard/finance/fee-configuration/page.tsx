@@ -28,7 +28,7 @@ export default function FeeConfigurationPage() {
     limit: 50,
     sortBy: "createdAt",
   });
-  const prices = Array.isArray(pricesResponse?.data) ? pricesResponse.data : [];
+  const prices = pricesResponse?.items ?? [];
 
   const [updateZonePrice, { isLoading: isUpdatingPrice }] = useUpdatePriceMutation();
   const [seedZones, { isLoading: isSeeding }] = useSeedZonesMutation();
@@ -371,7 +371,7 @@ const tiers: CommissionTier[] = Array.isArray(tiersResponse?.data)
                         </label>
                         <input
                           type="text"
-                          value={tier.minAmount}
+                          value={tier.minAmount ?? ""}
                           onChange={(e) => handleUpdateTierState(tier.id, { minAmount: e.target.value.replace(/[^0-9.]/g, "") })}
                           onBlur={() => handleUpdateTierApi(tier.id)}
                           className="w-full px-3 py-2 rounded-lg border border-gray-200 text-sm outline-none focus:border-orange-500 transition-colors"
@@ -383,7 +383,7 @@ const tiers: CommissionTier[] = Array.isArray(tiersResponse?.data)
                         </label>
                         <input
                           type="text"
-                          value={tier.maxAmount}
+                          value={tier.maxAmount ?? ""}
                           onChange={(e) => handleUpdateTierState(tier.id, { maxAmount: e.target.value.replace(/[^0-9.]/g, "") })}
                           onBlur={() => handleUpdateTierApi(tier.id)}
                           className="w-full px-3 py-2 rounded-lg border border-gray-200 text-sm outline-none focus:border-orange-500 transition-colors"
@@ -395,7 +395,7 @@ const tiers: CommissionTier[] = Array.isArray(tiersResponse?.data)
                         </label>
                         <input
                           type="text"
-                          value={tier.percentage}
+                          value={tier.percentage ?? ""}
                           onChange={(e) => handleUpdateTierState(tier.id, { percentage: Number(e.target.value.replace(/[^0-9.]/g, "")) || 0 })}
                           onBlur={() => handleUpdateTierApi(tier.id)}
                           className="w-full px-3 py-2 rounded-lg border border-gray-200 text-sm outline-none focus:border-orange-500 transition-colors font-semibold text-orange-600"
