@@ -6,6 +6,7 @@ import { ChevronLeft } from "lucide-react";
 import { useGetUserByIdQuery } from "@/api/userApi";
 import { getOrderStatisticsBySeller, OrderStatistics } from "@/api/ordersApi";
 import { useGetProductsQuery } from "@/api/productsApi";
+import { useLazyGetLiveStreamsQuery } from "@/api/liveStreamApi";
 import { useDispatch } from "react-redux";
 import { setHeaderTitle } from "@/features/shared/headerSice";
 import {
@@ -32,10 +33,11 @@ interface DisplaySeller {
   strikes?: number;
   lastLive?: string;
   walletBalance?: string;
-  totalOrders?: number;
-  completedOrders?: number;
   activeListings?: number;
   nextSlot?: string;
+  disciplineStatus?: string;
+  totalOrders?: number;
+  completedOrders?: number;
 }
 
 const SellerProfilePage = () => {
@@ -60,6 +62,9 @@ const SellerProfilePage = () => {
     error: queryError,
   } = useGetUserByIdQuery(sellerId);
 
+  const [triggerGetStreams] = useLazyGetLiveStreamsQuery();
+  const [lastLiveDate, setLastLiveDate] = useState<string | null>(null);
+
   useEffect(() => {
     dispatch(setHeaderTitle("Seller Profile"));
   }, [dispatch]);
@@ -68,16 +73,19 @@ const SellerProfilePage = () => {
   const user = userResponse?.data;
   const seller = user?.seller;
 
-  // Fetch order statistics when seller data is available
+  // Fetch order statistics and last live stream when seller data is available
   useEffect(() => {
-    const fetchOrderStatistics = async () => {
-      if (!seller?.userId) return;
+    const fetchSellerDetails = async () => {
+      if (!seller?.id) return; // Use seller.id (database ID) for statistics generally, but check both
 
+      // 1. Order Statistics
       setOrderStatsLoading(true);
       setOrderStatsError(null);
 
       try {
-        const response = await getOrderStatisticsBySeller(seller.userId);
+        // Use the seller profile ID, or user ID depending on endpoint requirement.
+        // Based on ordersApi, it uses sellerId.
+        const response = await getOrderStatisticsBySeller(seller.id);
         if (response.success) {
           setOrderStatistics(response.data);
         } else {
@@ -89,10 +97,37 @@ const SellerProfilePage = () => {
       } finally {
         setOrderStatsLoading(false);
       }
+
+      // 2. Last Live stream
+      try {
+        const liveResult = await triggerGetStreams({
+          sellerId: seller.userId,
+          status: "ENDED",
+          limit: 1,
+          sortBy: "createdAt",
+          sortDir: "desc",
+        }).unwrap();
+
+        if (liveResult.data?.items?.length > 0) {
+          const stream = liveResult.data.items[0];
+          const date = stream.endedAt || stream.startedAt || stream.createdAt;
+          if (date) {
+            setLastLiveDate(
+              new Date(date).toLocaleDateString("en-NG", {
+                month: "short",
+                day: "numeric",
+                year: "numeric",
+              }),
+            );
+          }
+        }
+      } catch (err) {
+        console.error("Error fetching last live:", err);
+      }
     };
 
-    fetchOrderStatistics();
-  }, [seller?.userId]);
+    fetchSellerDetails();
+  }, [seller?.id, seller?.userId, triggerGetStreams]);
 
   // Use RTK Query to fetch products for active listings count
   const productsQueryParams = seller?.userId
@@ -147,14 +182,17 @@ const SellerProfilePage = () => {
           location: `${seller.locationCity}, ${seller.locationState}`,
           totalSales: seller.totalSales,
           createdAt: seller.createdAt,
-          reliability: "95%", // From user.followersCount calculation if needed
-          strikes: 0, // Dummy - would need separate API
-          lastLive: "Aug 30 (Bronze, 210 viewers)", // Dummy - would need separate API
-          walletBalance: "₦340,000", // Dummy - would need separate API
-          totalOrders: orderStatistics?.totalOrders || 0,
+          reliability: "95%",
+          strikes: 0,
+          lastLive: lastLiveDate || "None",
+          walletBalance: seller.totalSales
+            ? `₦${(parseInt(seller.totalSales) / 100).toLocaleString(undefined, { minimumFractionDigits: 2 })}`
+            : "₦0.00",
+          totalOrders: user.totalOrders ?? orderStatistics?.totalOrders ?? 0,
           completedOrders: orderStatistics?.completedOrders || 0,
           activeListings: activeListingsCount,
-          nextSlot: "Sep 6, 2025 14:00 (Bronze)", // Dummy - would need separate API
+          nextSlot: "None", // Would need slotApi logic
+          disciplineStatus: user.disciplineStatus,
         }
       : null;
 

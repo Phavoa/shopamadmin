@@ -39,6 +39,14 @@ export interface User {
   blocks?: string[];
   blockedBy?: string[];
   seller?: SellerProfile | null;
+  // Enriched Profile Fields (#19)
+  totalSpent?: string; // kobo
+  totalOrders?: number;
+  disciplineStatus?: string;
+  refundRate?: string;
+  lastActivity?: string;
+  linkedBank?: string;
+  has2FA?: boolean;
 }
 
 export interface AuthState {

@@ -17,9 +17,17 @@ import { referralApi } from "../../api/referralApi";
 import { adminDashboardApi } from "../../api/adminDashboardApi";
 import { disciplineApi } from "../../api/disciplineApi";
 import { filesApi } from "../../api/filesApi";
-import { revenueApi } from "../../api/revenueApi";
+
 import { liveStreamApi } from "@/api/liveStreamApi";
 import { slotApi } from "@/api/slotApi";
+
+import { livestreamCategoriesApi } from "../../api/livestreamCategoriesApi";
+import { systemAlertsApi } from "../../api/systemAlertsApi";
+import { revenueReportsApi } from "../../api/revenueReportsApi";
+import { weeklySummaryApi } from "../../api/weeklySummaryApi";
+import { feeConfigApi } from "../../api/feeConfigApi";
+import { withdrawalsApi } from "../../api/withdrawalsApi";
+
 import {
   FLUSH,
   REHYDRATE,
@@ -57,6 +65,15 @@ const rootReducer = combineReducers({
   [disciplineApi.reducerPath]: disciplineApi.reducer,
   [liveStreamApi.reducerPath]: liveStreamApi.reducer,
   [slotApi.reducerPath]: slotApi.reducer,
+
+  [filesApi.reducerPath]: filesApi.reducer,
+  [livestreamCategoriesApi.reducerPath]: livestreamCategoriesApi.reducer,
+  [systemAlertsApi.reducerPath]: systemAlertsApi.reducer,
+  [revenueReportsApi.reducerPath]: revenueReportsApi.reducer,
+  [weeklySummaryApi.reducerPath]: weeklySummaryApi.reducer,
+  [feeConfigApi.reducerPath]: feeConfigApi.reducer,
+  [withdrawalsApi.reducerPath]: withdrawalsApi.reducer,
+
   auth: authReducer,
   header: headerReducer,
   search: searchReducer,
@@ -88,6 +105,14 @@ export const store = configureStore({
       disciplineApi.middleware,
       liveStreamApi.middleware,
       slotApi.middleware,
+
+      filesApi.middleware,
+      livestreamCategoriesApi.middleware,
+      systemAlertsApi.middleware,
+      revenueReportsApi.middleware,
+      weeklySummaryApi.middleware,
+      feeConfigApi.middleware,
+      withdrawalsApi.middleware,
     ),
   devTools: process.env.NODE_ENV !== "production",
 });

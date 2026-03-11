@@ -1,3 +1,5 @@
+import { authStorage } from "@/lib/auth/authUtils";
+
 const API_BASE_URL =
   process.env.NEXT_PUBLIC_API_URL ||
   "https://shapam-ecomerce-backend.onrender.com/api";
@@ -76,22 +78,6 @@ export interface BuyerListResponse {
   sortDir: string;
 }
 
-// Helper function to get token from Redux persist store
-const getAuthToken = (): string | null => {
-  try {
-    const persistRoot = localStorage.getItem("persist:root");
-    if (!persistRoot) return null;
-
-    const parsedRoot = JSON.parse(persistRoot);
-    if (!parsedRoot.auth) return null;
-
-    const authData = JSON.parse(parsedRoot.auth);
-    return authData.accessToken || null;
-  } catch (error) {
-    console.error("Error getting auth token:", error);
-    return null;
-  }
-};
 
 // Transform user data to buyer format
 const transformUserToBuyer = (user: UserProfileVM): BuyerProfileVM => {
@@ -119,7 +105,7 @@ const transformUserToBuyer = (user: UserProfileVM): BuyerProfileVM => {
 export const getBuyers = async (
   params: BuyerListParams = {}
 ): Promise<ApiResponse<BuyerListResponse>> => {
-  const token = getAuthToken();
+  const token = authStorage.getAccessToken();
   const url = new URL(`${API_BASE_URL}/user`);
 
   // Set hasSeller to false to get only buyers (users without seller profiles)
@@ -188,7 +174,7 @@ export const getBuyers = async (
 export const getBuyerById = async (
   userId: string
 ): Promise<ApiResponse<BuyerProfileVM>> => {
-  const token = getAuthToken();
+  const token = authStorage.getAccessToken();
   const response = await fetch(`${API_BASE_URL}/user/${userId}`, {
     method: "GET",
     headers: {
@@ -219,7 +205,7 @@ export const getBuyerById = async (
 export const getUserById = async (
   userId: string
 ): Promise<ApiResponse<UserProfileVM>> => {
-  const token = getAuthToken();
+  const token = authStorage.getAccessToken();
   const response = await fetch(`${API_BASE_URL}/user/${userId}`, {
     method: "GET",
     headers: {
@@ -242,7 +228,7 @@ export const getUserById = async (
 export const suspendBuyer = async (
   userId: string
 ): Promise<ApiResponse<unknown>> => {
-  const token = getAuthToken();
+  const token = authStorage.getAccessToken();
   const response = await fetch(`${API_BASE_URL}/seller/suspend/${userId}`, {
     method: "POST",
     headers: {
@@ -266,7 +252,7 @@ export const suspendBuyer = async (
 export const verifyBuyer = async (
   userId: string
 ): Promise<ApiResponse<unknown>> => {
-  const token = getAuthToken();
+  const token = authStorage.getAccessToken();
 
   // This endpoint needs to be created on your backend
   // It should be something like POST /api/admin/user/{userId}/verify

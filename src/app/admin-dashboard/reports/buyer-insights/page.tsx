@@ -1,7 +1,8 @@
 "use client";
 
 import React, { useState } from "react";
-import { Search } from "lucide-react";
+import { Search, Loader2, AlertCircle } from "lucide-react";
+import { useGetBuyerInsightsQuery, exportBuyerInsightsCsv } from "@/api/adminDashboardApi";
 
 // Bar Chart Icon
 const ChartIcon = () => (
@@ -10,8 +11,47 @@ const ChartIcon = () => (
   </svg>
 );
 
+const fmtKobo = (kobo: string | number | undefined) => {
+  if (kobo === undefined) return "—";
+  const n = typeof kobo === "string" ? parseInt(kobo, 10) : kobo;
+  if (isNaN(n)) return "₦0";
+  const naira = n / 100;
+  if (naira >= 1_000_000) return `₦${(naira / 1_000_000).toFixed(1)}M`;
+  if (naira >= 1_000) return `₦${(naira / 1_000).toFixed(0)}K`;
+  return `₦${naira.toLocaleString("en-NG")}`;
+};
+
+type PeriodValue = "today" | "week" | "month" | "quarter" | "year";
+const PERIOD_OPTIONS: { label: string; value: PeriodValue }[] = [
+  { label: "Today", value: "today" },
+  { label: "This Week", value: "week" },
+  { label: "This Month", value: "month" },
+  { label: "This Quarter", value: "quarter" },
+  { label: "This Year", value: "year" },
+];
+
 export default function BuyerInsightsPage() {
-  const [selectedPeriod, setSelectedPeriod] = useState("This month");
+  const [selectedPeriod, setSelectedPeriod] = useState<PeriodValue>("month");
+  const [isExporting, setIsExporting] = useState(false);
+
+  const { data, isLoading, error } = useGetBuyerInsightsQuery({
+    period: selectedPeriod,
+  });
+
+  const insights = data?.data;
+
+  const handleExportCsv = async () => {
+    setIsExporting(true);
+    try {
+      await exportBuyerInsightsCsv({
+        period: selectedPeriod,
+      });
+    } catch {
+      alert("Failed to export CSV. Please try again.");
+    } finally {
+      setIsExporting(false);
+    }
+  };
 
   return (
     <div className="min-h-screen bg-white">
@@ -50,8 +90,10 @@ export default function BuyerInsightsPage() {
               <ChartIcon />
             </div>
             <div>
-              <h3 className="text-3xl font-bold text-black mb-1">18,200</h3>
-              <p className="text-xs text-green-600">+10% vs last month</p>
+              <h3 className="text-3xl font-bold text-black mb-1">
+                {isLoading ? "..." : (insights?.totalBuyers.toLocaleString() || "0")}
+              </h3>
+              <p className="text-xs text-green-600">Registered accounts</p>
             </div>
           </div>
 
@@ -73,8 +115,10 @@ export default function BuyerInsightsPage() {
               <ChartIcon />
             </div>
             <div>
-              <h3 className="text-3xl font-bold text-black mb-1">12,400</h3>
-              <p className="text-xs text-gray-600">Logged in last 30 days</p>
+              <h3 className="text-3xl font-bold text-black mb-1">
+                {isLoading ? "..." : (insights?.activeBuyers.toLocaleString() || "0")}
+              </h3>
+              <p className="text-xs text-gray-600">Active in period</p>
             </div>
           </div>
 
@@ -96,8 +140,10 @@ export default function BuyerInsightsPage() {
               <ChartIcon />
             </div>
             <div>
-              <h3 className="text-3xl font-bold text-black mb-1">₦48,000</h3>
-              <p className="text-xs text-gray-600">This month</p>
+              <h3 className="text-3xl font-bold text-black mb-1">
+                {isLoading ? "..." : fmtKobo(insights?.avgSpendPerBuyerKobo)}
+              </h3>
+              <p className="text-xs text-gray-600">This period</p>
             </div>
           </div>
 
@@ -119,8 +165,10 @@ export default function BuyerInsightsPage() {
               <ChartIcon />
             </div>
             <div>
-              <h3 className="text-3xl font-bold text-black mb-1">36 States</h3>
-              <p className="text-xs text-gray-600">Nigeria</p>
+              <h3 className="text-3xl font-bold text-black mb-1">
+                {isLoading ? "..." : (insights?.regionsCovered || "0")}
+              </h3>
+              <p className="text-xs text-gray-600">Major cities/states</p>
             </div>
           </div>
         </div>
@@ -129,23 +177,26 @@ export default function BuyerInsightsPage() {
         <div className="flex items-center justify-between">
           <select
             value={selectedPeriod}
-            onChange={(e) => setSelectedPeriod(e.target.value)}
+            onChange={(e) => setSelectedPeriod(e.target.value as PeriodValue)}
             className="px-4 py-2 border border-gray-300 rounded-lg text-sm bg-white"
           >
-            <option>This month</option>
-            <option>Last month</option>
-            <option>Last 3 months</option>
-            <option>This year</option>
+            {PERIOD_OPTIONS.map((opt) => (
+              <option key={opt.value} value={opt.value}>{opt.label}</option>
+            ))}
           </select>
 
           <div className="flex gap-3">
-            <button className="px-4 py-2 text-sm border border-gray-300 rounded-lg hover:bg-gray-50">
-              Export: CSV
+            <button
+              onClick={handleExportCsv}
+              disabled={isExporting || isLoading}
+              className="flex items-center gap-2 px-4 py-2 text-sm border border-gray-300 rounded-lg hover:bg-gray-50 disabled:opacity-50 transition-opacity"
+            >
+              {isExporting ? <Loader2 className="w-4 h-4 animate-spin" /> : "Export: CSV"}
             </button>
-            <button className="px-4 py-2 text-sm border border-gray-300 rounded-lg hover:bg-gray-50">
+            <button className="px-4 py-2 text-sm border border-gray-300 rounded-lg hover:bg-gray-50 opacity-50 cursor-not-allowed" disabled>
               XLSX
             </button>
-            <button className="px-4 py-2 text-sm border border-gray-300 rounded-lg hover:bg-gray-50">
+            <button className="px-4 py-2 text-sm border border-gray-300 rounded-lg hover:bg-gray-50 opacity-50 cursor-not-allowed" disabled>
               PDF
             </button>
           </div>
@@ -165,41 +216,39 @@ export default function BuyerInsightsPage() {
           <div className="space-y-4 mb-6">
             <div className="flex items-center justify-between pb-3 border-b border-gray-100">
               <span className="text-sm text-gray-700">Active Buyers</span>
-              <span className="text-sm font-medium text-black">12,400</span>
+              <span className="text-sm font-medium text-black">
+                {isLoading ? "..." : (insights?.activity.activeBuyers.toLocaleString() || "0")}
+              </span>
             </div>
             <div className="flex items-center justify-between pb-3 border-b border-gray-100">
               <span className="text-sm text-gray-700">Inactive Buyers</span>
-              <span className="text-sm font-medium text-black">5,800</span>
+              <span className="text-sm font-medium text-black">
+                {isLoading ? "..." : (insights?.activity.inactiveBuyers.toLocaleString() || "0")}
+              </span>
             </div>
             <div className="flex items-center justify-between">
               <span className="text-sm text-gray-700">New Buyers</span>
-              <span className="text-sm font-medium text-black">3,200</span>
+              <span className="text-sm font-medium text-black">
+                {isLoading ? "..." : (insights?.activity.newBuyers.toLocaleString() || "0")}
+              </span>
             </div>
           </div>
 
           <div className="pt-6 border-t border-gray-200">
             <h3 className="text-base font-semibold text-black mb-4">Top Buyer Regions</h3>
             <div className="space-y-3">
-              <div className="flex items-center justify-between">
-                <span className="text-sm text-gray-700">Lagos</span>
-                <span className="text-sm font-medium text-black">6,200 buyers</span>
-              </div>
-              <div className="flex items-center justify-between">
-                <span className="text-sm text-gray-700">Abuja</span>
-                <span className="text-sm font-medium text-black">2,800 buyers</span>
-              </div>
-              <div className="flex items-center justify-between">
-                <span className="text-sm text-gray-700">Port Harcourt</span>
-                <span className="text-sm font-medium text-black">1,300 buyers</span>
-              </div>
-              <div className="flex items-center justify-between">
-                <span className="text-sm text-gray-700">Ibadan</span>
-                <span className="text-sm font-medium text-black">1,500 buyers</span>
-              </div>
-              <div className="flex items-center justify-between">
-                <span className="text-sm text-gray-700">Benin City</span>
-                <span className="text-sm font-medium text-black">1,200 buyers</span>
-              </div>
+              {isLoading ? (
+                <div className="text-sm text-gray-400">Loading regions...</div>
+              ) : (insights?.topRegions.length === 0 ? (
+                <div className="text-sm text-gray-400">No regions found</div>
+              ) : (
+                insights?.topRegions.map((region, idx) => (
+                  <div key={idx} className="flex items-center justify-between">
+                    <span className="text-sm text-gray-700">{region.name}</span>
+                    <span className="text-sm font-medium text-black">{region.buyerCount.toLocaleString()} buyers</span>
+                  </div>
+                ))
+              ))}
             </div>
           </div>
         </div>
@@ -234,24 +283,24 @@ export default function BuyerInsightsPage() {
                 </tr>
               </thead>
               <tbody>
-                <tr className="border-b border-gray-100">
-                  <td className="py-4 px-4 text-sm text-gray-700">Top 10% Buyers</td>
-                  <td className="py-4 px-4 text-sm text-black">12</td>
-                  <td className="py-4 px-4 text-sm text-black">₦1,200,000</td>
-                  <td className="py-4 px-4 text-sm text-black">₦120,000</td>
-                </tr>
-                <tr className="border-b border-gray-100">
-                  <td className="py-4 px-4 text-sm text-gray-700">Mid 40% Buyers</td>
-                  <td className="py-4 px-4 text-sm text-black">12</td>
-                  <td className="py-4 px-4 text-sm text-black">₦1,200,000</td>
-                  <td className="py-4 px-4 text-sm text-black">₦120,000</td>
-                </tr>
-                <tr>
-                  <td className="py-4 px-4 text-sm text-gray-700">Bottom 50% Buyers</td>
-                  <td className="py-4 px-4 text-sm text-black">12</td>
-                  <td className="py-4 px-4 text-sm text-black">₦1,200,000</td>
-                  <td className="py-4 px-4 text-sm text-black">₦120,000</td>
-                </tr>
+                {isLoading ? (
+                  <tr>
+                    <td colSpan={4} className="py-4 text-center text-gray-400">Loading insights...</td>
+                  </tr>
+                ) : (insights?.segments.length === 0 ? (
+                  <tr>
+                    <td colSpan={4} className="py-4 text-center text-gray-400">No segment data available</td>
+                  </tr>
+                ) : (
+                  insights?.segments.map((seg, idx) => (
+                    <tr key={idx} className="border-b border-gray-100 last:border-b-0">
+                      <td className="py-4 px-4 text-sm text-gray-700">{seg.segment}</td>
+                      <td className="py-4 px-4 text-sm text-black">{seg.avgOrders}</td>
+                      <td className="py-4 px-4 text-sm text-black">{fmtKobo(seg.avgGmvKobo)}</td>
+                      <td className="py-4 px-4 text-sm text-black">{fmtKobo(seg.avgSpendKobo)}</td>
+                    </tr>
+                  ))
+                ))}
               </tbody>
             </table>
           </div>

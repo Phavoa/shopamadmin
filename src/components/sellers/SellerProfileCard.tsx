@@ -81,6 +81,10 @@ const SellerProfileCard: React.FC<SellerProfileCardProps> = ({
             activeListingsCount={activeListingsCount}
             productsLoading={productsLoading}
             productsError={productsError}
+            user={user}
+            lastLive={displaySeller.lastLive}
+            nextSlot={displaySeller.nextSlot}
+            walletBalance={displaySeller.walletBalance}
           />
 
           {/* Activity Log Section */}

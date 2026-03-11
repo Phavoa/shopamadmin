@@ -21,7 +21,10 @@ import SellersTable from "@/components/sellers/SellersTable";
 import SellersPagination from "@/components/sellers/SellersPagination";
 import SuspendSellerModal from "@/components/sellers/SuspendSellerModal";
 import IssueStrikeModal from "@/components/sellers/IssueStrikeModal";
-import { AnimatedWrapper, PageWrapper } from "@/components/shared/AnimatedWrapper";
+import {
+  AnimatedWrapper,
+  PageWrapper,
+} from "@/components/shared/AnimatedWrapper";
 import { ConfirmationDialog } from "@/components/ui/confirmation-dialog";
 import { toast } from "react-hot-toast";
 
@@ -62,7 +65,9 @@ const Page = () => {
 
   const [suspendModal, setSuspendModal] = useState(false);
   const [strikeModal, setStrikeModal] = useState(false);
-  const [selectedSeller, setSelectedSeller] = useState<DisplaySeller | null>(null);
+  const [selectedSeller, setSelectedSeller] = useState<DisplaySeller | null>(
+    null,
+  );
 
   const [confirmDialog, setConfirmDialog] = useState(false);
   const [confirmAction, setConfirmAction] = useState<(() => void) | null>(null);
@@ -72,6 +77,12 @@ const Page = () => {
   const [reason, setReason] = useState("");
   const [duration, setDuration] = useState("");
   const [actionLoading, setActionLoading] = useState(false);
+  const [sellerStats, setSellerStats] = useState<
+    Record<
+      string,
+      { totalOrders: number; totalSales: number; lastLive?: string }
+    >
+  >({});
 
   // ✅ RTK Query mutations
   const [issueStrike] = useIssueStrikeMutation();
@@ -88,12 +99,15 @@ const Page = () => {
   // Helper: get strike count + suspension status for a seller from already-fetched records
   const getDisciplineStatus = (userId: string) => {
     const userRecords = disciplineRecords.filter((r) => r.userId === userId);
-    const activeStrikes = userRecords.filter((r) => r.type === "STRIKE" && r.status === "ACTIVE").length;
+    const activeStrikes = userRecords.filter(
+      (r) => r.type === "STRIKE" && r.status === "ACTIVE",
+    ).length;
     // A suspension is active if it's "ACTIVE" OR if it's been appealed but not approved yet
     const isSuspended = userRecords.some(
-      (r) => 
-        r.type === "SUSPENSION" && 
-        (r.status === "ACTIVE" || (r.appealStatus !== "APPROVED" && r.appealText))
+      (r) =>
+        r.type === "SUSPENSION" &&
+        (r.status === "ACTIVE" ||
+          (r.appealStatus !== "APPROVED" && r.appealText)),
     );
     return { activeStrikes, isSuspended };
   };
@@ -111,17 +125,19 @@ const Page = () => {
       const sellersData = response.data.items;
 
       const userPromises = sellersData.map((seller) =>
-        getUserById(seller.userId).catch(() => null)
+        getUserById(seller.userId).catch(() => null),
       );
       const userResults = await Promise.allSettled(userPromises);
       const userProfiles = userResults.map((r) =>
-        r.status === "fulfilled" ? r.value : null
+        r.status === "fulfilled" ? r.value : null,
       );
 
       const displaySellers: DisplaySeller[] = sellersData.map(
         (seller: SellerProfileVM, index: number) => {
           const user = userProfiles[index];
-          const { activeStrikes, isSuspended } = getDisciplineStatus(seller.userId);
+          const { activeStrikes, isSuspended } = getDisciplineStatus(
+            seller.userId,
+          );
 
           let status = seller.status.toLowerCase();
           if (isSuspended) {
@@ -131,6 +147,18 @@ const Page = () => {
           } else if (activeStrikes > 0) {
             status = `${activeStrikes}/3 strike${activeStrikes > 1 ? "s" : ""}`;
           }
+
+          const stats = sellerStats[seller.userId];
+          const totalOrders = (user as any)?.totalOrders || stats?.totalOrders || 0;
+
+          // Prioritize seller.totalSales for the "Wallet" column as per user feedback
+          const walletValueKobo = seller.totalSales
+            ? parseInt(seller.totalSales)
+            : 0;
+          const walletNaira = walletValueKobo / 100;
+
+          // finalTotalSales combines background stats and direct field
+          const finalTotalSales = Math.max(walletNaira, stats?.totalSales || 0);
 
           return {
             id: seller.userId,
@@ -144,18 +172,18 @@ const Page = () => {
             shopName: seller.shopName,
             businessCategory: seller.businessCategory,
             location: `${seller.locationCity}, ${seller.locationState}`,
-            totalSales: seller.totalSales,
+            totalSales: finalTotalSales.toString(),
             createdAt: seller.createdAt,
             reliability: "95%",
             strikes: activeStrikes,
-            lastLive: "Aug 30 (Bronze, 210 viewers)",
-            walletBalance: "₦340,000",
-            totalOrders: 452,
-            completedOrders: 400,
+            lastLive: stats?.lastLive || "None",
+            walletBalance: `₦${finalTotalSales.toLocaleString(undefined, { minimumFractionDigits: 2 })}`,
+            totalOrders: totalOrders,
+            completedOrders: totalOrders, // Fallback if completed not available
             activeListings: 35,
-            nextSlot: "Sep 6, 2025 14:00 (Bronze)",
+            nextSlot: "None",
           };
-        }
+        },
       );
 
       setSellers(displaySellers);
@@ -172,13 +200,93 @@ const Page = () => {
     }
   };
 
+  // ✅ Fetch real seller stats in the background (Fallback for #19)
+  useEffect(() => {
+    const fetchAllSellerStats = async () => {
+      // Map seller.id to seller.userId for correct API lookups
+      const sellerToUserMap = Object.fromEntries(
+        sellers.map((s) => [s.id, s.id]),
+      );
+
+      const missingIds = sellers
+        .map((s) => s.id)
+        .filter((id) => !sellerStats[id]);
+
+      if (missingIds.length === 0) return;
+
+      const { getOrderStatisticsBySeller } = await import("@/api/ordersApi");
+      const { authStorage } = await import("@/lib/auth/authUtils");
+
+      const results = await Promise.all(
+        missingIds.map(async (id) => {
+          const userId = sellerToUserMap[id];
+          let statsObj = { totalOrders: 0, totalSales: 0, lastLive: "None" };
+          try {
+            // 1. Order stats (Uses Seller Profile ID)
+            const resp = await getOrderStatisticsBySeller(id);
+            if (resp.success && resp.data) {
+              statsObj.totalOrders = resp.data.totalOrders;
+              statsObj.totalSales = resp.data.totalRevenue / 100;
+            }
+
+            // 2. Last Live (Uses User ID)
+            const API_BASE_URL =
+              process.env.NEXT_PUBLIC_API_URL ||
+              "https://shapam-ecomerce-backend.onrender.com/api";
+            const token = authStorage.getAccessToken();
+
+            // Fetch ended streams for this seller via userId
+            const liveResp = await fetch(
+              `${API_BASE_URL}/streams?sellerId=${userId}&status=ENDED&limit=1&sortBy=createdAt&sortDir=desc`,
+              {
+                headers: { Authorization: `Bearer ${token}` },
+              },
+            );
+
+            if (liveResp.ok) {
+              const liveData = await liveResp.json();
+              if (liveData.data?.items?.length > 0) {
+                const stream = liveData.data.items[0];
+                const dateRaw =
+                  stream.endedAt || stream.startedAt || stream.createdAt;
+                statsObj.lastLive = new Date(dateRaw).toLocaleDateString(
+                  "en-NG",
+                  {
+                    month: "short",
+                    day: "numeric",
+                    year: "numeric",
+                  },
+                );
+              }
+            }
+          } catch (err) {
+            console.error(`Failed seller stats for ${id}:`, err);
+          }
+          return { id, stats: statsObj };
+        }),
+      );
+
+      const newStats = { ...sellerStats };
+      results.forEach(({ id, stats }) => {
+        if (id) newStats[id] = stats;
+      });
+      setSellerStats(newStats);
+    };
+
+    if (sellers.length > 0) {
+      fetchAllSellerStats();
+    }
+  }, [sellers]);
+
   useEffect(() => {
     const handleFocus = () => fetchSellers();
     window.addEventListener("focus", handleFocus);
     return () => window.removeEventListener("focus", handleFocus);
   }, []);
 
-  useEffect(() => { fetchSellers(); }, []);
+  useEffect(() => {
+    fetchSellers();
+  }, []);
 
   useEffect(() => {
     setCurrentPage(1);
@@ -186,6 +294,38 @@ const Page = () => {
     setPrevCursor(undefined);
     fetchSellers({ q: searchQuery || undefined });
   }, [searchQuery]);
+
+  // ✅ Memoized sellers for display, combining base data with background stats (#19)
+  const memoizedSellers = React.useMemo(() => {
+    return sellers.map((seller) => {
+      const stats = sellerStats[seller.id];
+      if (!stats) return seller;
+
+      // Prioritize background stats for "Wallet" and "Last Live"
+      // totalSales is in kobo in stats
+      const walletNaira = stats.totalSales;
+
+      // If we already have a walletBalance in the base seller object,
+      // check if it's 0 and if the stats have a better value
+      const currentWalletStr =
+        seller.walletBalance?.replace(/[^\d.-]/g, "") || "0";
+      const currentWallet = parseFloat(currentWalletStr);
+
+      const bestWallet = Math.max(currentWallet, walletNaira);
+
+      return {
+        ...seller,
+        lastLive: stats.lastLive !== "None" ? stats.lastLive : seller.lastLive,
+        walletBalance:
+          bestWallet > 0
+            ? `₦${bestWallet.toLocaleString(undefined, { minimumFractionDigits: 2 })}`
+            : seller.walletBalance,
+        totalSales: bestWallet.toString(),
+        totalOrders:
+          stats.totalOrders > 0 ? stats.totalOrders : seller.totalOrders,
+      };
+    });
+  }, [sellers, sellerStats]);
 
   // Re-derive seller statuses when discipline data loads
   useEffect(() => {
@@ -196,12 +336,12 @@ const Page = () => {
           let status = isSuspended
             ? "suspended"
             : activeStrikes >= 3
-            ? "suspended"
-            : activeStrikes > 0
-            ? `${activeStrikes}/3 strike${activeStrikes > 1 ? "s" : ""}`
-            : seller.status;
+              ? "suspended"
+              : activeStrikes > 0
+                ? `${activeStrikes}/3 strike${activeStrikes > 1 ? "s" : ""}`
+                : seller.status;
           return { ...seller, status, strikes: activeStrikes };
-        })
+        }),
       );
     }
   }, [disciplineData]);
@@ -221,7 +361,9 @@ const Page = () => {
       return;
     }
     setConfirmTitle("Confirm Suspension");
-    setConfirmDescription(`Suspend ${selectedSeller.name} for ${duration} days?`);
+    setConfirmDescription(
+      `Suspend ${selectedSeller.name} for ${duration} days?`,
+    );
     setConfirmAction(() => async () => {
       try {
         setActionLoading(true);
@@ -231,7 +373,9 @@ const Page = () => {
           data: { role: "SELLER", durationDays: parseInt(duration), reason },
         }).unwrap();
         setSellers((prev) =>
-          prev.map((s) => s.id === selectedSeller.id ? { ...s, status: "suspended" } : s)
+          prev.map((s) =>
+            s.id === selectedSeller.id ? { ...s, status: "suspended" } : s,
+          ),
         );
         setSuspendModal(false);
         setReason("");
@@ -239,7 +383,9 @@ const Page = () => {
         setSelectedSeller(null);
         toast.success("Seller suspended successfully!");
       } catch (err) {
-        toast.error(err instanceof Error ? err.message : "Failed to suspend seller");
+        toast.error(
+          err instanceof Error ? err.message : "Failed to suspend seller",
+        );
       } finally {
         setActionLoading(false);
       }
@@ -274,7 +420,11 @@ const Page = () => {
           }).unwrap();
           toast.success(`${selectedSeller.name} suspended (3rd strike)`);
           setSellers((prev) =>
-            prev.map((s) => s.id === selectedSeller.id ? { ...s, status: "suspended", strikes: 3 } : s)
+            prev.map((s) =>
+              s.id === selectedSeller.id
+                ? { ...s, status: "suspended", strikes: 3 }
+                : s,
+            ),
           );
         } else {
           await issueStrike({
@@ -282,17 +432,22 @@ const Page = () => {
             data: { role: "SELLER", reason },
           }).unwrap();
           const newCount = currentStrikes + 1;
-          toast.success(`Strike ${newCount}/3 issued to ${selectedSeller.name}`);
+          toast.success(
+            `Strike ${newCount}/3 issued to ${selectedSeller.name}`,
+          );
           setSellers((prev) =>
             prev.map((s) =>
               s.id === selectedSeller.id
                 ? {
                     ...s,
                     strikes: newCount,
-                    status: newCount >= 3 ? "suspended" : `${newCount}/3 strike${newCount > 1 ? "s" : ""}`,
+                    status:
+                      newCount >= 3
+                        ? "suspended"
+                        : `${newCount}/3 strike${newCount > 1 ? "s" : ""}`,
                   }
-                : s
-            )
+                : s,
+            ),
           );
         }
 
@@ -300,7 +455,9 @@ const Page = () => {
         setReason("");
         setSelectedSeller(null);
       } catch (err) {
-        toast.error(err instanceof Error ? err.message : "Failed to issue strike");
+        toast.error(
+          err instanceof Error ? err.message : "Failed to issue strike",
+        );
       } finally {
         setActionLoading(false);
       }
@@ -326,7 +483,7 @@ const Page = () => {
     <PageWrapper className="min-h-screen px-6 py-8">
       <AnimatedWrapper animation="fadeIn" delay={0.1}>
         <SellersTable
-          sellers={sellers}
+          sellers={memoizedSellers}
           fetchingSellers={fetchingSellers}
           error={error}
           onViewSeller={handleViewSeller}
@@ -337,7 +494,7 @@ const Page = () => {
 
       <AnimatedWrapper animation="slideUp" delay={0.2}>
         <SellersPagination
-          sellers={sellers}
+          sellers={memoizedSellers}
           hasNext={hasNext}
           hasPrev={hasPrev}
           onNextPage={handleNextPage}

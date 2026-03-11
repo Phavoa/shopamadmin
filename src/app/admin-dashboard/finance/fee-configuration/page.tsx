@@ -1,50 +1,255 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
+import {
+  useGetFeeConfigQuery,
+  useSaveDraftMutation,
+  usePublishConfigMutation,
+  useLazySimulateRevenueQuery,
+  useGetCommissionTiersQuery,
+  useCreateCommissionTierMutation,
+  useUpdateCommissionTierMutation,
+  useDeleteCommissionTierMutation,
+  type CommissionTier,   // 👈 add this
+} from "@/api/feeConfigApi";
+import { useUpdatePriceMutation, useGetPricesQuery, useSeedZonesMutation, useGetZonesQuery } from "@/api/deliveryApi";
+import { formatNaira, koboToNaira, nairaToKobo, formatNumber } from "@/lib/utils";
+import { SuccessModal } from "@/components/shared/SuccessModal";
+import { Trash2, Plus, Save, Loader2 } from "lucide-react";
+
+
 
 export default function FeeConfigurationPage() {
-  const [effectiveDate, setEffectiveDate] = useState("12/09/2025");
+  const { data: configResponse, isLoading: isConfigLoading } = useGetFeeConfigQuery();
+  const config = configResponse?.data;
+
+  // Fetch zones for name lookup and prices separately (populate causes 500 on backend)
+  const { data: zonesResponse, isLoading: isZonesLoading } = useGetZonesQuery({});
+  const zones = zonesResponse?.data?.items ?? [];
+
+  const { data: pricesResponse, isLoading: isPricesLoading } = useGetPricesQuery({ limit: 100, sortBy: "createdAt" });
+  const prices = pricesResponse?.items ?? [];
+  console.log("[DeliveryPrices] zones:", zones.length, "prices:", prices.length, "pricesResponse:", pricesResponse);
+
+
+  const [updateZonePrice, { isLoading: isUpdatingPrice }] = useUpdatePriceMutation();
+  const [seedZones, { isLoading: isSeeding }] = useSeedZonesMutation();
+
+  const [saveDraft, { isLoading: isSaving }] = useSaveDraftMutation();
+  const [publishConfig, { isLoading: isPublishing }] = usePublishConfigMutation();
+  const [simulateRevenue, { data: simulationResponse, isFetching: isSimulating }] = useLazySimulateRevenueQuery();
+
+  const { data: tiersResponse, isLoading: isTiersLoading } = useGetCommissionTiersQuery({});
+  // Handle both direct array and { items: [] } pattern
+const tiers: CommissionTier[] = Array.isArray(tiersResponse?.data)
+  ? tiersResponse.data
+  : (tiersResponse?.data as { items: CommissionTier[] } | undefined)?.items || [];
+
+  const [createTier, { isLoading: isCreatingTier }] = useCreateCommissionTierMutation();
+  const [updateTier, { isLoading: isUpdatingTier }] = useUpdateCommissionTierMutation();
+  const [deleteTier, { isLoading: isDeletingTier }] = useDeleteCommissionTierMutation();
+
+  const [isSuccessModalOpen, setIsSuccessModalOpen] = useState(false);
+  const [modalTitle, setModalTitle] = useState("");
+  const [modalMessage, setModalMessage] = useState("");
+
+  const [effectiveDate, setEffectiveDate] = useState("");
   const [gracePeriod, setGracePeriod] = useState("7");
-  const [whoCanPublish, setWhoCanPublish] = useState("Finance Admins Only");
-
-  // Shopping Commission Tiers
-  const [tier1Min, setTier1Min] = useState("100");
-  const [tier1Max, setTier1Max] = useState("499,999");
-  const [tier1Commission, setTier1Commission] = useState("6");
-
-  const [tier2Min, setTier2Min] = useState("500,000");
-  const [tier2Max, setTier2Max] = useState("999,999");
-  const [tier2Commission, setTier2Commission] = useState("5");
-
-  const [tier3Min, setTier3Min] = useState("1,000,000");
-  const [tier3Commission, setTier3Commission] = useState("3");
+  const [whoCanPublish, setWhoCanPublish] = useState("FINANCE_ADMIN");
 
   // Wallet and Subscription
   const [walletFee, setWalletFee] = useState("0");
   const [withdrawalFee, setWithdrawalFee] = useState("50");
   const [subscriptionEnabled, setSubscriptionEnabled] = useState(false);
   const [subscriptionPrice, setSubscriptionPrice] = useState("0");
-  const [promoCodesEnabled, setPromoCodesEnabled] = useState(true);
+  const [referralEnabled, setReferralEnabled] = useState(true);
+  
+  // Local state for Tiers and Logistics to avoid desync/reset issues
+  const [localTiers, setLocalTiers] = useState<CommissionTier[]>([]);
+  const [localLogisticsFees, setLocalLogisticsFees] = useState<Record<string, string>>({});
 
-  // Logistics Fees
-  const logistics = [
-    { name: "Lagos", fee: "0" },
-    { name: "Abuja", fee: "0" },
-    { name: "South West to South East", fee: "50" },
-    { name: "South West", fee: "50" },
-    { name: "South East", fee: "50" },
-    { name: "South West to Abuja", fee: "50" },
-    { name: "Abuja to South East", fee: "50" },
-    { name: "Lagos to Abuja", fee: "50" },
-    { name: "Lagos Mainland to Island", fee: "50" },
-  ];
+  // Initialize state from API
+  useEffect(() => {
+    if (config) {
+      setEffectiveDate(config.effectiveFrom || "");
+      setGracePeriod(config.gracePeriodDays?.toString() || "");
+      setWhoCanPublish(config.whoCanPublish || "FINANCE_ADMIN");
+      setWalletFee(koboToNaira(config.walletFeeKobo).toString());
+      setWithdrawalFee(koboToNaira(config.withdrawalFeeKobo).toString());
+      setSubscriptionEnabled(config.subscriptionEnabled);
+      setSubscriptionPrice(koboToNaira(config.subscriptionFeeKobo).toString());
+      setReferralEnabled(config.referralEnabled);
+      
+      // Initialize local tiers
+      if (tiers.length > 0) {
+        setLocalTiers(tiers);
+      }
+      
+      handleSimulate();
+    }
+  }, [config, tiers]);
+
+  // Sync tiers to local state when they load
+  useEffect(() => {
+    if (tiers.length > 0) {
+      setLocalTiers(tiers);
+    }
+  }, [tiers]);
+
+  // Sync logistics prices to local state — keyed by price.id
+  useEffect(() => {
+    if (prices.length > 0) {
+      const fees: Record<string, string> = {};
+      prices.forEach(p => {
+        fees[p.id] = koboToNaira(p.priceKobo).toString();
+      });
+      setLocalLogisticsFees(fees);
+    }
+  }, [prices]);
+
 
   // Simulation data
-  const [expectedPerMonth] = useState("69,000,000");
-  const [split] = useState("50/30/15");
-  const [platformRevenue] = useState("2,240,000");
-  const [shoppingGMV] = useState("40%");
-  const [payoutFees] = useState("40,000");
+  const simulationData = simulationResponse?.data;
+  const [expectedPerMonth, setExpectedPerMonth] = useState("69,000,000");
+  const [split, setSplit] = useState("50/30/15");
+
+  const handleSaveDraft = async () => {
+    try {
+      const payload = {
+        walletFeeKobo: nairaToKobo(walletFee),
+        withdrawalFeeKobo: nairaToKobo(withdrawalFee),
+        subscriptionFeeKobo: nairaToKobo(subscriptionPrice),
+        subscriptionEnabled,
+        referralEnabled,
+        gracePeriodDays: Number(gracePeriod) || 7,
+        whoCanPublish,
+      };
+      console.log("Saving draft with payload:", payload);
+      await saveDraft(payload).unwrap();
+      setModalTitle("Draft Saved!");
+      setModalMessage("Your draft has been saved successfully. You can now publish these changes to make them live.");
+      setIsSuccessModalOpen(true);
+    } catch (error: any) {
+      const errorMessage = error?.data?.message || error?.message || "Check console for details";
+      alert(`Failed to save draft: ${errorMessage}`);
+    }
+  };
+
+  const handlePublish = async () => {
+    if (!effectiveDate) {
+      alert("Please enter an effective date before publishing.");
+      return;
+    }
+
+    try {
+      console.log("Publishing config with:", { effectiveFrom: effectiveDate, isFinanceAdmin: true });
+      await publishConfig({
+        effectiveFrom: effectiveDate,
+        isFinanceAdmin: true,
+      }).unwrap();
+      setModalTitle("Configuration Published!");
+      setModalMessage("The new fee configuration is now live and will be applied to all transactions.");
+      setIsSuccessModalOpen(true);
+    } catch (error: any) {
+      const errorMessage = error?.data?.message || error?.message || "Check console for details";
+      alert(`Failed to publish configuration: ${errorMessage}`);
+    }
+  };
+
+  const handleSimulate = async () => {
+    simulateRevenue({
+      expectedMonthlyGmvKobo: nairaToKobo(expectedPerMonth).toString(),
+      avgCommissionPercent: tiers.length > 0 ? tiers[0].percentage : 0,
+    });
+  };
+
+  const handleAddTier = async () => {
+    try {
+      const nextNum = (tiers?.length || 0) + 1;
+      const payload = {
+        name: `Tier ${nextNum}`,
+        minAmount: 0,
+        maxAmount: 0,
+        percentage: 0,
+      };
+      await createTier(payload).unwrap();
+    } catch (err: any) {
+      const errMsg = err?.data?.message || err?.error || "Failed to create tier";
+      alert(errMsg);
+    }
+  };
+
+  const handleUpdateTierState = (tierId: string, updates: Partial<CommissionTier>) => {
+    setLocalTiers(prev => prev.map(t => t.id === tierId ? { ...t, ...updates } : t));
+  };
+
+  const handleUpdateTierApi = async (tierId: string) => {
+    const tier = localTiers.find(t => t.id === tierId);
+    if (!tier) return;
+
+    try {
+      // Ensure we don't send malformed data or NaN
+      const minVal = typeof tier.minAmount === "string" ? Number(tier.minAmount.replace(/,/g, "")) : Number(tier.minAmount);
+      const maxVal = typeof tier.maxAmount === "string" ? Number(tier.maxAmount.replace(/,/g, "")) : Number(tier.maxAmount);
+
+      const payload = {
+        id: tier.id,
+        name: tier.name,
+        minAmount: isNaN(minVal) ? 0 : minVal,
+        maxAmount: isNaN(maxVal) ? 0 : maxVal,
+        percentage: Number(tier.percentage) || 0,
+      };
+      
+      console.log("Updating tier API:", payload);
+      await updateTier(payload).unwrap();
+      
+      // Force simulation update after tier change
+      handleSimulate();
+    } catch (err: any) {
+      console.error("Update failed:", err?.data?.message || err?.error);
+      // Optional: Refresh tiers from API on failure
+    }
+  };
+
+  const handleDeleteTier = async (id: string) => {
+    if (confirm("Are you sure you want to delete this tier?")) {
+      try {
+        await deleteTier(id).unwrap();
+      } catch (err: any) {
+        const errMsg = err?.data?.message || err?.error || "Failed to delete tier";
+        alert(errMsg);
+      }
+    }
+  };
+
+  const handleUpdateLogisticsFeeApi = async (priceId: string) => {
+    const feeNaira = localLogisticsFees[priceId];
+    if (!feeNaira) return;
+
+    try {
+      await updateZonePrice({ 
+        id: priceId, 
+        data: { priceKobo: nairaToKobo(feeNaira).toString() } 
+      }).unwrap();
+    } catch (error) {
+      console.error("Update logistics fee failed:", error);
+      alert("Failed to update logistics fee. Please try again.");
+    }
+  };
+
+  const handleSeedLogistics = async () => {
+    if (!confirm("This will initialize the delivery pricing matrix for all zones. Existing prices might be affected if you choose to reset. Continue?")) {
+      return;
+    }
+    try {
+      await seedZones({ defaultPriceKobo: "0", reset: false }).unwrap();
+      setModalTitle("Matrix Initialized");
+      setModalMessage("The delivery pricing matrix has been successfully initialized. You can now set individual zone fees.");
+      setIsSuccessModalOpen(true);
+    } catch (error: any) {
+      alert(`Failed to seed zones: ${error?.data?.message || error?.message}`);
+    }
+  };
 
   return (
     <div className="min-h-screen bg-white">
@@ -61,12 +266,14 @@ export default function FeeConfigurationPage() {
               color: "#374151",
               fontSize: "14px",
               fontWeight: 500,
-              cursor: "pointer",
+              cursor: "default",
             }}
           >
-            Draft v1
+            {config?.effectiveFrom ? `Current: ${config.effectiveFrom}` : "No Live Config"}
           </button>
           <button
+            onClick={handleSaveDraft}
+            disabled={isSaving}
             style={{
               padding: "8px 20px",
               borderRadius: "8px",
@@ -75,12 +282,15 @@ export default function FeeConfigurationPage() {
               color: "#374151",
               fontSize: "14px",
               fontWeight: 500,
-              cursor: "pointer",
+              cursor: isSaving ? "not-allowed" : "pointer",
+              opacity: isSaving ? 0.7 : 1,
             }}
           >
-            Save Draft
+            {isSaving ? "Saving..." : "Save Draft"}
           </button>
           <button
+            onClick={handlePublish}
+            disabled={isPublishing}
             style={{
               padding: "8px 20px",
               borderRadius: "8px",
@@ -89,10 +299,11 @@ export default function FeeConfigurationPage() {
               fontSize: "14px",
               fontWeight: 500,
               border: "none",
-              cursor: "pointer",
+              cursor: isPublishing ? "not-allowed" : "pointer",
+              opacity: isPublishing ? 0.7 : 1,
             }}
           >
-            Publish
+            {isPublishing ? "Publishing..." : "Publish"}
           </button>
         </div>
       </div>
@@ -113,181 +324,93 @@ export default function FeeConfigurationPage() {
               background: "#FFF",
             }}
           >
-            <h2 className="text-base font-semibold text-black mb-6">
-              Shopping Commission (All Goods)
-            </h2>
+            <div className="flex items-center justify-between mb-6">
+              <h2 className="text-base font-semibold text-black">
+                Shopping Commission (All Goods)
+              </h2>
+              <button
+                onClick={handleAddTier}
+                disabled={isCreatingTier}
+                className="flex items-center gap-2 px-3 py-1.5 text-xs font-medium text-[var(--sidebar-primary)] border border-[var(--sidebar-primary)] rounded-lg hover:bg-orange-50 transition-colors"
+              >
+                {isCreatingTier ? <Loader2 className="w-3 h-3 animate-spin" /> : <Plus className="w-3 h-3" />}
+                Add Tier
+              </button>
+            </div>
 
-            <div className="grid grid-cols-3 gap-6">
-              {/* Tier 1 */}
-              <div>
-                <h3 className="text-sm font-medium text-black mb-4">
-                  Tier 1 - ₦100 to ₦499,999
-                </h3>
-                <div className="space-y-3">
-                  <div>
-                    <label className="text-xs text-gray-600 block mb-1">
-                      Min amount (₦):
-                    </label>
-                    <input
-                      type="text"
-                      value={tier1Min}
-                      onChange={(e) => setTier1Min(e.target.value)}
-                      style={{
-                        width: "100%",
-                        padding: "8px 12px",
-                        borderRadius: "8px",
-                        border: "0.3px solid rgba(0, 0, 0, 0.20)",
-                        fontSize: "14px",
-                        outline: "none",
-                      }}
-                    />
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              {isTiersLoading ? (
+                Array(3).fill(0).map((_, i) => (
+                  <div key={i} className="h-48 bg-gray-50 animate-pulse rounded-xl" />
+                ))
+              ) : localTiers.length > 0 ? (
+                localTiers.map((tier) => (
+                  <div
+                    key={tier.id}
+                    className="p-4 rounded-xl border border-gray-100 bg-gray-50/30 group relative"
+                  >
+                    <div className="flex items-center justify-between mb-4">
+                      <input
+                        type="text"
+                        value={tier.name}
+                        onChange={(e) => handleUpdateTierState(tier.id, { name: e.target.value })}
+                        onBlur={() => handleUpdateTierApi(tier.id)}
+                        className="text-sm font-medium text-black bg-transparent border-none outline-none focus:ring-1 focus:ring-orange-200 rounded px-1 w-2/3"
+                      />
+                      <button
+                        onClick={() => handleDeleteTier(tier.id)}
+                        className="p-1.5 text-red-500 hover:bg-red-50 rounded-lg transition-colors opacity-0 group-hover:opacity-100"
+                        title="Delete Tier"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </button>
+                    </div>
+                    
+                    <div className="space-y-3">
+                      <div>
+                        <label className="text-xs text-gray-500 block mb-1">
+                          Min amount (₦):
+                        </label>
+                        <input
+                          type="text"
+                          value={tier.minAmount ?? ""}
+                          onChange={(e) => handleUpdateTierState(tier.id, { minAmount: e.target.value.replace(/[^0-9.]/g, "") })}
+                          onBlur={() => handleUpdateTierApi(tier.id)}
+                          className="w-full px-3 py-2 rounded-lg border border-gray-200 text-sm outline-none focus:border-orange-500 transition-colors"
+                        />
+                      </div>
+                      <div>
+                        <label className="text-xs text-gray-500 block mb-1">
+                          Max amount (₦):
+                        </label>
+                        <input
+                          type="text"
+                          value={tier.maxAmount ?? ""}
+                          onChange={(e) => handleUpdateTierState(tier.id, { maxAmount: e.target.value.replace(/[^0-9.]/g, "") })}
+                          onBlur={() => handleUpdateTierApi(tier.id)}
+                          className="w-full px-3 py-2 rounded-lg border border-gray-200 text-sm outline-none focus:border-orange-500 transition-colors"
+                        />
+                      </div>
+                      <div>
+                        <label className="text-xs text-gray-500 block mb-1">
+                          Commission %:
+                        </label>
+                        <input
+                          type="text"
+                          value={tier.percentage ?? ""}
+                          onChange={(e) => handleUpdateTierState(tier.id, { percentage: Number(e.target.value.replace(/[^0-9.]/g, "")) || 0 })}
+                          onBlur={() => handleUpdateTierApi(tier.id)}
+                          className="w-full px-3 py-2 rounded-lg border border-gray-200 text-sm outline-none focus:border-orange-500 transition-colors font-semibold text-orange-600"
+                        />
+                      </div>
+                    </div>
                   </div>
-                  <div>
-                    <label className="text-xs text-gray-600 block mb-1">
-                      Max amount (₦):
-                    </label>
-                    <input
-                      type="text"
-                      value={tier1Max}
-                      onChange={(e) => setTier1Max(e.target.value)}
-                      style={{
-                        width: "100%",
-                        padding: "8px 12px",
-                        borderRadius: "8px",
-                        border: "0.3px solid rgba(0, 0, 0, 0.20)",
-                        fontSize: "14px",
-                        outline: "none",
-                      }}
-                    />
-                  </div>
-                  <div>
-                    <label className="text-xs text-gray-600 block mb-1">
-                      Commission %:
-                    </label>
-                    <input
-                      type="text"
-                      value={tier1Commission}
-                      onChange={(e) => setTier1Commission(e.target.value)}
-                      style={{
-                        width: "100%",
-                        padding: "8px 12px",
-                        borderRadius: "8px",
-                        border: "0.3px solid rgba(0, 0, 0, 0.20)",
-                        fontSize: "14px",
-                        outline: "none",
-                      }}
-                    />
-                  </div>
+                ))
+              ) : (
+                <div className="col-span-full py-8 text-center text-gray-400 text-sm bg-gray-50 rounded-xl border border-dashed border-gray-200">
+                  No commission tiers defined. Click "Add Tier" to create one.
                 </div>
-              </div>
-
-              {/* Tier 2 */}
-              <div>
-                <h3 className="text-sm font-medium text-black mb-4">
-                  Tier 2 - ₦500,000 to ₦999,999
-                </h3>
-                <div className="space-y-3">
-                  <div>
-                    <label className="text-xs text-gray-600 block mb-1">
-                      Min amount (₦):
-                    </label>
-                    <input
-                      type="text"
-                      value={tier2Min}
-                      onChange={(e) => setTier2Min(e.target.value)}
-                      style={{
-                        width: "100%",
-                        padding: "8px 12px",
-                        borderRadius: "8px",
-                        border: "0.3px solid rgba(0, 0, 0, 0.20)",
-                        fontSize: "14px",
-                        outline: "none",
-                      }}
-                    />
-                  </div>
-                  <div>
-                    <label className="text-xs text-gray-600 block mb-1">
-                      Max amount (₦):
-                    </label>
-                    <input
-                      type="text"
-                      value={tier2Max}
-                      onChange={(e) => setTier2Max(e.target.value)}
-                      style={{
-                        width: "100%",
-                        padding: "8px 12px",
-                        borderRadius: "8px",
-                        border: "0.3px solid rgba(0, 0, 0, 0.20)",
-                        fontSize: "14px",
-                        outline: "none",
-                      }}
-                    />
-                  </div>
-                  <div>
-                    <label className="text-xs text-gray-600 block mb-1">
-                      Commission %:
-                    </label>
-                    <input
-                      type="text"
-                      value={tier2Commission}
-                      onChange={(e) => setTier2Commission(e.target.value)}
-                      style={{
-                        width: "100%",
-                        padding: "8px 12px",
-                        borderRadius: "8px",
-                        border: "0.3px solid rgba(0, 0, 0, 0.20)",
-                        fontSize: "14px",
-                        outline: "none",
-                      }}
-                    />
-                  </div>
-                </div>
-              </div>
-
-              {/* Tier 3 */}
-              <div>
-                <h3 className="text-sm font-medium text-black mb-4">
-                  Tier 3 - ₦1,000,000 and above
-                </h3>
-                <div className="space-y-3">
-                  <div>
-                    <label className="text-xs text-gray-600 block mb-1">
-                      Min amount (₦):
-                    </label>
-                    <input
-                      type="text"
-                      value={tier3Min}
-                      onChange={(e) => setTier3Min(e.target.value)}
-                      style={{
-                        width: "100%",
-                        padding: "8px 12px",
-                        borderRadius: "8px",
-                        border: "0.3px solid rgba(0, 0, 0, 0.20)",
-                        fontSize: "14px",
-                        outline: "none",
-                      }}
-                    />
-                  </div>
-                  <div>
-                    <label className="text-xs text-gray-600 block mb-1">
-                      Commission %:
-                    </label>
-                    <input
-                      type="text"
-                      value={tier3Commission}
-                      onChange={(e) => setTier3Commission(e.target.value)}
-                      style={{
-                        width: "100%",
-                        padding: "8px 12px",
-                        borderRadius: "8px",
-                        border: "0.3px solid rgba(0, 0, 0, 0.20)",
-                        fontSize: "14px",
-                        outline: "none",
-                      }}
-                    />
-                  </div>
-                </div>
-              </div>
+              )}
             </div>
           </div>
 
@@ -357,6 +480,23 @@ export default function FeeConfigurationPage() {
 
                   <div className="flex items-center justify-between">
                     <span className="text-sm text-black">
+                      Referral system enabled:
+                    </span>
+                    <div className="flex items-center gap-2">
+                      <span className="text-sm">Yes</span>
+                      <input
+                        type="checkbox"
+                        checked={referralEnabled}
+                        onChange={() =>
+                          setReferralEnabled(!referralEnabled)
+                        }
+                        className="w-4 h-4 cursor-pointer"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm text-black">
                       Subscription (monthly):
                     </span>
                     <div className="flex items-center gap-3">
@@ -369,7 +509,16 @@ export default function FeeConfigurationPage() {
                         />
                         <span className="text-sm">Off</span>
                       </label>
-                      <span className="text-sm">Price</span>
+                      <label className="flex items-center gap-2 cursor-pointer">
+                        <input
+                          type="radio"
+                          checked={subscriptionEnabled}
+                          onChange={() => setSubscriptionEnabled(true)}
+                          className="w-4 h-4"
+                        />
+                        <span className="text-sm">On</span>
+                      </label>
+                      <span className="text-sm ml-2">Price</span>
                       <input
                         type="text"
                         value={subscriptionPrice}
@@ -389,22 +538,7 @@ export default function FeeConfigurationPage() {
                     </div>
                   </div>
 
-                  <div className="flex items-center justify-between">
-                    <span className="text-sm text-black">
-                      Promo codes enabled:
-                    </span>
-                    <div className="flex items-center gap-2">
-                      <span className="text-sm">Yes</span>
-                      <input
-                        type="checkbox"
-                        checked={promoCodesEnabled}
-                        onChange={() =>
-                          setPromoCodesEnabled(!promoCodesEnabled)
-                        }
-                        className="w-4 h-4 cursor-pointer"
-                      />
-                    </div>
-                  </div>
+                  {/* Promo codes toggle removed as it's not in the API documentation provided */}
                 </div>
               </div>
 
@@ -417,35 +551,69 @@ export default function FeeConfigurationPage() {
                   background: "#FFF",
                 }}
               >
-                <h2 className="text-base font-semibold text-black mb-6">
-                  Logistics Fees
-                </h2>
+                <div className="flex items-center justify-between mb-6">
+                  <h2 className="text-base font-semibold text-black">
+                    Logistics Fees
+                  </h2>
+                  <button
+                    onClick={handleSeedLogistics}
+                    disabled={isSeeding}
+                    className="text-xs font-medium text-[var(--sidebar-primary)] px-3 py-1.5 border border-[var(--sidebar-primary)] rounded-lg hover:bg-orange-50 transition-colors flex items-center gap-2"
+                  >
+                    {isSeeding ? <Loader2 className="w-3 h-3 animate-spin" /> : <Save className="w-3 h-3" />}
+                    Initialize Matrix
+                  </button>
+                </div>
 
                 <div className="space-y-3">
-                  {logistics.map((item, index) => (
-                    <div
-                      key={index}
-                      className="flex items-center justify-between"
-                    >
-                      <span className="text-sm text-black">{item.name}</span>
-                      <div className="flex items-center gap-2">
-                        <span className="text-sm font-semibold">₦</span>
-                        <input
-                          type="text"
-                          defaultValue={item.fee}
-                          style={{
-                            width: "60px",
-                            padding: "6px 10px",
-                            borderRadius: "8px",
-                            border: "0.3px solid rgba(0, 0, 0, 0.20)",
-                            fontSize: "14px",
-                            textAlign: "right",
-                            outline: "none",
-                          }}
-                        />
-                      </div>
-                    </div>
-                  ))}
+                  {isZonesLoading || isPricesLoading ? (
+                    <p className="text-sm text-gray-500">Loading logistics fees...</p>
+                  ) : prices.length > 0 ? (
+                    prices.map((price) => {
+                      // Look up zone name from local zones list by originZoneId
+                      const originZone = zones.find((z) => z.id === price.originZoneId);
+                      const destZone = zones.find((z) => z.id === price.destinationZoneId);
+                      const isSameZone = price.originZoneId === price.destinationZoneId;
+                      const label = isSameZone
+                        ? (originZone?.name ?? price.originZoneId)
+                        : `${originZone?.name ?? price.originZoneId} → ${destZone?.name ?? price.destinationZoneId}`;
+
+                      return (
+                        <div
+                          key={price.id}
+                          className="flex items-center justify-between"
+                        >
+                          <span className="text-sm text-black">{label}</span>
+                          <div className="flex items-center gap-2">
+                            <span className="text-sm font-semibold">₦</span>
+                            <input
+                              type="text"
+                              value={localLogisticsFees[price.id] ?? "0"}
+                              onChange={(e) =>
+                                setLocalLogisticsFees((prev) => ({
+                                  ...prev,
+                                  [price.id]: e.target.value,
+                                }))
+                              }
+                              onBlur={() => handleUpdateLogisticsFeeApi(price.id)}
+                              style={{
+                                width: "80px",
+                                padding: "6px 10px",
+                                borderRadius: "8px",
+                                border: "0.3px solid rgba(0, 0, 0, 0.20)",
+                                fontSize: "14px",
+                                textAlign: "right",
+                                outline: "none",
+                              }}
+                            />
+                            {isUpdatingPrice && <Loader2 className="w-3 h-3 animate-spin text-orange-500" />}
+                          </div>
+                        </div>
+                      );
+                    })
+                  ) : (
+                    <p className="text-sm text-gray-500">No delivery price records found. Click &quot;Initialize Matrix&quot; to set up zones and pricing.</p>
+                  )}
                 </div>
               </div>
             </div>
@@ -521,9 +689,9 @@ export default function FeeConfigurationPage() {
                         cursor: "pointer",
                       }}
                     >
-                      <option>Finance Admins Only</option>
-                      <option>All Admins</option>
-                      <option>Super Admins</option>
+                      <option value="FINANCE_ADMIN">Finance Admins Only</option>
+                      <option value="ADMIN">All Admins</option>
+                      <option value="SUPER_ADMIN">Super Admins</option>
                     </select>
                   </div>
                 </div>
@@ -547,18 +715,23 @@ export default function FeeConfigurationPage() {
                     <span className="text-sm text-gray-700">
                       Input: Expected per month:
                     </span>
-                    <span className="text-sm font-semibold text-black">
-                      ₦{expectedPerMonth}
-                    </span>
-                  </div>
-
-                  <div className="flex items-center justify-between">
-                    <span className="text-sm text-gray-700">
-                      Split (S/M/%):
-                    </span>
-                    <span className="text-sm font-semibold text-black">
-                      {split}
-                    </span>
+                    <div className="flex items-center gap-2">
+                      <span className="text-xs">₦</span>
+                      <input
+                        type="text"
+                        value={expectedPerMonth}
+                        onChange={(e) => setExpectedPerMonth(e.target.value)}
+                        onBlur={handleSimulate}
+                        style={{
+                          width: "120px",
+                          padding: "4px 8px",
+                          borderRadius: "4px",
+                          border: "0.3px solid rgba(0, 0, 0, 0.20)",
+                          fontSize: "12px",
+                          textAlign: "right",
+                        }}
+                      />
+                    </div>
                   </div>
 
                   <div className="flex items-center justify-between">
@@ -566,7 +739,7 @@ export default function FeeConfigurationPage() {
                       Projected platform revenue:
                     </span>
                     <span className="text-sm font-semibold text-black">
-                      ₦{platformRevenue}
+                      {isSimulating ? "..." : formatNaira(koboToNaira(simulationData?.projectedPlatformRevenueKobo))}
                     </span>
                   </div>
 
@@ -575,7 +748,7 @@ export default function FeeConfigurationPage() {
                       Shopping GMV portion:
                     </span>
                     <span className="text-sm font-semibold text-black">
-                      {shoppingGMV}
+                      {isSimulating ? "..." : formatNaira(koboToNaira(simulationData?.shoppingGmvPortionKobo))}
                     </span>
                   </div>
 
@@ -584,7 +757,7 @@ export default function FeeConfigurationPage() {
                       Projected payout fees collected:
                     </span>
                     <span className="text-sm font-semibold text-black">
-                      ₦{payoutFees}
+                      {isSimulating ? "..." : formatNaira(koboToNaira(simulationData?.projectedPayoutFeesKobo))}
                     </span>
                   </div>
                 </div>
@@ -593,6 +766,13 @@ export default function FeeConfigurationPage() {
           </div>
         </div>
       </div>
+
+      <SuccessModal
+        isOpen={isSuccessModalOpen}
+        onClose={() => setIsSuccessModalOpen(false)}
+        title={modalTitle}
+        message={modalMessage}
+      />
     </div>
   );
 }

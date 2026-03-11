@@ -24,6 +24,14 @@ interface ExtendedUser {
   imageUrl?: string;
   followersCount?: number;
   followingCount?: number;
+  // Enriched Profile Fields (#19)
+  totalSpent?: string;
+  totalOrders?: number;
+  disciplineStatus?: string;
+  refundRate?: string;
+  lastActivity?: string;
+  linkedBank?: string;
+  has2FA?: boolean;
 }
 
 const BuyerProfilePage = () => {
@@ -60,6 +68,14 @@ const BuyerProfilePage = () => {
     profileImage: user.profileImage || user.imageUrl || '',
     followersCount: user.followersCount || 0,
     followingCount: user.followingCount || 0,
+    // Enriched Profile Fields (#19)
+    totalSpent: user.totalSpent,
+    totalOrders: user.totalOrders,
+    disciplineStatus: user.disciplineStatus,
+    refundRate: user.refundRate,
+    lastActivity: user.lastActivity,
+    linkedBank: user.linkedBank,
+    has2FA: user.has2FA,
   } : null;
 
   const handleBack = () => {

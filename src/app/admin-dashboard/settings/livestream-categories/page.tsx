@@ -132,7 +132,7 @@ export default function LivestreamCategoriesPage() {
   const categories: LivestreamCategory[] = (() => {
     if (!rawData) return [];
     if (Array.isArray(rawData)) return rawData as LivestreamCategory[];
-    const nested = rawData as Record<string, unknown>;
+    const nested = rawData as any;
     if (Array.isArray(nested.items))
       return nested.items as LivestreamCategory[];
     if (Array.isArray(nested.data)) return nested.data as LivestreamCategory[];
@@ -191,7 +191,7 @@ export default function LivestreamCategoriesPage() {
 
     try {
       await updateCategory({
-        id: selectedCategory.id,
+        idOrSlug: selectedCategory.id,
         data: {
           name: categoryName.trim(),
           description: categoryDescription.trim() || undefined,
@@ -214,7 +214,7 @@ export default function LivestreamCategoriesPage() {
     if (!selectedCategory) return;
 
     try {
-      await deleteCategory({ id: selectedCategory.id }).unwrap();
+      await deleteCategory(selectedCategory.id).unwrap();
       closeModals();
       refetch();
     } catch (err: unknown) {

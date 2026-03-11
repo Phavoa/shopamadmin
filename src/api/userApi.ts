@@ -56,7 +56,7 @@ const baseQueryWithReauth = async (
 
   if (result?.error?.status === 401) {
     // Try to refresh token
-    const refreshToken = localStorage.getItem("refreshToken");
+    const refreshToken = authStorage.getRefreshToken();
     if (refreshToken) {
       const refreshResult = await baseQuery(
         {
@@ -73,16 +73,12 @@ const baseQueryWithReauth = async (
           accessToken: string;
           refreshToken?: string;
         };
-        localStorage.setItem("authToken", refreshData.accessToken);
-        if (refreshData.refreshToken) {
-          localStorage.setItem("refreshToken", refreshData.refreshToken);
-        }
+        authStorage.setTokens(refreshData.accessToken, refreshData.refreshToken);
         // Retry the original query
         result = await baseQuery(args, api, extraOptions);
       } else {
         // Refresh failed, logout
-        localStorage.removeItem("authToken");
-        localStorage.removeItem("refreshToken");
+        authStorage.clearTokens();
       }
     }
   }

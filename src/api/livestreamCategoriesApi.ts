@@ -1,25 +1,30 @@
 import { createApi, fetchBaseQuery } from "@reduxjs/toolkit/query/react";
 import { authStorage } from "@/lib/auth/authUtils";
 
-// ─── Types ───────────────────────────────────────────────────────────────────
+// --- Interfaces ---
 
 export interface LivestreamCategory {
   id: string;
   name: string;
+  slug: string;
   description?: string;
   image?: string;
+  createdAt: string;
+  updatedAt: string;
 }
 
 export interface CreateLivestreamCategoryRequest {
   name: string;
-  description?: string;
   image?: string;
+  slug?: string;
+  description?: string;
 }
 
 export interface UpdateLivestreamCategoryRequest {
   name?: string;
-  description?: string;
   image?: string;
+  slug?: string;
+  description?: string;
 }
 
 export interface LivestreamCategoriesListParams {
@@ -33,46 +38,22 @@ export interface LivestreamCategoriesListParams {
 }
 
 export interface LivestreamCategoriesListResponse {
-  items?: LivestreamCategory[];
-  data?: LivestreamCategory[];
-  nextCursor?: string;
-  prevCursor?: string;
-  pageSize?: number;
-  hasNext?: boolean;
-  hasPrev?: boolean;
-  sortBy?: string;
-  sortDir?: string;
+  items: LivestreamCategory[];
+  nextCursor?: string | null;
+  prevCursor?: string | null;
+  pageSize: number;
+  hasNext: boolean;
+  hasPrev: boolean;
+  sortBy: string;
+  sortDir: string;
 }
 
 export interface ApiResponse<T> {
+  success?: boolean;
   message?: string;
   data: T;
   statusCode?: number;
 }
-
-export interface GetLivestreamCategoriesApiResponse {
-  message: string;
-  data: LivestreamCategory[];
-  statusCode: number;
-}
-
-export interface CreateLivestreamCategoryApiResponse {
-  message: string;
-  data: LivestreamCategory;
-  statusCode: number;
-}
-
-export interface UpdateLivestreamCategoryApiResponse {
-  message: string;
-  data: LivestreamCategory;
-  statusCode: number;
-}
-
-export interface DeleteLivestreamCategoryApiResponse {
-  message: string;
-}
-
-// ─── API Base ─────────────────────────────────────────────────────────────────
 
 const API_BASE_URL =
   process.env.NEXT_PUBLIC_API_URL ||
@@ -138,34 +119,20 @@ const baseQueryWithReauth = async (
   return result;
 };
 
-// ─── RTK Query API ────────────────────────────────────────────────────────────
-
 export const livestreamCategoriesApi = createApi({
   reducerPath: "livestreamCategoriesApi",
   baseQuery: baseQueryWithReauth,
   tagTypes: ["LivestreamCategory", "LivestreamCategories"],
   endpoints: (builder) => ({
-    // POST /api/streams/categories — Admin only
-    createLivestreamCategory: builder.mutation<
-      CreateLivestreamCategoryApiResponse,
-      CreateLivestreamCategoryRequest
-    >({
-      query: (body) => ({
-        url: "/streams/categories",
-        method: "POST",
-        body,
-      }),
-      invalidatesTags: ["LivestreamCategories", "LivestreamCategory"],
-    }),
-
-    // GET /api/streams/categories
+    // List livestream categories
     getLivestreamCategories: builder.query<
-      GetLivestreamCategoriesApiResponse,
+      ApiResponse<LivestreamCategoriesListResponse>,
       LivestreamCategoriesListParams
     >({
       query: (params = {}) => {
         const url = new URL(`${API_BASE_URL}/streams/categories`);
 
+        // Handle populate array
         if (params.populate) {
           const populateValue = Array.isArray(params.populate)
             ? params.populate.join(",")
@@ -192,45 +159,68 @@ export const livestreamCategoriesApi = createApi({
       providesTags: ["LivestreamCategories"],
     }),
 
-    // PUT /api/streams/categories/:id — Admin only
-    updateLivestreamCategory: builder.mutation<
-      UpdateLivestreamCategoryApiResponse,
-      { id: string; data: UpdateLivestreamCategoryRequest }
+    // Get single livestream category by id or slug
+    getLivestreamCategory: builder.query<
+      ApiResponse<LivestreamCategory>,
+      string
     >({
-      query: ({ id, data }) => ({
-        url: `/streams/categories/${id}`,
-        method: "PUT",
-        body: data,
-      }),
-      invalidatesTags: (result, error, { id }) => [
-        "LivestreamCategories",
-        { type: "LivestreamCategory", id },
+      query: (idOrSlug) => `/streams/categories/${idOrSlug}`,
+      providesTags: (result, error, idOrSlug) => [
+        { type: "LivestreamCategory", id: idOrSlug },
       ],
     }),
 
-    // DELETE /api/streams/:id/categories — Admin only
-    deleteLivestreamCategory: builder.mutation<
-      DeleteLivestreamCategoryApiResponse,
-      { id: string }
+    // Create livestream category (ADMIN)
+    createLivestreamCategory: builder.mutation<
+      ApiResponse<LivestreamCategory>,
+      CreateLivestreamCategoryRequest
     >({
-      query: ({ id }) => ({
-        url: `/streams/${id}/categories`,
+      query: (body) => ({
+        url: "/streams/categories",
+        method: "POST",
+        body,
+      }),
+      invalidatesTags: ["LivestreamCategories"],
+    }),
+
+    // Update livestream category (ADMIN)
+    updateLivestreamCategory: builder.mutation<
+      ApiResponse<LivestreamCategory>,
+      { idOrSlug: string; data: UpdateLivestreamCategoryRequest }
+    >({
+      query: ({ idOrSlug, data }) => ({
+        url: `/streams/categories/${idOrSlug}`,
+        method: "PUT",
+        body: data,
+      }),
+      invalidatesTags: (result, error, { idOrSlug }) => [
+        "LivestreamCategories",
+        { type: "LivestreamCategory", id: idOrSlug },
+      ],
+    }),
+
+    // Delete livestream category (ADMIN)
+    deleteLivestreamCategory: builder.mutation<
+      ApiResponse<{ ok: boolean; id: string }>,
+      string
+    >({
+      query: (idOrSlug) => ({
+        url: `/streams/categories/${idOrSlug}`,
         method: "DELETE",
       }),
-      invalidatesTags: (result, error, { id }) => [
+      invalidatesTags: (result, error, idOrSlug) => [
         "LivestreamCategories",
-        { type: "LivestreamCategory", id },
+        { type: "LivestreamCategory", id: idOrSlug },
       ],
     }),
   }),
 });
 
-// ─── Hooks ────────────────────────────────────────────────────────────────────
-
 export const {
-  useCreateLivestreamCategoryMutation,
   useGetLivestreamCategoriesQuery,
   useLazyGetLivestreamCategoriesQuery,
+  useGetLivestreamCategoryQuery,
+  useCreateLivestreamCategoryMutation,
   useUpdateLivestreamCategoryMutation,
   useDeleteLivestreamCategoryMutation,
 } = livestreamCategoriesApi;

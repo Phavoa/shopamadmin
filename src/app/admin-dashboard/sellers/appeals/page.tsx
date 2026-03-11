@@ -2,73 +2,113 @@
 
 import React, { useState, useEffect } from "react";
 import { FileText } from "lucide-react";
+import toast from "react-hot-toast";
 import {
   useGetDisciplineRecordsQuery,
+  useGetDisciplineRecordQuery,
   useAppealDecisionMutation,
+  useSaveDraftNotesMutation,
+  useRequestMoreEvidenceMutation,
   fetchUserById,
   DisciplineRecord,
+  AppealStatus,
 } from "@/api/disciplineApi";
 
-interface EnrichedAppeal extends DisciplineRecord {
-  resolvedName: string;
-  resolvedEmail: string;
-}
+// ─── Appeal Status Badge ──────────────────────────────────────────────────────
+const AppealStatusBadge = ({ status }: { status: AppealStatus | null }) => {
+  const map: Record<string, { label: string; bg: string; color: string; border: string }> = {
+    APPROVED:       { label: "Approved",        bg: "#D1FAE5", color: "#065F46", border: "#A7F3D0" },
+    REJECTED:       { label: "Rejected",        bg: "#FEE2E2", color: "#991B1B", border: "#FECACA" },
+    INFO_REQUESTED: { label: "Info Requested",  bg: "#DBEAFE", color: "#1E40AF", border: "#BFDBFE" },
+    PENDING:        { label: "Pending Review",  bg: "#FEF3C7", color: "#92400E", border: "#FDE68A" },
+  };
+  const s = status ? map[status] : null;
+  if (!s) return (
+    <span className="px-3 py-1 rounded-lg text-xs font-medium bg-white text-gray-700 border border-gray-300">
+      Review
+    </span>
+  );
+  return (
+    <span
+      className="px-3 py-1 rounded-lg text-xs font-medium"
+      style={{ background: s.bg, color: s.color, border: `1px solid ${s.border}` }}
+    >
+      {s.label}
+    </span>
+  );
+};
 
 const SellerAppealsPage = () => {
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [decisionNote, setDecisionNote] = useState("");
-  const [selectedDecision, setSelectedDecision] = useState<"APPROVED" | "REJECTED" | null>(null);
-  const [enrichedAppeals, setEnrichedAppeals] = useState<EnrichedAppeal[]>([]);
-  const [enriching, setEnriching] = useState(false);
+  const [draftNote, setDraftNote] = useState("");
+  const [selectedDecision, setSelectedDecision] = useState<"APPROVED" | "REJECTED" | "INFO_REQUESTED" | null>(null);
   const [showEvidenceModal, setShowEvidenceModal] = useState(false);
-  const [evidenceNote, setEvidenceNote] = useState("");
-  const [isRequestingEvidence, setIsRequestingEvidence] = useState(false);
+  const [evidenceMessage, setEvidenceMessage] = useState("");
+  // Gallery lightbox: stores all files + which one is open
+  const [lightbox, setLightbox] = useState<{ files: string[]; index: number } | null>(null);
+  // Map of userId -> resolved { name, email } — populated by fetchUserById
+  const [nameMap, setNameMap] = useState<Record<string, { name: string; email: string }>>({});
 
+  // ── List all seller appeals ──────────────────────────────────────────────
   const { data, isLoading, isError, refetch } = useGetDisciplineRecordsQuery({
     role: "SELLER",
     sortBy: "createdAt",
     sortDir: "desc",
     limit: 100,
+    populate: ["user"],
   });
 
-  const [appealDecision, { isLoading: isDeciding }] = useAppealDecisionMutation();
-
   const rawAppeals = (data?.data?.items ?? []).filter(
-    (r) => r.type === "APPEAL" || r.appealText
+    (r) => r.appealText || r.appealStatus
   );
 
+  // ── Resolve user names via fetchUserById for any missing names ────────────
   useEffect(() => {
-    if (!rawAppeals.length) { setEnrichedAppeals([]); return; }
+    if (!rawAppeals.length) return;
+    const missing = rawAppeals.filter(
+      (r) => !r.sellerName && !r.user?.firstName && !nameMap[r.userId]
+    );
+    if (!missing.length) return;
+    missing.forEach(async (r) => {
+      const fetched = await fetchUserById(r.userId);
+      setNameMap((prev) => ({
+        ...prev,
+        [r.userId]: {
+          name: `${fetched.firstName} ${fetched.lastName}`.trim(),
+          email: fetched.email,
+        },
+      }));
+    });
+  }, [rawAppeals.length]);
 
-    const enrich = async () => {
-      setEnriching(true);
-      const enriched = await Promise.all(
-        rawAppeals.map(async (appeal) => {
-          let firstName = appeal.user?.firstName;
-          let lastName = appeal.user?.lastName;
-          let email = appeal.user?.email ?? "N/A";
+  // ── Auto-select first appeal ──────────────────────────────────────────────
+  const activeId = selectedId ?? rawAppeals[0]?.id ?? null;
 
-          if (!firstName || !lastName) {
-            const fetched = await fetchUserById(appeal.userId);
-            firstName = fetched.firstName;
-            lastName = fetched.lastName;
-            email = fetched.email;
-          }
+  // ── Fetch full case detail for selected appeal ───────────────────────────
+  const {
+    data: caseDetailData,
+    isFetching: loadingDetail,
+    isError: detailError,
+  } = useGetDisciplineRecordQuery(activeId!, { skip: !activeId });
 
-          return { ...appeal, resolvedName: `${firstName} ${lastName}`, resolvedEmail: email };
-        })
-      );
-      setEnrichedAppeals(enriched);
-      setEnriching(false);
-    };
+  // Immediately show list-level data while detail is loading, then upgrade
+  const listRecord = rawAppeals.find((a) => a.id === activeId) ?? null;
+  const selectedAppeal: DisciplineRecord | null = caseDetailData?.data ?? listRecord;
 
-    enrich();
-  }, [data]);
+  // ── Mutations ─────────────────────────────────────────────────────────────
+  const [appealDecision, { isLoading: isDeciding }] = useAppealDecisionMutation();
+  const [saveDraftNotes, { isLoading: isSavingDraft }] = useSaveDraftNotesMutation();
+  const [requestMoreEvidence, { isLoading: isRequestingEvidence }] = useRequestMoreEvidenceMutation();
 
-  const selectedAppeal = enrichedAppeals.find((a) => a.id === selectedId) ?? enrichedAppeals[0] ?? null;
+  // ── Sync draft note from loaded case detail ───────────────────────────────
+  useEffect(() => {
+    if (selectedAppeal?.adminNote) setDraftNote(selectedAppeal.adminNote);
+    else setDraftNote("");
+  }, [selectedAppeal?.id]);
 
   const getActionLabel = (record: DisciplineRecord) =>
-    record.type === "SUSPENSION" ? "Suspended" : "Strike";
+    record.type === "SUSPENSION" ? "Suspension" : record.type === "STRIKE" ? "Strike" : record.type;
 
   const getDaysAgo = (dateStr: string) => {
     const diff = Date.now() - new Date(dateStr).getTime();
@@ -76,39 +116,69 @@ const SellerAppealsPage = () => {
     return days === 0 ? "Today" : `${days}d ago`;
   };
 
-  const handleDecision = async (decision: "APPROVED" | "REJECTED") => {
-    if (!selectedAppeal || !decisionNote.trim()) return;
+  // Resolve name: case detail API > populated user > nameMap (fetchUserById) > ID slice
+  const getDisplayName = (r: DisciplineRecord) =>
+    r.sellerName ??
+    (r.user ? `${r.user.firstName} ${r.user.lastName}` : null) ??
+    nameMap[r.userId]?.name ??
+    `User …${r.userId.slice(-6)}`;
+  // ── Handlers ──────────────────────────────────────────────────────────────
+  const handleDecision = async () => {
+    if (!activeId || !selectedDecision || !decisionNote.trim()) {
+      toast.error("Please select an outcome and add a decision note.");
+      return;
+    }
     try {
-      await appealDecision({ actionId: selectedAppeal.id, data: { appealStatus: decision, adminNote: decisionNote } }).unwrap();
+      await appealDecision({
+        actionId: activeId,
+        data: { appealStatus: selectedDecision, adminNote: decisionNote.trim() },
+      }).unwrap();
+      toast.success("Decision submitted successfully.");
       setDecisionNote("");
+      setSelectedDecision(null);
       refetch();
-    } catch (err) {
-      console.error("Appeal decision failed:", err);
+    } catch (err: unknown) {
+      const msg = (err as { data?: { message?: string } })?.data?.message ?? "Failed to submit decision.";
+      console.error("[appealDecision error]", err);
+      toast.error(msg);
+    }
+  };
+
+  const handleSaveDraft = async () => {
+    if (!activeId || !draftNote.trim()) {
+      toast.error("Please add a note to save.");
+      return;
+    }
+    try {
+      await saveDraftNotes({
+        actionId: activeId,
+        data: { adminNote: draftNote.trim() },
+      }).unwrap();
+      toast.success("Draft notes saved.");
+    } catch (err: unknown) {
+      const msg = (err as { data?: { message?: string } })?.data?.message ?? "Failed to save draft.";
+      console.error("[saveDraft error]", err);
+      toast.error(msg);
     }
   };
 
   const handleRequestEvidence = async () => {
-    if (!selectedAppeal || !evidenceNote.trim()) return;
-    setIsRequestingEvidence(true);
+    if (!activeId || !evidenceMessage.trim()) return;
     try {
-      await appealDecision({
-        actionId: selectedAppeal.id,
-        data: {
-          appealStatus: "PENDING",
-          adminNote: `[Evidence Requested] ${evidenceNote.trim()}`,
-        },
+      await requestMoreEvidence({
+        actionId: activeId,
+        data: { message: evidenceMessage.trim() },
       }).unwrap();
-      setEvidenceNote("");
+      toast.success("Evidence request sent to seller.");
+      setEvidenceMessage("");
       setShowEvidenceModal(false);
       refetch();
-    } catch (err) {
-      console.error("Request evidence failed:", err);
-    } finally {
-      setIsRequestingEvidence(false);
+    } catch (err: unknown) {
+      const msg = (err as { data?: { message?: string } })?.data?.message ?? "Failed to send evidence request.";
+      console.error("[requestEvidence error]", err);
+      toast.error(msg);
     }
   };
-
-  const loading = isLoading || enriching;
 
   return (
     <>
@@ -116,156 +186,224 @@ const SellerAppealsPage = () => {
         <h1 className="text-2xl font-semibold mb-6">Seller Appeals and Investigations</h1>
 
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          {/* Left - Appeals Inbox */}
+
+          {/* ── Left: Appeals Inbox ──────────────────────────────────────── */}
           <div className="bg-white rounded-xl border border-gray-200 p-6" style={{ borderRadius: "18px" }}>
             <h2 className="text-lg font-semibold mb-4">Appeals Inbox</h2>
 
-            {loading && (
+            {isLoading && (
               <div className="space-y-3">
                 {[1, 2, 3].map((i) => <div key={i} className="h-16 bg-gray-100 animate-pulse rounded-lg" />)}
               </div>
             )}
-            {isError && <p className="text-red-500 text-sm">Failed to load appeals. <button onClick={refetch} className="underline">Retry</button></p>}
-            {!loading && !isError && enrichedAppeals.length === 0 && (
-              <p className="text-gray-400 text-sm text-center py-8">No pending seller appeals.</p>
+            {isError && (
+              <p className="text-red-500 text-sm">
+                Failed to load appeals.{" "}
+                <button onClick={refetch} className="underline">Retry</button>
+              </p>
+            )}
+            {!isLoading && !isError && rawAppeals.length === 0 && (
+              <p className="text-gray-400 text-sm text-center py-8">No seller appeals found.</p>
             )}
 
             <div className="space-y-3">
-              {enrichedAppeals.map((appeal) => (
+              {rawAppeals.map((appeal) => (
                 <div
                   key={appeal.id}
                   onClick={() => setSelectedId(appeal.id)}
                   className={`p-4 rounded-lg border cursor-pointer transition-all ${
-                    selectedId === appeal.id || (!selectedId && appeal === enrichedAppeals[0])
+                    appeal.id === activeId
                       ? "border-[#E67E22] bg-[#FFF3E0]"
                       : "border-gray-200 hover:border-gray-300"
                   }`}
                 >
-                  <div className="flex items-start justify-between mb-2">
+                  <div className="flex items-start justify-between">
                     <div>
                       <p className="font-semibold text-sm">{appeal.id.slice(-8).toUpperCase()}</p>
                       <p className="text-xs text-gray-500">
-                        {appeal.resolvedName} • {getActionLabel(appeal)} • {getDaysAgo(appeal.createdAt)}
+                        {getDisplayName(appeal)} • {getActionLabel(appeal)} • {getDaysAgo(appeal.createdAt)}
                       </p>
                     </div>
-                    <button className={`px-3 py-1 rounded-lg text-xs font-medium border ${
-                      appeal.appealStatus === "APPROVED"
-                        ? "bg-green-100 text-green-700 border-green-200"
-                        : appeal.appealStatus === "REJECTED"
-                        ? "bg-red-100 text-red-700 border-red-200"
-                        : "bg-white text-gray-700 border-gray-300"
-                    }`}>
-                      {appeal.appealStatus ? (appeal.appealStatus === "APPROVED" ? "Approved" : "Rejected") : "Review"}
-                    </button>
+                    <AppealStatusBadge status={appeal.appealStatus} />
                   </div>
                 </div>
               ))}
             </div>
           </div>
 
-          {/* Right - Case Detail */}
-          {selectedAppeal ? (
+          {/* ── Right: Case Detail ───────────────────────────────────────── */}
+          {activeId ? (
             <div className="bg-white rounded-xl border border-gray-200 p-6" style={{ borderRadius: "18px" }}>
-              <h2 className="text-lg font-semibold mb-4">Case Detail: {selectedAppeal.id.slice(-8).toUpperCase()}</h2>
-
-              <div className="space-y-4">
-                <div className="text-sm">
-                  <p>
-                    <strong>Seller:</strong> {selectedAppeal.resolvedName} |{" "}
-                    <strong>Action Appealed:</strong> {getActionLabel(selectedAppeal)} |{" "}
-                    <strong>Issued on:</strong> {new Date(selectedAppeal.createdAt).toLocaleDateString()}
-                  </p>
-                  <p className="mt-2">
-                    <strong>Status:</strong> {selectedAppeal.appealStatus ?? "Awaiting review"} |{" "}
-                    <strong>SLA:</strong> 24h to respond
-                  </p>
+              {!selectedAppeal && loadingDetail ? (
+                // Only show skeleton if we have NO data at all yet
+                <div className="space-y-3">
+                  {[1, 2, 3, 4].map((i) => <div key={i} className="h-8 bg-gray-100 animate-pulse rounded-lg" />)}
                 </div>
+              ) : detailError && !selectedAppeal ? (
+                <p className="text-red-500 text-sm">Failed to load case detail. The case may not exist or you may lack permission.</p>
+              ) : selectedAppeal ? (
+                <>
+                  <h2 className="text-lg font-semibold mb-4">
+                    Case Detail: {selectedAppeal.id.slice(-8).toUpperCase()}
+                  </h2>
 
-                <div>
-                  <h3 className="font-semibold text-sm mb-2">Seller Statement</h3>
-                  <div className="bg-gray-50 p-3 rounded-lg text-sm text-gray-700">
-                    <p>{selectedAppeal.appealText ?? "No statement provided."}</p>
-                  </div>
-                </div>
-
-                {selectedAppeal.adminNote && (
-                  <div>
-                    <h3 className="font-semibold text-sm mb-2">Previous Admin Notes</h3>
-                    <div className="bg-gray-50 p-3 rounded-lg text-sm text-gray-700">
-                      <p>{selectedAppeal.adminNote}</p>
+                  <div className="space-y-4">
+                    {/* Meta */}
+                    <div className="text-sm space-y-1">
+                      <p>
+                        <strong>Seller:</strong>{" "}
+                        {selectedAppeal.sellerName ?? getDisplayName(selectedAppeal)}
+                        {selectedAppeal.sellerEmail && (
+                          <span className="text-gray-500 ml-1">({selectedAppeal.sellerEmail})</span>
+                        )}
+                      </p>
+                      <p>
+                        <strong>Action Appealed:</strong> {getActionLabel(selectedAppeal)} |{" "}
+                        <strong>Issued:</strong> {new Date(selectedAppeal.createdAt).toLocaleDateString()}
+                      </p>
+                      <p className="flex items-center gap-2">
+                        <strong>Appeal Status:</strong>
+                        <AppealStatusBadge status={selectedAppeal.appealStatus} />
+                        <span className="text-gray-400">| SLA: 24h to respond</span>
+                      </p>
                     </div>
-                  </div>
-                )}
 
-                {selectedAppeal.evidence && selectedAppeal.evidence.length > 0 && (
-                  <div>
-                    <h3 className="font-semibold text-sm mb-2">Attachments</h3>
-                    <div className="grid grid-cols-3 gap-3">
-                      {selectedAppeal.evidence.map((url, index) => (
-                        <div key={index} className="text-center">
-                          <div className="w-full h-20 bg-gray-100 rounded-lg flex items-center justify-center mb-2">
-                            <FileText className="w-8 h-8 text-gray-400" />
+                    {/* Seller Statement */}
+                    <div>
+                      <h3 className="font-semibold text-sm mb-2">Seller Statement</h3>
+                      <div className="bg-gray-50 p-3 rounded-lg text-sm text-gray-700">
+                        {selectedAppeal.appealText ?? "No statement provided."}
+                      </div>
+                    </div>
+
+                    {/* Evidence / Attachments */}
+                    {(() => {
+                      const files = selectedAppeal.appealEvidence ?? selectedAppeal.evidence ?? [];
+                      return files.length > 0 ? (
+                        <div>
+                          <h3 className="font-semibold text-sm mb-2">Evidence Submitted</h3>
+                          <div className="grid grid-cols-3 gap-3">
+                            {files.map((url, i) => (
+                              <div key={i} className="text-center">
+                                <button
+                                  onClick={() => setLightbox({ files, index: i })}
+                                  className="w-full h-20 bg-gray-100 rounded-lg flex items-center justify-center mb-2 hover:bg-gray-200 transition-colors"
+                                >
+                                  {/\.(jpe?g|png|gif|webp|svg)$/i.test(url) ? (
+                                    // eslint-disable-next-line @next/next/no-img-element
+                                    <img src={url} alt={`Evidence ${i + 1}`} className="w-full h-full object-cover rounded-lg" />
+                                  ) : (
+                                    <FileText className="w-8 h-8 text-gray-400" />
+                                  )}
+                                </button>
+                                <p className="text-xs text-gray-600">Evidence {i + 1}</p>
+                                <button
+                                  onClick={() => setLightbox({ files, index: i })}
+                                  className="text-xs text-[#E67E22] mt-1 block w-full"
+                                >
+                                  View
+                                </button>
+                              </div>
+                            ))}
                           </div>
-                          <p className="text-xs text-gray-600">Evidence {index + 1}</p>
-                          <a href={url} target="_blank" rel="noopener noreferrer" className="text-xs text-[#E67E22] mt-1 block">View</a>
                         </div>
-                      ))}
+                      ) : null;
+                    })()}
+
+                    {/* Admin Draft Notes */}
+                    <div>
+                      <h3 className="font-semibold text-sm mb-2">Admin Notes (Draft)</h3>
+                      <textarea
+                        value={draftNote}
+                        onChange={(e) => setDraftNote(e.target.value)}
+                        placeholder="Add internal notes, e.g. check rider logs on Aug 25..."
+                        className="w-full h-20 px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#E67E22] resize-none"
+                      />
                     </div>
-                  </div>
-                )}
 
-                <div>
-                  <h3 className="font-semibold text-sm mb-2">Decision</h3>
-                  <p className="text-xs text-gray-500 mb-3">Choose Outcome</p>
-                  <div className="flex gap-2 mb-4">
-                    <button
-                      onClick={() => setSelectedDecision("APPROVED")}
-                      className={`px-4 py-2 rounded-lg text-sm font-medium text-white border-2 ${selectedDecision === "APPROVED" ? "border-white ring-2 ring-green-400" : "border-transparent"}`}
-                      style={{ background: "#E67E22" }}
-                    >Remove Strike</button>
-                    <button
-                      onClick={() => setSelectedDecision("REJECTED")}
-                      className={`px-4 py-2 rounded-lg text-sm font-medium text-white border-2 ${selectedDecision === "REJECTED" ? "border-white ring-2 ring-red-400" : "border-transparent"}`}
-                      style={{ background: "#E67E22" }}
-                    >Deny Appeal</button>
-                    <button
-                      onClick={() => setSelectedDecision("REJECTED")}
-                      className="px-4 py-2 rounded-lg text-sm font-medium"
-                      style={{ background: "#FFF3E0", color: "#E67E22", border: "1px solid #E67E22" }}
-                    >Uphold Strike</button>
-                  </div>
-                  {selectedDecision && (
-                    <p className="text-xs mb-2 font-medium" style={{ color: selectedDecision === "APPROVED" ? "#10B981" : "#EF4444" }}>
-                      Selected: {selectedDecision === "APPROVED" ? "✓ Remove Strike" : "✗ Deny Appeal — suspension remains active"}
-                    </p>
-                  )}
-                  <textarea value={decisionNote} onChange={(e) => setDecisionNote(e.target.value)} placeholder="Add a decision note (required to submit)" className="w-full h-20 px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#E67E22] resize-none mb-3" />
-                  <div className="flex gap-3">
-                    <button
-                      onClick={() => selectedDecision && handleDecision(selectedDecision)}
-                      disabled={isDeciding || !selectedDecision || !decisionNote.trim()}
-                      className="flex-1 px-4 py-2 rounded-lg text-sm font-medium text-white disabled:opacity-50"
-                      style={{ background: "#E67E22" }}
-                    >{isDeciding ? "Submitting..." : "Submit Decision"}</button>
-                    <button className="px-4 py-2 rounded-lg text-sm font-medium" style={{ background: "#F5F5F5", color: "#374151", border: "1px solid #D1D5DB" }}>Save as Draft</button>
-                    <button
-                      onClick={() => setShowEvidenceModal(true)}
-                      className="px-4 py-2 rounded-lg text-sm font-medium"
-                      style={{ background: "#FFF3E0", color: "#E67E22", border: "1px solid #E67E22" }}
-                    >Request more evidence</button>
-                  </div>
-                </div>
+                    {/* Decision */}
+                    <div>
+                      <h3 className="font-semibold text-sm mb-2">Decision</h3>
+                      <p className="text-xs text-gray-500 mb-3">Choose an Outcome</p>
+                      <div className="flex flex-wrap gap-2 mb-3">
+                        {(["APPROVED", "REJECTED", "INFO_REQUESTED"] as const).map((d) => (
+                          <button
+                            key={d}
+                            onClick={() => setSelectedDecision(d)}
+                            className={`px-4 py-2 rounded-lg text-sm font-medium text-white border-2 transition-all ${
+                              selectedDecision === d ? "ring-2 ring-offset-1 ring-[#E67E22]" : "border-transparent"
+                            }`}
+                            style={{ background: d === "REJECTED" ? "#EF4444" : "#E67E22" }}
+                          >
+                            {d === "APPROVED" ? "Approve Appeal" : d === "REJECTED" ? "Deny Appeal" : "Request Info"}
+                          </button>
+                        ))}
+                      </div>
+                      {selectedDecision && (
+                        <p className="text-xs mb-2 font-medium" style={{
+                          color: selectedDecision === "APPROVED" ? "#10B981" : selectedDecision === "REJECTED" ? "#EF4444" : "#3B82F6",
+                        }}>
+                          {selectedDecision === "APPROVED" && "✓ Strike/Suspension will be resolved immediately."}
+                          {selectedDecision === "REJECTED" && "✗ Disciplinary action remains active."}
+                          {selectedDecision === "INFO_REQUESTED" && "ℹ Seller will be notified to submit more information."}
+                        </p>
+                      )}
+                      <textarea
+                        value={decisionNote}
+                        onChange={(e) => setDecisionNote(e.target.value)}
+                        placeholder="Add a decision note (required to submit)..."
+                        className="w-full h-20 px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#E67E22] resize-none mb-3"
+                      />
+                      <div className="flex flex-wrap gap-2">
+                        <button
+                          onClick={handleDecision}
+                          disabled={isDeciding || !selectedDecision || !decisionNote.trim()}
+                          className="flex-1 px-4 py-2 rounded-lg text-sm font-medium text-white disabled:opacity-50"
+                          style={{ background: "#E67E22" }}
+                        >
+                          {isDeciding ? "Submitting..." : "Submit Decision"}
+                        </button>
+                        <button
+                          onClick={handleSaveDraft}
+                          disabled={isSavingDraft || !draftNote.trim()}
+                          className="px-4 py-2 rounded-lg text-sm font-medium disabled:opacity-50"
+                          style={{ background: "#F5F5F5", color: "#374151", border: "1px solid #D1D5DB" }}
+                        >
+                          {isSavingDraft ? "Saving..." : "Save as Draft"}
+                        </button>
+                        <button
+                          onClick={() => setShowEvidenceModal(true)}
+                          className="px-4 py-2 rounded-lg text-sm font-medium"
+                          style={{ background: "#FFF3E0", color: "#E67E22", border: "1px solid #E67E22" }}
+                        >
+                          Request More Evidence
+                        </button>
+                      </div>
+                    </div>
 
-                <div>
-                  <h3 className="font-semibold text-sm mb-2">Audit Trail</h3>
-                  <div className="bg-gray-50 p-3 rounded-lg text-xs text-gray-600 space-y-1">
-                    <p>{new Date(selectedAppeal.createdAt).toLocaleString()} — Appeal submitted by seller</p>
-                    {selectedAppeal.updatedAt !== selectedAppeal.createdAt && (
-                      <p>{new Date(selectedAppeal.updatedAt).toLocaleString()} — Record updated</p>
+                    {/* Audit Trail */}
+                    {selectedAppeal.auditTrail && selectedAppeal.auditTrail.length > 0 && (
+                      <div>
+                        <h3 className="font-semibold text-sm mb-2">Audit Trail</h3>
+                        <div className="bg-gray-50 p-3 rounded-lg text-xs text-gray-600 space-y-2">
+                          {selectedAppeal.auditTrail.map((entry) => (
+                            <div key={entry.id} className="flex gap-2">
+                              <span className="text-gray-400 shrink-0">
+                                {new Date(entry.createdAt).toLocaleString()}
+                              </span>
+                              <span>
+                                <span className="font-medium">{entry.actorName ?? "System"}</span>
+                                {" — "}
+                                {entry.note}
+                              </span>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
                     )}
                   </div>
-                </div>
-              </div>
+                </>
+              ) : null}
             </div>
           ) : (
             <div className="bg-white rounded-xl border border-gray-200 p-6 flex items-center justify-center" style={{ borderRadius: "18px", minHeight: "400px" }}>
@@ -275,7 +413,7 @@ const SellerAppealsPage = () => {
         </div>
       </div>
 
-      {/* Request More Evidence Modal */}
+      {/* ── Request More Evidence Modal ────────────────────────────────────── */}
       {showEvidenceModal && (
         <div
           style={{
@@ -290,17 +428,19 @@ const SellerAppealsPage = () => {
               <button onClick={() => setShowEvidenceModal(false)} className="text-gray-400 hover:text-gray-600 text-xl leading-none">&times;</button>
             </div>
             <p className="text-sm text-gray-500 mb-4">
-              Specify what additional evidence or documentation you need the seller to provide for this appeal.
+              Describe what additional evidence or documentation the seller needs to provide. An in-app notification will be sent to them.
             </p>
-            <div className="bg-gray-50 rounded-lg p-3 mb-4 text-xs text-gray-600">
-              <p><span className="font-medium">Appeal:</span> {selectedAppeal?.id.slice(-8).toUpperCase()}</p>
-              <p><span className="font-medium">Seller:</span> {selectedAppeal?.resolvedName}</p>
-            </div>
+            {selectedAppeal && (
+              <div className="bg-gray-50 rounded-lg p-3 mb-4 text-xs text-gray-600">
+                <p><span className="font-medium">Case:</span> {selectedAppeal.id.slice(-8).toUpperCase()}</p>
+                <p><span className="font-medium">Seller:</span> {selectedAppeal.sellerName ?? getDisplayName(selectedAppeal)}</p>
+              </div>
+            )}
             <textarea
-              value={evidenceNote}
-              onChange={(e) => setEvidenceNote(e.target.value)}
+              value={evidenceMessage}
+              onChange={(e) => setEvidenceMessage(e.target.value)}
               rows={4}
-              placeholder="e.g. Please provide receipts, screenshots, or any supporting documents that substantiate your appeal..."
+              placeholder="e.g. Please upload the delivery receipt and support ticket screenshot."
               className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#E67E22] resize-none mb-4"
             />
             <div className="flex gap-3">
@@ -311,7 +451,7 @@ const SellerAppealsPage = () => {
               >Cancel</button>
               <button
                 onClick={handleRequestEvidence}
-                disabled={isRequestingEvidence || !evidenceNote.trim()}
+                disabled={isRequestingEvidence || !evidenceMessage.trim()}
                 className="flex-1 px-4 py-2 rounded-lg text-sm font-medium text-white disabled:opacity-50"
                 style={{ background: "#E67E22" }}
               >{isRequestingEvidence ? "Sending..." : "Send Request"}</button>
@@ -319,6 +459,65 @@ const SellerAppealsPage = () => {
           </div>
         </div>
       )}
+      {/* ── Gallery Lightbox ─────────────────────────────────────────────── */}
+      {lightbox && (() => {
+        const { files, index } = lightbox;
+        const currentUrl = files[index];
+        const isImage = /\.(jpe?g|png|gif|webp|svg)$/i.test(currentUrl);
+        const hasPrev = index > 0;
+        const hasNext = index < files.length - 1;
+        return (
+          <div
+            style={{
+              position: "fixed", inset: 0, backgroundColor: "rgba(0,0,0,0.45)",
+              backdropFilter: "blur(12px)", WebkitBackdropFilter: "blur(12px)",
+              display: "flex", alignItems: "center", justifyContent: "center", zIndex: 100,
+            }}
+            onClick={() => setLightbox(null)}
+          >
+            <div
+              style={{ position: "relative", maxWidth: "90vw", maxHeight: "90vh", display: "flex", alignItems: "center", gap: "16px" }}
+              onClick={(e) => e.stopPropagation()}
+            >
+              {/* Close */}
+              <button
+                onClick={() => setLightbox(null)}
+                style={{ position: "absolute", top: "-44px", right: 0, color: "#111", background: "transparent", border: "none", fontSize: "30px", cursor: "pointer", lineHeight: 1 }}
+              >&times;</button>
+              {/* Counter */}
+              <span style={{ position: "absolute", top: "-44px", left: 0, color: "#444", fontSize: "14px", fontWeight: 500 }}>
+                {index + 1} / {files.length}
+              </span>
+              {/* Prev */}
+              <button
+                onClick={() => setLightbox({ files, index: index - 1 })}
+                disabled={!hasPrev}
+                style={{ background: hasPrev ? "rgba(0,0,0,0.10)" : "rgba(0,0,0,0.03)", border: "none", borderRadius: "50%", width: "44px", height: "44px", color: hasPrev ? "#111" : "#bbb", fontSize: "22px", cursor: hasPrev ? "pointer" : "default", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, transition: "background 0.2s" }}
+              >&#8592;</button>
+              {/* Media */}
+              <div style={{ maxWidth: "80vw", maxHeight: "85vh" }}>
+                {isImage ? (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img key={currentUrl} src={currentUrl} alt={`Evidence ${index + 1}`}
+                    style={{ maxWidth: "80vw", maxHeight: "85vh", borderRadius: "8px", objectFit: "contain", display: "block" }}
+                  />
+                ) : (
+                  <iframe key={currentUrl} src={currentUrl}
+                    style={{ width: "75vw", height: "82vh", borderRadius: "8px", border: "none", background: "#fff" }}
+                    title={`Evidence ${index + 1}`}
+                  />
+                )}
+              </div>
+              {/* Next */}
+              <button
+                onClick={() => setLightbox({ files, index: index + 1 })}
+                disabled={!hasNext}
+                style={{ background: hasNext ? "rgba(0,0,0,0.10)" : "rgba(0,0,0,0.03)", border: "none", borderRadius: "50%", width: "44px", height: "44px", color: hasNext ? "#111" : "#bbb", fontSize: "22px", cursor: hasNext ? "pointer" : "default", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, transition: "background 0.2s" }}
+              >&#8594;</button>
+            </div>
+          </div>
+        );
+      })()}
     </>
   );
 };

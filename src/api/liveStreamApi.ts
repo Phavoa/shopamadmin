@@ -27,7 +27,7 @@ export interface LiveStreamItem {
 
 export interface LiveStream {
   id: string;
-  status: "SCHEDULED" | "LIVE" | "ENDED"; // Inferring status
+  status: "SCHEDULED" | "LIVE" | "ENDED";
   title: string;
   startedAt: string | null;
   endedAt: string | null;
@@ -36,6 +36,8 @@ export interface LiveStream {
   scheduledStartAt: string;
   scheduledEndAt: string;
   categoryIds: string[];
+  createdAt: string;        // ← ADDED
+  updatedAt?: string;       // ← ADDED
   seller?: LiveStreamSeller;
   tier?: LiveStreamTier;
   items?: LiveStreamItem[];
@@ -52,6 +54,38 @@ export interface LiveStreamsListResponse {
   sortDir: string;
   populate: string[];
   totalCount?: number;
+}
+
+// ─── Endpoint 3: Post-stream insights ────────────────────────────────────────────────
+export interface TopBuyer {
+  name: string;
+  amountSpent: string; // kobo string
+}
+
+export interface StreamInsights {
+  totalSales: string;          // kobo string (BigInt)
+  productsSold: number;
+  topBuyers: TopBuyer[];
+  peakWatchers: number;
+  avgWatchTimeMinutes: number;
+}
+
+// ─── Endpoint 4: Stream details + seller metrics ────────────────────────────────────
+export interface StandbySeller {
+  id: string;
+  userId: string;
+  shopName: string;
+  businessName: string;
+  logoUrl: string;
+  reliabilityScore: number;
+}
+
+export interface StreamDetails {
+  reliabilityScore: number;    // 0-100
+  queuedProducts: number;
+  lastNoShow: number;
+  activeStrikes: number;
+  standbySellers: StandbySeller[];
 }
 
 // --- Request Params ---
@@ -207,6 +241,26 @@ export const liveStreamApi = createApi({
       query: (id) => `/streams/${id}`,
       providesTags: (result, error, id) => [{ type: "LiveStream", id }],
     }),
+
+    // Endpoint 3: POST-STREAM INSIGHTS
+    // GET /streams/admin/insights/:id
+    getStreamInsights: builder.query<ApiResponse<StreamInsights>, string>({
+      query: (streamId) => ({
+        url: `/streams/admin/insights/${streamId}`,
+        method: "GET",
+      }),
+      providesTags: (result, error, id) => [{ type: "LiveStream", id: `insights-${id}` }],
+    }),
+
+    // Endpoint 4: STREAM DETAILS + SELLER METRICS
+    // GET /streams/:id/details
+    getStreamDetails: builder.query<ApiResponse<StreamDetails>, string>({
+      query: (streamId) => ({
+        url: `/streams/${streamId}/details`,
+        method: "GET",
+      }),
+      providesTags: (result, error, id) => [{ type: "LiveStream", id: `details-${id}` }],
+    }),
   }),
 });
 
@@ -214,4 +268,8 @@ export const {
   useGetLiveStreamsQuery,
   useLazyGetLiveStreamsQuery,
   useGetLiveStreamByIdQuery,
+  useGetStreamInsightsQuery,
+  useLazyGetStreamInsightsQuery,
+  useGetStreamDetailsQuery,
+  useLazyGetStreamDetailsQuery,
 } = liveStreamApi;

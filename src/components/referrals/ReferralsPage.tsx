@@ -160,8 +160,6 @@ const ReferralsPage: React.FC = () => {
                 itemsPerPage={limit}
                 onNextPage={handleNextPage}
                 onPrevPage={handlePrevPage}
-                hasNext={currentPage < totalPages}
-                hasPrev={currentPage > 1}
               />
             </>
           ) : (
