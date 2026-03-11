@@ -11,6 +11,7 @@ import { setHeaderTitle } from "@/features/shared/headerSice";
 import { useLazyGetLiveStreamsQuery } from "@/api/liveStreamApi";
 import { useGetOrdersQuery } from "@/api/orderApi";
 import { useGetOrderExceptionsQuery } from "@/api/orderExceptionsApi";
+import { useGetSystemAlertsQuery } from "@/api/adminApi";
 
 export default function Page() {
   const dispatch = useDispatch();
@@ -26,6 +27,12 @@ export default function Page() {
   const { data: exceptionsData, isLoading: isLoadingExceptions } =
     useGetOrderExceptionsQuery({
       params: { limit: 100, sortBy: "createdAt", sortDir: "desc" },
+    });
+
+  const { data: alertsData, isLoading: isLoadingAlerts } =
+    useGetSystemAlertsQuery({
+      limit: 5,
+      isResolved: false,
     });
 
   const todayOrders = useMemo(() => {
@@ -77,7 +84,10 @@ export default function Page() {
         </section>
 
         <section>
-          <AlertsCard />
+          <AlertsCard
+            alerts={alertsData?.data?.items}
+            isLoading={isLoadingAlerts}
+          />
         </section>
       </main>
     </div>

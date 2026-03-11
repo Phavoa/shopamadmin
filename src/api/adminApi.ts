@@ -41,6 +41,31 @@ export interface ListAdminsParams {
   sortDir?: "asc" | "desc";
 }
 
+export type AlertDomain = "FINANCE" | "DISPUTES" | "SECURITY" | "SYSTEM";
+
+export interface SystemAlert {
+  id: string;
+  domain: AlertDomain;
+  message: string;
+  referenceId: string;
+  actionLink: string;
+  isResolved: boolean;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface SystemAlertsResponse {
+  total: number;
+  items: SystemAlert[];
+}
+
+export interface SystemAlertsParams {
+  domain?: AlertDomain;
+  isResolved?: boolean;
+  limit?: number;
+  page?: number;
+}
+
 const API_BASE_URL =
   process.env.NEXT_PUBLIC_API_URL ||
   "https://shapam-ecomerce-backend.onrender.com/api";
@@ -51,11 +76,12 @@ const API_BASE_URL =
 const baseQuery = fetchBaseQuery({
   baseUrl: API_BASE_URL,
   prepareHeaders: (headers) => {
-    const token = authStorage.getAccessToken();
+    const token =
+      authStorage.getAccessToken() || localStorage.getItem("authToken");
     if (token) {
-      headers.set("authorization", `Bearer ${token}`);
+      headers.set("Authorization", `Bearer ${token}`);
     }
-    headers.set("content-type", "application/json");
+    headers.set("Content-Type", "application/json");
     return headers;
   },
 });
@@ -66,7 +92,7 @@ const baseQuery = fetchBaseQuery({
 const baseQueryWithReauth = async (
   args: Parameters<typeof baseQuery>[0],
   api: Parameters<typeof baseQuery>[1],
-  extraOptions: Parameters<typeof baseQuery>[2]
+  extraOptions: Parameters<typeof baseQuery>[2],
 ) => {
   let result = await baseQuery(args, api, extraOptions);
 
@@ -82,7 +108,7 @@ const baseQueryWithReauth = async (
             body: { refreshToken },
           },
           api,
-          extraOptions
+          extraOptions,
         );
 
         if (refreshResult?.data && typeof refreshResult.data === "object") {
@@ -94,7 +120,7 @@ const baseQueryWithReauth = async (
           // Store new tokens in localStorage
           authStorage.setTokens(
             refreshData.accessToken,
-            refreshData.refreshToken
+            refreshData.refreshToken,
           );
 
           // Retry the original query
@@ -148,7 +174,7 @@ export const adminApi = createApi({
                 { type: "Admin" as const, id: "LIST" },
               ]
             : [{ type: "Admin" as const, id: "LIST" }],
-      }
+      },
     ),
 
     // Get admin by id
@@ -189,6 +215,19 @@ export const adminApi = createApi({
         "Admin",
       ],
     }),
+
+    // GET /api/admin/system-alerts
+    getSystemAlerts: builder.query<
+      ApiResponse<SystemAlertsResponse>,
+      SystemAlertsParams | void
+    >({
+      query: (params) => ({
+        url: "/admin/system-alerts",
+        method: "GET",
+        params: params || {},
+      }),
+      providesTags: ["Admin"],
+    }),
   }),
 });
 
@@ -201,4 +240,6 @@ export const {
   useLazyGetAdminByIdQuery,
   useUpdateAdminMutation,
   useDeleteAdminMutation,
+  useGetSystemAlertsQuery,
+  useLazyGetSystemAlertsQuery,
 } = adminApi;

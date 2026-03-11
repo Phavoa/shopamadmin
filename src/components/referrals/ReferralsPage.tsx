@@ -16,43 +16,60 @@ const transformReferralData = (apiReferrals: Referral[]): TableReferral[] => {
   const formatDate = (dateString: string) => {
     try {
       const date = new Date(dateString);
-      // Use a consistent format that won't change between server and client
       const day = date.getDate().toString().padStart(2, "0");
       const month = (date.getMonth() + 1).toString().padStart(2, "0");
       const year = date.getFullYear();
       return `${day}/${month}/${year}`;
     } catch {
-      return "Invalid Date";
+      return "N/A";
     }
   };
 
-  return apiReferrals.map((ref, index) => ({
-    id: ref.id,
-    name: ref.referee
-      ? `${ref.referee.firstName} ${ref.referee.lastName}`
-      : "Unknown User",
-    email: ref.referee?.email || "N/A",
-    referrals: 1, // Each item represents one referral
-    amountPaid: parseInt(ref.totalSpendKobo) / 100, // Convert from kobo to naira
-    bonus: 1000, // Fixed bonus amount
-    joinedDate: formatDate(ref.createdAt),
-    isTop: index < 3, // Mark first 3 as top performers
-  }));
+  return apiReferrals.map((r: any, index) => {
+    // Show the person who DID the referring (User A).
+    // Priority: r.referrer (populated) -> fallback to r.user -> fallback to r.referee's inviter data if any
+    let user = r.referrer && typeof r.referrer === "object" ? r.referrer : null;
+    if (!user || (!user.firstName && !user.lastName)) {
+      user = r.user && typeof r.user === "object" ? r.user : null;
+    }
+    // Final fallback to referee if all else fails, but we prefer referrer
+    if (!user || (!user.firstName && !user.lastName)) {
+      user = r.referee && typeof r.referee === "object" ? r.referee : r;
+    }
+
+    const firstName = user?.firstName ?? "";
+    const lastName = user?.lastName ?? "";
+    const fullName =
+      firstName || lastName
+        ? `${firstName} ${lastName}`.trim()
+        : "N/A";
+
+    return {
+      id: r.id,
+      name: fullName,
+      email: user?.email ?? "No email",
+      // Pull real statistics from the record
+      referrals: r.totalReferrals || r.referralsCount || (r.rewards?.length) || 0, 
+      amountPaid: Math.round(Number(r.totalSpendKobo || r.cumulativeSpendKobo || r.totalSpentKobo || 0) / 100),
+      bonus: Math.round(Number(r.totalRewardsEarnedKobo || r.totalRewardsKobo || r.totalEarnedKobo || 0) / 100),
+      joinedDate: formatDate(r.createdAt),
+      isTop: index < 3,
+    };
+  });
 };
 
 // Main Component
 const ReferralsPage: React.FC = () => {
-  // Pagination state
   const dispatch = useDispatch();
   const [currentPage, setCurrentPage] = useState(1);
-  const [limit] = useState(20); // API limit
+  const [limit] = useState(20);
 
   // API call
   const { data, isLoading, isError, error } = useGetAllReferralsQuery({
     limit,
     sortBy: "createdAt",
     sortDir: "desc",
-    populate: ["referee", "referrer"],
+    populate: ["referrer", "referee", "rewards"],
   });
 
   // Transform API data to table format
@@ -71,7 +88,6 @@ const ReferralsPage: React.FC = () => {
     dispatch(setHeaderTitle("Referrals"));
   }, [dispatch]);
 
-  // Pagination handlers
   const handleNextPage = () => {
     if (currentPage < totalPages) {
       setCurrentPage(currentPage + 1);
@@ -85,7 +101,6 @@ const ReferralsPage: React.FC = () => {
   };
 
   const handleBack = () => {
-    // Navigate back to settings
     window.location.href = "/admin-dashboard/settings";
   };
 
@@ -132,11 +147,9 @@ const ReferralsPage: React.FC = () => {
 
   return (
     <div className="min-h-screen">
-      {/* Main Content */}
       <main className="px-4 py-8">
         <ReferralsHeader onBack={handleBack} />
 
-        {/* Table Card */}
         <div className="bg-white rounded-lg shadow-none border border-gray-200">
           {tableReferrals.length > 0 ? (
             <>
@@ -147,6 +160,8 @@ const ReferralsPage: React.FC = () => {
                 itemsPerPage={limit}
                 onNextPage={handleNextPage}
                 onPrevPage={handlePrevPage}
+                hasNext={currentPage < totalPages}
+                hasPrev={currentPage > 1}
               />
             </>
           ) : (
