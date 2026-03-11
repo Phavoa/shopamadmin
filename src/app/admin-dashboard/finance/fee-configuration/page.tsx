@@ -12,7 +12,7 @@ import {
   useDeleteCommissionTierMutation,
   type CommissionTier,   // 👈 add this
 } from "@/api/feeConfigApi";
-import { useGetZonesQuery, useUpdatePriceMutation, useGetPricesQuery, useSeedZonesMutation } from "@/api/deliveryApi";
+import { useUpdatePriceMutation, useGetPricesQuery, useSeedZonesMutation } from "@/api/deliveryApi";
 import { formatNaira, koboToNaira, nairaToKobo, formatNumber } from "@/lib/utils";
 import { SuccessModal } from "@/components/shared/SuccessModal";
 import { Trash2, Plus, Save, Loader2 } from "lucide-react";
@@ -23,10 +23,11 @@ export default function FeeConfigurationPage() {
   const { data: configResponse, isLoading: isConfigLoading } = useGetFeeConfigQuery();
   const config = configResponse?.data;
 
-  // Delivery Zones for Logistics Fees
-  const { data: zonesResponse, isLoading: isZonesLoading } = useGetZonesQuery({});
-  const zones = zonesResponse?.data?.items || [];
-  const { data: pricesResponse, isLoading: isPricesLoading } = useGetPricesQuery({});
+  const { data: pricesResponse, isLoading: isPricesLoading } = useGetPricesQuery({
+    populate: ["originZone", "destinationZone"],
+    limit: 50,
+    sortBy: "createdAt",
+  });
   const prices = Array.isArray(pricesResponse?.data) ? pricesResponse.data : [];
 
   const [updateZonePrice, { isLoading: isUpdatingPrice }] = useUpdatePriceMutation();
@@ -93,19 +94,16 @@ const tiers: CommissionTier[] = Array.isArray(tiersResponse?.data)
     }
   }, [tiers]);
 
-  // Sync logistics prices to local state
+  // Sync logistics prices to local state — keyed by price.id
   useEffect(() => {
-    if (prices.length > 0 && zones.length > 0) {
+    if (prices.length > 0) {
       const fees: Record<string, string> = {};
-      zones.forEach(zone => {
-        const zonePrice = prices.find(p => p.originZoneId === zone.id && p.destinationZoneId === zone.id);
-        if (zonePrice) {
-          fees[zone.id] = koboToNaira(zonePrice.priceKobo).toString();
-        }
+      prices.forEach(p => {
+        fees[p.id] = koboToNaira(p.priceKobo).toString();
       });
       setLocalLogisticsFees(fees);
     }
-  }, [prices, zones]);
+  }, [prices]);
 
 
   // Simulation data
@@ -222,23 +220,18 @@ const tiers: CommissionTier[] = Array.isArray(tiersResponse?.data)
     }
   };
 
-  const handleUpdateLogisticsFeeApi = async (zoneId: string) => {
-    const feeNaira = localLogisticsFees[zoneId];
-    const zonePrice = prices.find(p => p.originZoneId === zoneId && p.destinationZoneId === zoneId);
-    
-    if (!zonePrice) {
-      alert("This zone does not have an active price record. Please click 'Initialize Matrix' first.");
-      return;
-    }
+  const handleUpdateLogisticsFeeApi = async (priceId: string) => {
+    const feeNaira = localLogisticsFees[priceId];
+    if (!feeNaira) return;
 
     try {
-      console.log(`Updating fee for price record ${zonePrice.id} to ${feeNaira}`);
       await updateZonePrice({ 
-        id: zonePrice.id, 
+        id: priceId, 
         data: { priceKobo: nairaToKobo(feeNaira).toString() } 
       }).unwrap();
     } catch (error) {
       console.error("Update logistics fee failed:", error);
+      alert("Failed to update logistics fee. Please try again.");
     }
   };
 
@@ -571,28 +564,34 @@ const tiers: CommissionTier[] = Array.isArray(tiersResponse?.data)
                 </div>
 
                 <div className="space-y-3">
-                  {isZonesLoading || isPricesLoading ? (
-                    <p className="text-sm text-gray-500">Loading zones and prices...</p>
-                  ) : zones.length > 0 ? (
-                    zones.map((zone, index) => {
-                      // Find the price record where origin and destination are the same zone
-                      const zonePrice = prices.find(
-                        (p) => p.originZoneId === zone.id && p.destinationZoneId === zone.id
-                      );
-                      
+                  {isPricesLoading ? (
+                    <p className="text-sm text-gray-500">Loading logistics fees...</p>
+                  ) : prices.length > 0 ? (
+                    prices.map((price) => {
+                      // Use the populated originZone name as label; fall back to zone IDs
+                      const label =
+                        price.originZone?.name ??
+                        price.destinationZone?.name ??
+                        price.originZoneId;
+
                       return (
                         <div
-                          key={zone.id}
+                          key={price.id}
                           className="flex items-center justify-between"
                         >
-                          <span className="text-sm text-black">{zone.name}</span>
+                          <span className="text-sm text-black">{label}</span>
                           <div className="flex items-center gap-2">
                             <span className="text-sm font-semibold">₦</span>
                             <input
                               type="text"
-                              value={localLogisticsFees[zone.id] || "0"}
-                              onChange={(e) => setLocalLogisticsFees(prev => ({ ...prev, [zone.id]: e.target.value }))}
-                              onBlur={() => handleUpdateLogisticsFeeApi(zone.id)}
+                              value={localLogisticsFees[price.id] ?? "0"}
+                              onChange={(e) =>
+                                setLocalLogisticsFees((prev) => ({
+                                  ...prev,
+                                  [price.id]: e.target.value,
+                                }))
+                              }
+                              onBlur={() => handleUpdateLogisticsFeeApi(price.id)}
                               style={{
                                 width: "80px",
                                 padding: "6px 10px",
@@ -609,7 +608,7 @@ const tiers: CommissionTier[] = Array.isArray(tiersResponse?.data)
                       );
                     })
                   ) : (
-                    <p className="text-sm text-gray-500">No zones found.</p>
+                    <p className="text-sm text-gray-500">No delivery price records found. Click &quot;Initialize Matrix&quot; to set up zones and pricing.</p>
                   )}
                 </div>
               </div>
