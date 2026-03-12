@@ -491,15 +491,6 @@ export default function FeeConfigurationPage() {
                               });
                             }
                           }}
-                          value={tier.maxAmount ?? ""}
-                          onChange={(e) => {
-                            const val = e.target.value;
-                            if (/^\d*\.?\d*$/.test(val)) {
-                              handleUpdateTierState(tier.id, {
-                                maxAmount: val,
-                              });
-                            }
-                          }}
                           onBlur={() => handleUpdateTierApi(tier.id)}
                           className="w-full px-3 py-2 rounded-lg border border-gray-200 text-sm outline-none focus:border-orange-500 transition-colors"
                         />
