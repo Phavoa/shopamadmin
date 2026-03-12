@@ -1,6 +1,6 @@
 // src/components/logistics/InvestigateExceptionModal.tsx
 
-import { X, Package, AlertTriangle, Eye, Copy, Phone } from "lucide-react";
+import { X, Package, AlertTriangle, Eye, Copy, Phone, ChevronLeft, ChevronRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useState, useEffect } from "react";
 import Image from "next/image";
@@ -370,7 +370,7 @@ export default function InvestigateExceptionModal({
         {/* Image Viewer Modal */}
         {selectedImageIndex !== null && exception.images && (
           <div
-            className="fixed inset-0 flex items-center justify-center z-60"
+            className="fixed inset-0 flex items-center justify-center z-[60] bg-black/70 backdrop-blur-sm"
             onClick={closeImageViewer}
           >
             <div
@@ -379,9 +379,9 @@ export default function InvestigateExceptionModal({
             >
               <button
                 onClick={closeImageViewer}
-                className="absolute top-4 right-4 text-white hover:text-gray-300 z-10"
+                className="absolute top-4 right-4 text-gray-800 hover:text-black z-20 bg-white/50 hover:bg-white/80 rounded-full p-1 transition-colors"
               >
-                <X className="w-8 h-8" />
+                <X className="w-6 h-6" />
               </button>
 
               <Image
@@ -400,44 +400,28 @@ export default function InvestigateExceptionModal({
               {exception.images.length > 1 && (
                 <>
                   <button
-                    onClick={prevImage}
-                    className="absolute left-4 top-1/2 transform -translate-y-1/2 text-white hover:text-gray-300 rounded-full p-2"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      prevImage();
+                    }}
+                    className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-800 hover:text-black bg-white/50 hover:bg-white/80 rounded-full p-2 transition-all shadow-md z-20"
+                    title="Previous Image"
                   >
-                    <svg
-                      className="w-6 h-6"
-                      fill="none"
-                      stroke="currentColor"
-                      viewBox="0 0 24 24"
-                    >
-                      <path
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        strokeWidth={2}
-                        d="M15 19l-7-7 7-7"
-                      />
-                    </svg>
+                    <ChevronLeft className="w-8 h-8" />
                   </button>
                   <button
-                    onClick={nextImage}
-                    className="absolute right-4 top-1/2 transform -translate-y-1/2 text-white hover:text-gray-300 rounded-full p-2"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      nextImage();
+                    }}
+                    className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-800 hover:text-black bg-white/50 hover:bg-white/80 rounded-full p-2 transition-all shadow-md z-20"
+                    title="Next Image"
                   >
-                    <svg
-                      className="w-6 h-6"
-                      fill="none"
-                      stroke="currentColor"
-                      viewBox="0 0 24 24"
-                    >
-                      <path
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        strokeWidth={2}
-                        d="M9 5l7 7-7 7"
-                      />
-                    </svg>
+                    <ChevronRight className="w-8 h-8" />
                   </button>
 
-                  <div className="absolute bottom-4 left-1/2 transform -translate-x-1/2 bg-black bg-opacity-50 text-white px-3 py-1 rounded-full text-sm">
-                    {selectedImageIndex + 1} of {exception.images.length}
+                  <div className="absolute bottom-4 left-1/2 -translate-x-1/2 bg-gray-900/80 text-white px-4 py-1.5 rounded-full text-sm font-medium">
+                    {selectedImageIndex + 1} / {exception.images.length}
                   </div>
                 </>
               )}

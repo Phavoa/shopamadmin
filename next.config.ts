@@ -14,6 +14,12 @@ const nextConfig: NextConfig = {
         port: "",
         pathname: "/**",
       },
+      {
+        protocol: "https",
+        hostname: "shopam.lon1.digitaloceanspaces.com",
+        port: "",
+        pathname: "/**",
+      },
     ],
   },
 

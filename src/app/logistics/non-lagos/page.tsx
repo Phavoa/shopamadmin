@@ -618,6 +618,20 @@ export default function NonLagosHubDashboard() {
         <AddShopModal
           isOpen={showAddShopModal}
           onClose={() => setShowAddShopModal(false)}
+          allowedStates={[
+            "FCT",
+            "Ogun",
+            "Oyo",
+            "Rivers",
+            "Ondo",
+            "Anambra",
+            "Akwa Ibom",
+            "Ekiti",
+            "Delta",
+            "Edo",
+            "Osun",
+            "Kwara",
+          ]}
         />
 
         <AssignRiderModal

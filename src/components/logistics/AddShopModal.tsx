@@ -83,6 +83,8 @@ import { toast } from "sonner";
 interface AddShopModalProps {
   isOpen: boolean;
   onClose: () => void;
+  excludeState?: string;
+  allowedStates?: string[];
 }
 
 // ─── Helpers ────────────────────────────────────────────────────────────────
@@ -387,7 +389,12 @@ const FileUploadZone = ({
 
 // ─── Main Modal ──────────────────────────────────────────────────────────────
 
-export default function AddShopModal({ isOpen, onClose }: AddShopModalProps) {
+export default function AddShopModal({
+  isOpen,
+  onClose,
+  excludeState,
+  allowedStates,
+}: AddShopModalProps) {
   const [step, setStep] = useState(1);
   const [formData, setFormData] = useState(INITIAL_FORM);
   const [files, setFiles] = useState(INITIAL_FILES);
@@ -398,6 +405,12 @@ export default function AddShopModal({ isOpen, onClose }: AddShopModalProps) {
   const { data: statesData } = useGetStatesQuery();
   const { data: zonesData } = useGetZonesQuery({ limit: 50 });
   const [submitError, setSubmitError] = useState<string | null>(null);
+
+  const filteredStates = statesData?.states?.filter((s) => {
+    if (allowedStates) return allowedStates.includes(s.state);
+    if (excludeState) return s.state !== excludeState;
+    return true;
+  });
 
   const selectedState = statesData?.states?.find(
     (s) => s.state === formData.state,
@@ -528,7 +541,15 @@ export default function AddShopModal({ isOpen, onClose }: AddShopModalProps) {
 
   const handleClose = () => {
     setStep(1);
-    setFormData(INITIAL_FORM);
+    const initialForm = { ...INITIAL_FORM };
+    const isStateAllowed = allowedStates
+      ? allowedStates.includes(initialForm.state)
+      : initialForm.state !== excludeState;
+
+    if (!isStateAllowed && filteredStates && filteredStates.length > 0) {
+      initialForm.state = filteredStates[0].state;
+    }
+    setFormData(initialForm);
     setFiles(INITIAL_FILES);
     setErrors({});
     onClose();
@@ -673,7 +694,7 @@ export default function AddShopModal({ isOpen, onClose }: AddShopModalProps) {
                   <Select
                     value={formData.state}
                     onValueChange={(v) => set("state", v)}
-                    disabled
+                    disabled={!excludeState && !allowedStates}
                   >
                     <SelectTrigger
                       style={{
@@ -686,7 +707,7 @@ export default function AddShopModal({ isOpen, onClose }: AddShopModalProps) {
                       <SelectValue placeholder="Select state" />
                     </SelectTrigger>
                     <SelectContent>
-                      {statesData?.states?.map((s) => (
+                      {filteredStates?.map((s) => (
                         <SelectItem key={s.state} value={s.state}>
                           {s.state}
                         </SelectItem>
