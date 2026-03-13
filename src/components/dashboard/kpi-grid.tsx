@@ -11,7 +11,10 @@ import {
   ChevronRight,
   ChevronLeft,
 } from "lucide-react";
-import { useGetFinancialStatsQuery } from "@/api/adminDashboardApi";
+import {
+  useGetFinancialStatsQuery,
+  useGetFinanceOverviewQuery,
+} from "@/api/adminDashboardApi";
 
 type KPI = {
   title: string;
@@ -23,7 +26,7 @@ type KPI = {
 
 const formatNaira = (amount: string | number | undefined): string => {
   if (!amount || amount === "0") return "₦0";
-  const naira = Number(amount);
+  const naira = Number(amount) / 100;
   if (naira >= 1_000_000) return `₦${(naira / 1_000_000).toFixed(1)}M`;
   if (naira >= 1_000) return `₦${(naira / 1_000).toFixed(1)}K`;
   return `₦${naira.toLocaleString("en-NG")}`;
@@ -35,6 +38,11 @@ function KPIGrid() {
   // ✅ Single query replaces all three old revenueApi hooks
   const { data, isLoading } = useGetFinancialStatsQuery();
   const stats = data?.data;
+
+  // Fetch overview for ShopAm Revenue and Escrow Balance
+  const { data: overviewData, isLoading: isOverviewLoading } =
+    useGetFinanceOverviewQuery({ period: "today" });
+  const overview = overviewData?.data;
 
   const kpis: KPI[] = [
     {
@@ -59,21 +67,21 @@ function KPIGrid() {
       isLoading,
     },
     {
-      title: "ShopAm Revenue",
-      value: formatNaira(stats?.shopamRevenue?.total),
+      title: "ShopAM Revenue",
+      value: formatNaira(overview?.shopamRevenue?.amount),
       meta: `6%: ${formatNaira(stats?.shopamRevenue?.breakdown?.tier1_6pct)} | 5%: ${formatNaira(stats?.shopamRevenue?.breakdown?.tier2_5pct)} | 4%: ${formatNaira(stats?.shopamRevenue?.breakdown?.tier3_4pct)}`,
       icon: <Percent className="w-5 h-5 text-[var(--sidebar-primary)]" />,
-      isLoading,
+      isLoading: isOverviewLoading || isLoading,
     },
   ];
 
   const additionalKpis: KPI[] = [
     {
       title: "Escrow Balance",
-      value: formatNaira(stats?.escrowBalance),
+      value: formatNaira(overview?.escrowBalance?.amount),
       meta: "Funds held",
       icon: <Wallet className="w-5 h-5 text-[var(--sidebar-primary)]" />,
-      isLoading,
+      isLoading: isOverviewLoading || isLoading,
     },
     {
       title: "Payouts Pending",

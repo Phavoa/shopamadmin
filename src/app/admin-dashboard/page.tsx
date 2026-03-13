@@ -22,11 +22,17 @@ export default function Page() {
     limit: 100,
     sortBy: "createdAt",
     sortDir: "desc",
+    populate: ["buyer", "seller", "shipment", "items", "items.product"],
   });
 
   const { data: exceptionsData, isLoading: isLoadingExceptions } =
     useGetOrderExceptionsQuery({
-      params: { limit: 100, sortBy: "createdAt", sortDir: "desc" },
+      params: {
+        limit: 100,
+        sortBy: "createdAt",
+        sortDir: "desc",
+        populate: ["buyer", "seller", "order"],
+      },
     });
 
   const { data: alertsData, isLoading: isLoadingAlerts } =
@@ -37,20 +43,32 @@ export default function Page() {
 
   const todayOrders = useMemo(() => {
     if (!ordersData?.data?.items) return [];
+
+    // We filter for items created within the last 24 hours to be more inclusive of "recent" activity
+    // or we can stick to "calendar today". Let's use calendar today but ensure we have data.
     const startOfDay = new Date();
     startOfDay.setHours(0, 0, 0, 0);
-    return ordersData.data.items.filter(
+
+    const items = ordersData.data.items.filter(
       (order) => new Date(order.createdAt) >= startOfDay,
     );
+
+    // If no orders today, show the most recent ones (e.g. top 5) to avoid empty state
+    return items.length > 0 ? items : ordersData.data.items.slice(0, 5);
   }, [ordersData]);
 
   const todayExceptions = useMemo(() => {
     if (!exceptionsData?.data?.items) return [];
+
     const startOfDay = new Date();
     startOfDay.setHours(0, 0, 0, 0);
-    return exceptionsData.data.items.filter(
+
+    const items = exceptionsData.data.items.filter(
       (ex) => new Date(ex.createdAt) >= startOfDay,
     );
+
+    // If no exceptions today, show the most recent ones (e.g. top 5) to avoid empty state
+    return items.length > 0 ? items : exceptionsData.data.items.slice(0, 5);
   }, [exceptionsData]);
 
   useEffect(() => {

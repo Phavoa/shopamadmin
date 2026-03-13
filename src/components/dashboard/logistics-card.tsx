@@ -119,7 +119,7 @@ function LogisticsCard({
                         </div>
                         <div className="text-xs text-gray-500 mt-0.5">
                           {/* Assuming raw format like '500000' for kobo, converting to naira roughly or just showing count */}
-                          {order.items?.length || 0} items • ₦
+                          {order.items[0]?.qty || 0} items • ₦
                           {(parseInt(order.totalKobo) / 100).toLocaleString()}
                         </div>
                       </div>

@@ -27,7 +27,7 @@ const baseQuery = fetchBaseQuery({
 const baseQueryWithReauth = async (
   args: Parameters<typeof baseQuery>[0],
   api: Parameters<typeof baseQuery>[1],
-  extraOptions: Parameters<typeof baseQuery>[2]
+  extraOptions: Parameters<typeof baseQuery>[2],
 ) => {
   let result = await baseQuery(args, api, extraOptions);
 
@@ -42,7 +42,7 @@ const baseQueryWithReauth = async (
           body: { refreshToken },
         },
         api,
-        extraOptions
+        extraOptions,
       );
 
       if (refreshResult?.data && typeof refreshResult.data === "object") {
@@ -54,7 +54,7 @@ const baseQueryWithReauth = async (
         // Store new tokens in localStorage
         authStorage.setTokens(
           refreshData.accessToken,
-          refreshData.refreshToken
+          refreshData.refreshToken,
         );
 
         // Retry the original query
@@ -76,6 +76,8 @@ export interface DeliveryZone {
   id: string;
   code: string;
   name: string;
+  description?: string; // 👈 Add this
+  parentId?: string;
   active: boolean;
   createdAt: string;
   updatedAt: string;
@@ -133,6 +135,8 @@ export interface ListZonesParams {
   before?: string;
   sortBy?: "createdAt" | "lastName" | "sellerTotalSales";
   sortDir?: "asc" | "desc";
+  isSubzone?: boolean; // 👈 Add this
+  parentId?: string; // 👈 Add this
 }
 
 export interface ListPricesParams {
@@ -208,7 +212,7 @@ export const deliveryApi = createApi({
           body: seedData,
         }),
         invalidatesTags: ["DeliveryZone", "DeliveryPrice"],
-      }
+      },
     ),
 
     // List zones
@@ -262,7 +266,8 @@ export const deliveryApi = createApi({
         if (params.sortBy) qs.set("sortBy", params.sortBy);
         if (params.sortDir) qs.set("sortDir", params.sortDir);
         if (params.originZoneId) qs.set("originZoneId", params.originZoneId);
-        if (params.destinationZoneId) qs.set("destinationZoneId", params.destinationZoneId);
+        if (params.destinationZoneId)
+          qs.set("destinationZoneId", params.destinationZoneId);
         if (params.q) qs.set("q", params.q);
         return {
           url: `/delivery/prices?${qs.toString()}`,
