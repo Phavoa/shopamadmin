@@ -132,7 +132,7 @@ function KPIGrid() {
           ? `${(stats?.gmv?.percentChange ?? 0) >= 0 ? "+" : ""}${(
               stats?.gmv?.percentChange ?? 0
             ).toFixed(1)}% vs yesterday`
-          : overview?.gmvToday?.subtitle,
+          : overview?.gmvToday?.comparedToLabel,
       icon: <DollarSign className="w-5 h-5 text-[var(--sidebar-primary)]" />,
       isLoading: isDataLoading,
     },
