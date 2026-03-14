@@ -2,7 +2,6 @@ import { createApi, fetchBaseQuery } from "@reduxjs/toolkit/query/react";
 import { authStorage } from "../lib/auth/authUtils";
 import { Hub } from "./hubApi";
 
-
 const API_BASE_URL =
   process.env.NEXT_PUBLIC_API_URL ||
   "https://shapam-ecomerce-backend.onrender.com/api";
@@ -84,7 +83,6 @@ export interface Shipment {
   events: ShipmentEvent[];
   hub?: Hub;
 }
-
 
 export interface AddressSnapshot {
   id: string;
@@ -170,7 +168,7 @@ export interface GetOrdersParams {
   pickup?: boolean;
   delivery?: boolean;
   isLagosOrder?: boolean;
-  IsNonLagosOrder?: boolean;
+  isNonLagosOrder?: boolean;
 }
 
 export interface GetOrderByIdParams {
@@ -198,7 +196,7 @@ const baseQuery = fetchBaseQuery({
 const baseQueryWithReauth = async (
   args: Parameters<typeof baseQuery>[0],
   api: Parameters<typeof baseQuery>[1],
-  extraOptions: Parameters<typeof baseQuery>[2]
+  extraOptions: Parameters<typeof baseQuery>[2],
 ) => {
   let result = await baseQuery(args, api, extraOptions);
 
@@ -214,7 +212,7 @@ const baseQueryWithReauth = async (
             body: { refreshToken },
           },
           api,
-          extraOptions
+          extraOptions,
         );
 
         if (refreshResult?.data && typeof refreshResult.data === "object") {
@@ -226,7 +224,7 @@ const baseQueryWithReauth = async (
           // Store new tokens
           authStorage.setTokens(
             refreshData.accessToken,
-            refreshData.refreshToken
+            refreshData.refreshToken,
           );
 
           // Retry the original query

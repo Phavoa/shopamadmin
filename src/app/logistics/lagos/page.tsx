@@ -99,7 +99,7 @@ export default function LagosHubDashboard() {
   } = useGetOrdersQuery({
     pickup: true,
     populate: ["buyer", "seller", "shipment"],
-    // isLagosOrder: true,
+    isLagosOrder: true,
     sortBy: "createdAt",
     sortDir: "desc",
     limit: 50,

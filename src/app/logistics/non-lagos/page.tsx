@@ -112,10 +112,10 @@ export default function NonLagosHubDashboard() {
       "checkoutSession",
       "shipment.hub",
     ],
-    IsNonLagosOrder: true,
+    isNonLagosOrder: true,
     sortBy: "createdAt",
     sortDir: "desc",
-    limit: 50,
+    limit: 100,
   });
 
   const {
@@ -126,7 +126,7 @@ export default function NonLagosHubDashboard() {
   } = useGetOrdersQuery({
     delivery: true,
     populate: ["buyer", "seller", "shipment", "shipment.hub"],
-    IsNonLagosOrder: true,
+    isNonLagosOrder: true,
     sortBy: "createdAt",
     sortDir: "desc",
     limit: 50,
