@@ -17,6 +17,7 @@ interface Order {
   pickupAddress?: string;
   deliveryAddress?: string;
   phone: string;
+  email?: string;
   status: string;
   shipment?: {
     status: string;
@@ -24,6 +25,7 @@ interface Order {
     assignedRiderId?: string | null;
   };
 }
+
 
 interface PickupRequestsTableProps {
   pickupRequests: Order[];
@@ -125,8 +127,9 @@ export default function PickupRequestsTable({
       <div className="p-4 border-b flex items-center gap-2">
         <PackageIcon className="w-5 h-5 text-green-600" />
         <h2 className="font-semibold text-lg">
-          Pickup Requests (Seller → Hub)
+          Hub Requests (Seller → Hub)
         </h2>
+
       </div>
       <div className="overflow-x-auto">
         <table className="w-full">
@@ -142,10 +145,13 @@ export default function PickupRequestsTable({
                 Seller
               </th>
               <th className="px-4 py-3 text-left text-sm font-medium text-gray-700">
-                Pickup Address
+                Hub Address
               </th>
               <th className="px-4 py-3 text-left text-sm font-medium text-gray-700">
-                Phone
+                Hub Phone
+              </th>
+              <th className="px-4 py-3 text-left text-sm font-medium text-gray-700">
+                Hub Email
               </th>
               <th className="px-4 py-3 text-left text-sm font-medium text-gray-700">
                 Status
@@ -155,6 +161,7 @@ export default function PickupRequestsTable({
               </th>
             </tr>
           </thead>
+
           <tbody>
             {pickupRequests.map((order) => (
               <tr key={order.id} className="border-t hover:bg-gray-50">
@@ -172,6 +179,8 @@ export default function PickupRequestsTable({
                 <td className="px-4 py-3 text-sm">{order.seller}</td>
                 <td className="px-4 py-3 text-sm">{order.pickupAddress}</td>
                 <td className="px-4 py-3 text-sm">{order.phone}</td>
+                <td className="px-4 py-3 text-sm">{order.email}</td>
+
                 <td className="px-4 py-3">
                   <Badge
                     className="text-white"

@@ -85,6 +85,10 @@ export interface FinanceOverviewVM {
   };
   revenueTrend: TrendPoint[]; // daily/weekly data points for the bar chart
   payoutVolume: TrendPoint[]; // weekly payout volume data
+  vatCollection: {
+    amount: string;
+    subtitle: string;
+  };
   alerts: FinanceAlert[];
 }
 

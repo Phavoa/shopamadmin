@@ -47,11 +47,13 @@ interface LogisticsOrder {
   pickupAddress?: string;
   deliveryAddress?: string;
   phone: string;
+  email?: string;
   status: string;
   shipment?: {
     status: string;
     hubId?: string;
     assignedRiderId?: string | null;
+    hub?: any;
   };
 }
 
@@ -98,7 +100,18 @@ export default function NonLagosHubDashboard() {
     refetch: refetchPickupOrders,
   } = useGetOrdersQuery({
     pickup: true,
-    populate: ["buyer", "seller", "shipment"],
+    populate: [
+      "items",
+      "items.product",
+      "payments",
+      "buyer",
+      "seller",
+      "seller.user",
+      "shipment",
+      "shipment.events",
+      "checkoutSession",
+      "shipment.hub",
+    ],
     IsNonLagosOrder: true,
     sortBy: "createdAt",
     sortDir: "desc",
@@ -112,7 +125,7 @@ export default function NonLagosHubDashboard() {
     refetch: refetchDeliveryOrders,
   } = useGetOrdersQuery({
     delivery: true,
-    populate: ["buyer", "seller", "shipment"],
+    populate: ["buyer", "seller", "shipment", "shipment.hub"],
     IsNonLagosOrder: true,
     sortBy: "createdAt",
     sortDir: "desc",
@@ -208,10 +221,12 @@ export default function NonLagosHubDashboard() {
         order.sellerProfile?.shopName ||
         order.sellerProfile?.businessName ||
         "Unknown Seller",
-      pickupAddress:
-        `${order.shipFromSnapshot?.state}, ${order.shipFromSnapshot?.city}, ${order.shipFromSnapshot?.line1}` ||
-        "Address not available",
-      phone: order.shipFromSnapshot?.phone || order.buyer?.phone || "Phone not available",
+      pickupAddress: order.shipment?.hub
+        ? `${order.shipment.hub.state}, ${order.shipment.hub.city}, ${order.shipment.hub.address}`
+        : "Not Available",
+      phone: order.shipment?.hub?.phone || "Not Available",
+      email: order.shipment?.hub?.email || "Not Available",
+
       status: order.shipment?.status || "AWAITING_SELLER_SHIPMENT",
       shipment: order.shipment,
     }));
@@ -231,7 +246,10 @@ export default function NonLagosHubDashboard() {
       deliveryAddress:
         `${order.shipToSnapshot?.state}, ${order.shipToSnapshot?.city}, ${order.shipToSnapshot?.line1}` ||
         "Address not available",
-      phone: order.shipToSnapshot?.phone || order.buyer?.phone || "Phone not available",
+      phone:
+        order.shipToSnapshot?.phone ||
+        order.buyer?.phone ||
+        "Phone not available",
       status: order.shipment?.status || "AWAITING_SELLER_SHIPMENT",
       shipment: order.shipment,
     }));
@@ -246,11 +264,11 @@ export default function NonLagosHubDashboard() {
         (deliveryOrdersData?.data?.items?.length || 0),
       pickRequests: pickupRequests.length,
       atHub: deliveries.filter(
-        (d: LogisticsOrder) => d.status === "AT_SHOPAM_HUB"
+        (d: LogisticsOrder) => d.status === "AT_SHOPAM_HUB",
       ).length,
       waitingForDelivery: deliveries.filter(
         (d: LogisticsOrder) =>
-          d.status !== "DELIVERED" && d.status !== "CANCELLED"
+          d.status !== "DELIVERED" && d.status !== "CANCELLED",
       ).length,
       exceptions: totalExceptions,
     };
@@ -287,7 +305,7 @@ export default function NonLagosHubDashboard() {
       { name: "Rider Seyi", status: "Picking Up", color: "blue-700" },
       { name: "Rider Ahmed", status: "Offline", color: "gray" },
     ],
-    []
+    [],
   );
 
   // Event handlers
@@ -299,7 +317,7 @@ export default function NonLagosHubDashboard() {
   const handleInvestigate = useCallback(
     (exceptionId: string) => {
       const exception = orderExceptionsData?.data?.items?.find(
-        (ex: OrderException) => ex.id === exceptionId
+        (ex: OrderException) => ex.id === exceptionId,
       );
       if (exception) {
         setSelectedExceptionData(exception);
@@ -307,7 +325,7 @@ export default function NonLagosHubDashboard() {
         setShowInvestigateModal(true);
       }
     },
-    [orderExceptionsData]
+    [orderExceptionsData],
   );
 
   const handleRequestMoreEvidence = useCallback((exceptionId: string) => {
@@ -326,7 +344,7 @@ export default function NonLagosHubDashboard() {
     async (orderId: string, note: string) => {
       // Find the exception to get the actual order ID
       const exception = orderExceptionsData?.data?.items?.find(
-        (ex: OrderException) => ex.id === selectedException
+        (ex: OrderException) => ex.id === selectedException,
       );
       if (!exception) {
         showError("Exception not found");
@@ -350,7 +368,7 @@ export default function NonLagosHubDashboard() {
           },
           successMessage: "",
           showErrorToast: true,
-        }
+        },
       );
     },
     [
@@ -360,14 +378,14 @@ export default function NonLagosHubDashboard() {
       refetchExceptions,
       showSuccess,
       handleAsyncOperation,
-    ]
+    ],
   );
 
   const handleResolveExceptionSubmit = useCallback(
     async (orderId: string, status: "RESOLVED" | "REJECTED") => {
       // Find the exception to get the actual order ID
       const exception = orderExceptionsData?.data?.items?.find(
-        (ex: OrderException) => ex.id === selectedException
+        (ex: OrderException) => ex.id === selectedException,
       );
       if (!exception) {
         showError("Exception not found");
@@ -391,7 +409,7 @@ export default function NonLagosHubDashboard() {
           },
           successMessage: "",
           showErrorToast: true,
-        }
+        },
       );
     },
     [
@@ -401,7 +419,7 @@ export default function NonLagosHubDashboard() {
       refetchExceptions,
       showSuccess,
       handleAsyncOperation,
-    ]
+    ],
   );
 
   const handleCreateRider = useCallback(
@@ -421,7 +439,7 @@ export default function NonLagosHubDashboard() {
         showErrorToast: true,
       });
     },
-    [createRider, showSuccess, refetchRiders, handleAsyncOperation]
+    [createRider, showSuccess, refetchRiders, handleAsyncOperation],
   );
 
   const handleAssignRiderToShipment = useCallback(
@@ -437,10 +455,10 @@ export default function NonLagosHubDashboard() {
           },
           successMessage: "",
           showErrorToast: true,
-        }
+        },
       );
     },
-    [assignRiderToShipment, showSuccess, refreshAllData, handleAsyncOperation]
+    [assignRiderToShipment, showSuccess, refreshAllData, handleAsyncOperation],
   );
 
   const handleShowAssignedMessage = useCallback(
@@ -449,10 +467,10 @@ export default function NonLagosHubDashboard() {
         `A rider has already been assigned to this order. Order ID: ${orderId}`,
         {
           duration: 5000,
-        }
+        },
       );
     },
-    [showError]
+    [showError],
   );
 
   const handleOpenTrackOrderModal = useCallback(() => {
@@ -668,7 +686,7 @@ export default function NonLagosHubDashboard() {
           exceptionId={selectedException}
           orderId={
             orderExceptionsData?.data?.items?.find(
-              (ex: OrderException) => ex.id === selectedException
+              (ex: OrderException) => ex.id === selectedException,
             )?.orderId || ""
           }
           onSubmit={handleRequestMoreEvidenceSubmit}
@@ -684,7 +702,7 @@ export default function NonLagosHubDashboard() {
           exceptionId={selectedException}
           orderId={
             orderExceptionsData?.data?.items?.find(
-              (ex: OrderException) => ex.id === selectedException
+              (ex: OrderException) => ex.id === selectedException,
             )?.orderId || ""
           }
           onResolve={handleResolveExceptionSubmit}

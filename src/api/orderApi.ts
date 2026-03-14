@@ -1,5 +1,7 @@
 import { createApi, fetchBaseQuery } from "@reduxjs/toolkit/query/react";
 import { authStorage } from "../lib/auth/authUtils";
+import { Hub } from "./hubApi";
+
 
 const API_BASE_URL =
   process.env.NEXT_PUBLIC_API_URL ||
@@ -80,7 +82,9 @@ export interface Shipment {
   assignedRiderId?: string | null;
   pickupRequestId?: string;
   events: ShipmentEvent[];
+  hub?: Hub;
 }
+
 
 export interface AddressSnapshot {
   id: string;
