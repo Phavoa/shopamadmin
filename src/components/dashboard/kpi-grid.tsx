@@ -81,17 +81,22 @@ function KPIGrid() {
     updateUrl({ [type]: value });
   };
 
-  // ✅ Single query replaces all three old revenueApi hooks
-  const {
-    data: statsData,
-    isLoading: isStatsLoading,
-    isError: isStatsError,
-  } = useGetFinancialStatsQuery();
-  const stats = statsData?.data;
-
   // Fetch overview for ShopAm Revenue and Escrow Balance
   // Only trigger custom fetch when both dates are present
   const shouldFetchCustom = period !== "custom" || (!!from && !!to);
+
+  // ✅ Both queries now accept period parameters
+  const {
+    data: statsData,
+    isLoading: isStatsLoading,
+    isFetching: isStatsFetching,
+    isError: isStatsError,
+  } = useGetFinancialStatsQuery({
+    period,
+    from: period === "custom" ? from : undefined,
+    to: period === "custom" ? to : undefined,
+  }, { skip: !shouldFetchCustom });
+  const stats = statsData?.data;
 
   const {
     data: overviewData,
@@ -109,11 +114,10 @@ function KPIGrid() {
   const overview = overviewData?.data;
 
   const isDataLoading =
-    isStatsLoading ||
-    isOverviewLoading ||
-    (shouldFetchCustom && isOverviewFetching);
+    (shouldFetchCustom && (isStatsLoading || isStatsFetching)) ||
+    (shouldFetchCustom && (isOverviewLoading || isOverviewFetching));
 
-  const hasError = isStatsError || (shouldFetchCustom && isOverviewError);
+  const hasError = (shouldFetchCustom && isStatsError) || (shouldFetchCustom && isOverviewError);
 
   const periodLabel =
     period === "custom"
@@ -124,30 +128,20 @@ function KPIGrid() {
   const kpis: KPI[] = [
     {
       title: `GMV (${periodLabel})`,
-      value: formatNaira(
-        period === "today" ? stats?.gmv?.today : overview?.gmvToday?.amount,
-      ),
+      value: formatNaira(stats?.gmv?.current || overview?.gmvToday?.amount),
       meta:
-        period === "today"
-          ? `${(stats?.gmv?.percentChange ?? 0) >= 0 ? "+" : ""}${(
-              stats?.gmv?.percentChange ?? 0
-            ).toFixed(1)}% vs yesterday`
+        stats?.gmv?.percentChange !== undefined
+          ? `${stats.gmv.percentChange >= 0 ? "+" : ""}${stats.gmv.percentChange.toFixed(1)}% vs previous`
           : overview?.gmvToday?.comparedToLabel,
       icon: <DollarSign className="w-5 h-5 text-[var(--sidebar-primary)]" />,
       isLoading: isDataLoading,
     },
     {
       title: `Orders (${periodLabel})`,
-      value: String(
-        (period === "today"
-          ? stats?.orders?.today
-          : overview?.payoutsProcessed?.count) ?? "—",
-      ),
+      value: stats?.orders?.current || String(overview?.payoutsProcessed?.count ?? "—"),
       meta:
-        period === "today"
-          ? `${(stats?.orders?.percentChange ?? 0) >= 0 ? "+" : ""}${(
-              stats?.orders?.percentChange ?? 0
-            ).toFixed(1)}% vs yesterday`
+        stats?.orders?.percentChange !== undefined
+          ? `${stats.orders.percentChange >= 0 ? "+" : ""}${stats.orders.percentChange.toFixed(1)}% vs previous`
           : overview?.payoutsProcessed?.periodLabel,
       icon: <Package className="w-5 h-5 text-[var(--sidebar-primary)]" />,
       isLoading: isDataLoading,
@@ -161,18 +155,14 @@ function KPIGrid() {
     },
     {
       title: "ShopAM Revenue",
-      value: formatNaira(
-        period === "today"
-          ? stats?.shopamRevenue?.total
-          : overview?.shopamRevenue?.amount,
-      ),
+      value: formatNaira(stats?.shopamRevenue?.total || overview?.shopamRevenue?.amount),
       meta:
-        period === "today"
+        stats?.shopamRevenue?.breakdown
           ? `6%: ${formatNaira(
-              stats?.shopamRevenue?.breakdown?.tier1_6pct,
+              stats.shopamRevenue.breakdown.tier1_6pct,
             )} | 5%: ${formatNaira(
-              stats?.shopamRevenue?.breakdown?.tier2_5pct,
-            )} | 4%: ${formatNaira(stats?.shopamRevenue?.breakdown?.tier3_4pct)}`
+              stats.shopamRevenue.breakdown.tier2_5pct,
+            )} | 4%: ${formatNaira(stats.shopamRevenue.breakdown.tier3_4pct)}`
           : overview?.shopamRevenue?.subtitle,
       icon: <Percent className="w-5 h-5 text-[var(--sidebar-primary)]" />,
       isLoading: isDataLoading,
@@ -182,13 +172,8 @@ function KPIGrid() {
   const additionalKpis: KPI[] = [
     {
       title: "Escrow Balance",
-      value: formatNaira(
-        period === "today"
-          ? stats?.escrowBalance
-          : overview?.escrowBalance?.amount,
-      ),
-      meta:
-        period === "today" ? "Funds held" : overview?.escrowBalance?.subtitle,
+      value: formatNaira(stats?.escrowBalance || overview?.escrowBalance?.amount),
+      meta: overview?.escrowBalance?.subtitle || "Funds held",
       icon: <Wallet className="w-5 h-5 text-[var(--sidebar-primary)]" />,
       isLoading: isDataLoading,
     },
@@ -199,36 +184,31 @@ function KPIGrid() {
           : `Payouts Processed (${periodLabel})`,
       value: formatNaira(
         period === "today"
-          ? stats?.payoutsPending
+          ? stats?.payoutsPending || overview?.payoutsPending?.amount
           : overview?.payoutsProcessed?.totalAmount,
       ),
       meta:
         period === "today"
-          ? "Awaiting processing"
+          ? overview?.payoutsPending?.subtitle || "Awaiting processing"
           : overview?.payoutsProcessed?.periodLabel,
       icon: <Banknote className="w-5 h-5 text-[var(--sidebar-primary)]" />,
       isLoading: isDataLoading,
     },
     {
       title: `VAT Revenue (${periodLabel})`,
-      value: formatNaira(
-        period === "today"
-          ? stats?.vatRevenue
-          : overview?.vatCollection?.amount,
-      ),
-      meta:
-        period === "today"
-          ? "7.5% VAT collected"
-          : overview?.vatCollection?.subtitle || "7.5% VAT collected",
+      value: formatNaira(stats?.vatRevenue || overview?.vatCollection?.amount),
+      meta: overview?.vatCollection?.subtitle || "7.5% VAT collected",
       icon: <Receipt className="w-5 h-5 text-[var(--sidebar-primary)]" />,
       isLoading: isDataLoading,
     },
     {
       title: "Livestream Revenue",
-      value: formatNaira(stats?.livestreamRevenue?.totalAmount),
-      meta: `${stats?.livestreamRevenue?.totalSellersPaid ?? 0} sellers paid`,
+      value: formatNaira(stats?.livestreamRevenue?.totalAmount || overview?.livestreamRevenue?.amount),
+      meta: stats?.livestreamRevenue
+        ? `${stats.livestreamRevenue.totalSellersPaid ?? 0} sellers paid`
+        : overview?.livestreamRevenue?.subtitle,
       icon: <Video className="w-5 h-5 text-[var(--sidebar-primary)]" />,
-      isLoading: isStatsLoading,
+      isLoading: isDataLoading,
     },
   ];
 

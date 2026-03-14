@@ -46,7 +46,7 @@ export default function SellerLeaderboardPage() {
     limit: LIMIT,
   });
 
-  const { data: kpiData, isLoading: kpiLoading } = useGetFinancialStatsQuery();
+  const { data: kpiData, isLoading: kpiLoading } = useGetFinancialStatsQuery({ period: selectedPeriod });
   const stats = kpiData?.data;
 
   const leaderboardResponse = data?.data;

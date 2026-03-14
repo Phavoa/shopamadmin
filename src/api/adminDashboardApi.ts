@@ -6,20 +6,24 @@ import { authStorage } from "@/lib/auth/authUtils";
 
 export interface FinancialStats {
   gmv: {
-    today: string;
-    yesterday: string;
+    current: string;
+    previous: string;
     percentChange: number;
   };
   orders: {
-    today: number;
-    yesterday: number;
+    current: string;
+    previous: string;
     percentChange: number;
   };
-  livestreams: {
+  escrowBalance: string;
+  payoutsPending: string;
+  // Note: These fields were in the previous version but not in the new schema.
+  // Keeping them as optional or removing if definitely not used.
+  livestreams?: {
     activeCount: number;
     totalViewers: number;
   };
-  shopamRevenue: {
+  shopamRevenue?: {
     total: string;
     breakdown: {
       tier1_6pct: string;
@@ -27,10 +31,8 @@ export interface FinancialStats {
       tier3_4pct: string;
     };
   };
-  escrowBalance: string;
-  payoutsPending: string;
-  vatRevenue: string;
-  livestreamRevenue: {
+  vatRevenue?: string;
+  livestreamRevenue?: {
     totalAmount: string;
     totalSellersPaid: number;
   };
@@ -83,12 +85,20 @@ export interface FinanceOverviewVM {
     amount: string;
     subtitle: string;
   };
-  revenueTrend: TrendPoint[]; // daily/weekly data points for the bar chart
-  payoutVolume: TrendPoint[]; // weekly payout volume data
   vatCollection: {
     amount: string;
     subtitle: string;
   };
+  payoutsPending: {
+    amount: string;
+    subtitle: string;
+  };
+  livestreamRevenue: {
+    amount: string;
+    subtitle: string;
+  };
+  revenueTrend: TrendPoint[];
+  payoutVolume: TrendPoint[];
   alerts: FinanceAlert[];
 }
 
@@ -235,10 +245,14 @@ export const adminDashboardApi = createApi({
   tagTypes: ["FinancialStats", "FinanceOverview"],
   endpoints: (builder) => ({
     // GET /api/admin/dashboard/financials
-    getFinancialStats: builder.query<ApiResponse<FinancialStats>, void>({
-      query: () => ({
+    getFinancialStats: builder.query<
+      ApiResponse<FinancialStats>,
+      FinanceOverviewParams
+    >({
+      query: (params = {}) => ({
         url: "/admin/dashboard/financials",
         method: "GET",
+        params,
       }),
       providesTags: ["FinancialStats"],
     }),
