@@ -52,11 +52,11 @@ function Header() {
         <div className="flex  items-center">
           <Link href="/admin-dashboard">
             <Image
-              src="/shopAmLogo.png"
+              src="/logo.png"
               alt={"shopAm Logo"}
-              width={2000}
-              height={100}
-              className="h-20 w-30 object-contain"
+              width={160}
+              height={40}
+              className="h-12 w-auto object-contain"
             />
           </Link>
 

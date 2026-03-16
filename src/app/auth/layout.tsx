@@ -29,9 +29,9 @@ export default function RootLayout({
             <div className="flex-shrink-0">
               {/* Using plain img to reference the local path - adapt as needed */}
               <Image
-                src="/shopAmLogo.png"
-                width={500}
-                height={500}
+                src="/logo.png"
+                width={200}
+                height={200}
                 alt="ShopAm logo"
                 className="w-44 h-auto select-none"
                 draggable={false}
