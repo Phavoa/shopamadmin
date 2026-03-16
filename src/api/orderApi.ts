@@ -281,8 +281,20 @@ export const orderApi = createApi({
       }),
       providesTags: (result, error, { id }) => [{ type: "Order", id }],
     }),
+    // Cancel order
+    cancelOrder: builder.mutation<ApiResponse<Order>, { id: string }>({
+      query: ({ id }) => ({
+        url: `/orders/${id}/cancel`,
+        method: "POST",
+      }),
+      invalidatesTags: (result, error, { id }) => [{ type: "Order", id }],
+    }),
   }),
 });
 
 // EXPORT ALL HOOKS
-export const { useGetOrdersQuery, useGetOrderByIdQuery } = orderApi;
+export const {
+  useGetOrdersQuery,
+  useGetOrderByIdQuery,
+  useCancelOrderMutation,
+} = orderApi;

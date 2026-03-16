@@ -19,8 +19,9 @@ import {
 } from "lucide-react";
 import { useNotifications } from "@/hooks/useNotifications";
 import { ErrorBoundary } from "@/components/ui/error-boundary";
-import { useGetOrderByIdQuery } from "@/api/orderApi";
+import { useGetOrderByIdQuery, useCancelOrderMutation } from "@/api/orderApi";
 import { useUpdateShipmentStatusByCodeMutation } from "@/api/shipmentApi";
+import { ConfirmationDialog } from "@/components/ui/confirmation-dialog";
 
 interface TrackingStep {
   id: string;
@@ -45,6 +46,12 @@ export default function TrackOrderPage() {
   // Mutation for updating shipment status
   const [updateShipmentStatus, { isLoading: isUpdatingStatus }] =
     useUpdateShipmentStatusByCodeMutation();
+
+  // Mutation for cancelling order
+  const [cancelOrder, { isLoading: isCancelling }] = useCancelOrderMutation();
+
+  const [isCancelDialogOpen, setIsCancelDialogOpen] = useState(false);
+  const [updatingStatus, setUpdatingStatus] = useState<string | null>(null);
 
   // Get order ID from URL on mount
   useEffect(() => {
@@ -158,6 +165,7 @@ export default function TrackOrderPage() {
       if (!orderData) return;
 
       try {
+        setUpdatingStatus(newStatus);
         await updateShipmentStatus({
           data: {
             orderCode: orderData.orderCode,
@@ -174,10 +182,26 @@ export default function TrackOrderPage() {
       } catch (error) {
         console.error("Failed to update shipment status:", error);
         showError("Failed to update shipment status. Please try again.");
+      } finally {
+        setUpdatingStatus(null);
       }
     },
     [orderData, updateShipmentStatus, showSuccess, showError, refetch],
   );
+
+  const handleCancelOrder = useCallback(async () => {
+    if (!orderId) return;
+
+    try {
+      await cancelOrder({ id: orderId }).unwrap();
+      showSuccess("Order cancelled successfully");
+      setIsCancelDialogOpen(false);
+      refetch();
+    } catch (err) {
+      console.error("Failed to cancel order:", err);
+      showError("Failed to cancel order. Please try again.");
+    }
+  }, [orderId, cancelOrder, showSuccess, showError, refetch]);
 
   const getStatusColor = (status: string) => {
     switch (status) {
@@ -510,38 +534,102 @@ export default function TrackOrderPage() {
                 <Truck className="w-5 h-5 text-blue-500" />
                 Update Status
               </h2>
-              <div className="space-y-2">
+              <div className="space-y-4">
                 <Button
                   onClick={() => handleUpdateStatus("IN_TRANSIT")}
-                  disabled={orderData.shipment?.status === "DELIVERED"}
-                  className="w-full bg-pink-500 hover:bg-pink-600 flex items-center justify-center gap-2"
+                  disabled={
+                    orderData.shipment?.status !== "AWAITING_SELLER_SHIPMENT" ||
+                    isUpdatingStatus
+                  }
+                  className="w-full bg-pink-500 hover:bg-pink-600 flex items-center justify-center gap-2 cursor-pointer disabled:cursor-not-allowed"
                 >
-                  Mark as In Transit
+                  {updatingStatus === "IN_TRANSIT" ? (
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                  ) : (
+                    "Mark as In Transit"
+                  )}
                 </Button>
                 <Button
                   onClick={() => handleUpdateStatus("AT_SHOPAM_HUB")}
-                  disabled={orderData.shipment?.status === "DELIVERED"}
-                  className="w-full bg-orange-500 hover:bg-orange-600 flex items-center justify-center gap-2"
+                  disabled={
+                    orderData.shipment?.status !== "IN_TRANSIT" ||
+                    isUpdatingStatus
+                  }
+                  className="w-full bg-orange-500 hover:bg-orange-600 flex items-center justify-center gap-2 cursor-pointer disabled:cursor-not-allowed"
                 >
-                  <Package className="w-4 h-4" />
-                  Mark as Received at Hub
+                  {updatingStatus === "AT_SHOPAM_HUB" ? (
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                  ) : (
+                    <>
+                      <Package className="w-4 h-4" />
+                      Mark as Received at Hub
+                    </>
+                  )}
                 </Button>
                 <Button
                   onClick={() => handleUpdateStatus("OUT_FOR_DELIVERY")}
-                  disabled={orderData.shipment?.status === "DELIVERED"}
-                  className="w-full bg-blue-500 hover:bg-blue-600 flex items-center justify-center gap-2"
+                  disabled={
+                    orderData.shipment?.status !== "AT_SHOPAM_HUB" ||
+                    isUpdatingStatus
+                  }
+                  className="w-full bg-blue-500 hover:bg-blue-600 flex items-center justify-center gap-2 cursor-pointer disabled:cursor-not-allowed"
                 >
-                  <Truck className="w-4 h-4" />
-                  Mark as Out for Delivery
+                  {updatingStatus === "OUT_FOR_DELIVERY" ? (
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                  ) : (
+                    <>
+                      <Truck className="w-4 h-4" />
+                      Mark as Out for Delivery
+                    </>
+                  )}
                 </Button>
                 <Button
                   onClick={() => handleUpdateStatus("DELIVERED")}
-                  disabled={orderData.shipment?.status === "DELIVERED"}
-                  className="w-full bg-green-500 hover:bg-green-600 flex items-center justify-center gap-2"
+                  disabled={
+                    orderData.shipment?.status !== "OUT_FOR_DELIVERY" ||
+                    isUpdatingStatus
+                  }
+                  className="w-full bg-green-500 hover:bg-green-600 flex items-center justify-center gap-2 cursor-pointer disabled:cursor-not-allowed"
                 >
-                  <CheckCircle className="w-4 h-4" />
-                  Mark as Delivered
+                  {updatingStatus === "DELIVERED" ? (
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                  ) : (
+                    <>
+                      <CheckCircle className="w-4 h-4" />
+                      Mark as Delivered
+                    </>
+                  )}
                 </Button>
+
+                {/* Cancel Order Button */}
+                <div className="pt-6 mt-8 border-t">
+                  <Button
+                    onClick={() => setIsCancelDialogOpen(true)}
+                    variant="destructive"
+                    className="w-full flex items-center justify-center gap-2 cursor-pointer disabled:cursor-not-allowed"
+                    disabled={
+                      isCancelling ||
+                      isUpdatingStatus ||
+                      orderData.status === "DELIVERED" ||
+                      orderData.status === "REFUNDED" ||
+                      orderData.shipment?.status === "DELIVERED"
+                    }
+                  >
+                    {isCancelling ? (
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                    ) : (
+                      "Cancel Order"
+                    )}
+                  </Button>
+                  {(orderData.status === "DELIVERED" ||
+                    orderData.status === "REFUNDED") && (
+                    <p className="text-[10px] text-gray-400 text-center mt-2 font-medium">
+                      {orderData.status === "REFUNDED"
+                        ? "Refunded orders cannot be cancelled"
+                        : "Completed orders cannot be cancelled"}
+                    </p>
+                  )}
+                </div>
               </div>
               <p className="text-xs text-gray-500 text-center mt-4">
                 Each step is updated by staff/riders and reflects live for both
@@ -641,6 +729,17 @@ export default function TrackOrderPage() {
           </Card>
         )}
       </div>
+
+      <ConfirmationDialog
+        isOpen={isCancelDialogOpen}
+        onClose={() => setIsCancelDialogOpen(false)}
+        onConfirm={handleCancelOrder}
+        title="Cancel Order"
+        description="Are you sure you want to cancel this order?"
+        confirmText="Confirm"
+        cancelText="Close"
+        isLoading={isCancelling}
+      />
     </ErrorBoundary>
   );
 }
