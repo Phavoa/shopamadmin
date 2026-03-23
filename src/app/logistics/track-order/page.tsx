@@ -387,20 +387,14 @@ export default function TrackOrderPage() {
                           {orderData.shipToSnapshot.fullName}
                         </p>
                         <p className="text-xs font-medium text-blue-700 mb-1">
-                          Phone:{" "}
-                          {orderData.shipToSnapshot.phone}
+                          Phone: {orderData.shipToSnapshot.phone}
                         </p>
-                        <p>
-                          {orderData.shipToSnapshot.line1}
-                        </p>
+                        <p>{orderData.shipToSnapshot.line1}</p>
                         {orderData.shipToSnapshot.line2 && (
-                          <p>
-                            {orderData.shipToSnapshot.line2}
-                          </p>
+                          <p>{orderData.shipToSnapshot.line2}</p>
                         )}
                         <p>
-                          {orderData.shipToSnapshot.city}
-                          ,{" "}
+                          {orderData.shipToSnapshot.city},{" "}
                           {orderData.shipToSnapshot.state}{" "}
                           {orderData.shipToSnapshot.postalCode}
                         </p>
@@ -428,26 +422,21 @@ export default function TrackOrderPage() {
                           {orderData.shipFromSnapshot.fullName}
                         </p>
                         <p className="text-xs font-medium text-orange-700 mb-1">
-                          Phone:{" "}
-                          {orderData.shipFromSnapshot.phone}
+                          Phone: {orderData.shipFromSnapshot.phone}
                         </p>
-                        <p>
-                          {orderData.shipFromSnapshot.line1}
-                        </p>
+                        <p>{orderData.shipFromSnapshot.line1}</p>
                         {orderData.shipFromSnapshot.line2 && (
-                          <p>
-                            {orderData.shipFromSnapshot.line2}
-                          </p>
+                          <p>{orderData.shipFromSnapshot.line2}</p>
                         )}
                         <p>
-                          {orderData.shipFromSnapshot.city}
-                          ,{" "}
+                          {orderData.shipFromSnapshot.city},{" "}
                           {orderData.shipFromSnapshot.state}{" "}
                           {orderData.shipFromSnapshot.postalCode}
                         </p>
                         <p className="text-xs text-gray-500 mt-1">
                           Zone:{" "}
-                          {orderData.shipFromSnapshot.deliveryZone?.name || "N/A"}
+                          {orderData.shipFromSnapshot.deliveryZone?.name ||
+                            "N/A"}
                         </p>
                       </div>
                     ) : (
