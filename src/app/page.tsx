@@ -7,11 +7,11 @@ const page = () => {
   return (
     <div className="min-h-screen w-full flex flex-col justify-center items-center bg-[var(--background)]">
       <Image
-        src="/shopAmLogo.png"
+        src="/logo.png"
         alt={"shopAm Logo"}
-        width={10000}
-        height={1000}
-        className="h-50 object-contain mx-auto mb-20"
+        width={400}
+        height={100}
+        className="h-24 w-auto object-contain mx-auto mb-20"
       />
       <Link href="/admin-dashboard">
         <Button className="cursor-pointer mb-4">
