@@ -1,6 +1,6 @@
 // src/components/logistics/InvestigateExceptionModal.tsx
 
-import { X, Package, AlertTriangle, Eye, Copy, Phone, ChevronLeft, ChevronRight } from "lucide-react";
+import { X, Package, AlertTriangle, Eye, Copy, Phone, ChevronLeft, ChevronRight, DollarSign } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useState, useEffect } from "react";
 import Image from "next/image";
@@ -9,6 +9,7 @@ import {
   useResolveExceptionMutation,
 } from "@/api/orderExceptionsApi";
 import RequestMoreEvidenceModal from "./RequestMoreEvidenceModal";
+import ManualReleaseModal from "./ManualReleaseModal";
 import { useNotifications } from "@/hooks/useNotifications";
 
 interface InvestigateExceptionModalProps {
@@ -49,6 +50,7 @@ export default function InvestigateExceptionModal({
   const [copiedPhone, setCopiedPhone] = useState<string | null>(null);
   const [showRequestEvidenceModal, setShowRequestEvidenceModal] =
     useState(false);
+  const [showManualReleaseModal, setShowManualReleaseModal] = useState(false);
 
   const [requestMoreEvidence, { isLoading: isRequestingEvidence }] =
     useRequestMoreEvidenceMutation();
@@ -358,6 +360,13 @@ export default function InvestigateExceptionModal({
               Send Replacement
             </Button>
             <Button
+              className="bg-orange-600 hover:bg-orange-700 flex items-center gap-2"
+              onClick={() => setShowManualReleaseModal(true)}
+            >
+              <DollarSign className="w-4 h-4" />
+              Manual Release
+            </Button>
+            <Button
               className="bg-red-500 hover:bg-red-600"
               onClick={handleCloseException}
               disabled={isResolvingException}
@@ -438,6 +447,15 @@ export default function InvestigateExceptionModal({
           onSubmit={handleRequestEvidenceSubmit}
           isLoading={isRequestingEvidence}
         />
+ 
+        {/* Manual Release Modal */}
+        {exception && (
+          <ManualReleaseModal
+            isOpen={showManualReleaseModal}
+            onClose={() => setShowManualReleaseModal(false)}
+            orderId={exception.orderId}
+          />
+        )}
       </div>
     </div>
   );

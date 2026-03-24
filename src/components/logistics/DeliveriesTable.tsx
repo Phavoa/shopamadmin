@@ -22,6 +22,7 @@ interface Order {
     status: string;
     hubId?: string;
     assignedRiderId?: string | null;
+    pickupRequestId?: string | null;
   };
 }
 
@@ -166,7 +167,7 @@ export default function DeliveriesTable({
                     {order.orderCode || order.id}
                   </button>
                 </td>
-                <td className="px-4 py-3 text-sm font-mono text-xs">
+                <td className="px-4 py-3 font-mono text-xs">
                   {order.trackingId || "N/A"}
                 </td>
                 <td className="px-4 py-3 text-sm">{order.buyer}</td>

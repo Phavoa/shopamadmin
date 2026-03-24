@@ -23,6 +23,7 @@ interface Order {
     status: string;
     hubId?: string;
     assignedRiderId?: string | null;
+    pickupRequestId?: string | null;
   };
 }
 
@@ -166,14 +167,21 @@ export default function PickupRequestsTable({
             {pickupRequests.map((order) => (
               <tr key={order.id} className="border-t hover:bg-gray-50">
                 <td className="px-4 py-3 text-sm">
-                  <button
-                    onClick={() => handleOrderClick(order.id)}
-                    className="text-blue-600 hover:text-blue-800 hover:underline font-medium"
-                  >
-                    {order?.orderCode}
-                  </button>
+                  <div className="flex flex-col gap-1 items-start">
+                    <button
+                      onClick={() => handleOrderClick(order.id)}
+                      className="text-blue-600 hover:text-blue-800 hover:underline font-medium"
+                    >
+                      {order?.orderCode}
+                    </button>
+                    {order.shipment?.pickupRequestId && (
+                      <Badge className="bg-red-100 text-red-600 border-red-200 hover:bg-red-100 text-[10px] py-0 px-1 font-bold">
+                        PICKUP REQUESTED
+                      </Badge>
+                    )}
+                  </div>
                 </td>
-                <td className="px-4 py-3 text-sm font-mono text-xs">
+                <td className="px-4 py-3 font-mono text-xs">
                   {order.trackingId || "N/A"}
                 </td>
                 <td className="px-4 py-3 text-sm">{order.seller}</td>

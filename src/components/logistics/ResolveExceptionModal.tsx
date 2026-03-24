@@ -1,15 +1,21 @@
 // src/components/logistics/ResolveExceptionModal.tsx
 
+import { useState } from "react";
 import { X, CheckCircle, XCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
+import { Input } from "@/components/ui/input";
 
 interface ResolveExceptionModalProps {
   isOpen: boolean;
   onClose: () => void;
   exceptionId: string;
   orderId: string;
-  onResolve: (orderId: string, status: "RESOLVED" | "REJECTED") => void;
+  onResolve: (
+    orderId: string,
+    status: "RESOLVED" | "REJECTED",
+    resolvedQty?: number
+  ) => void;
   isLoading: boolean;
 }
 
@@ -21,10 +27,12 @@ export default function ResolveExceptionModal({
   onResolve,
   isLoading,
 }: ResolveExceptionModalProps) {
+  const [resolvedQty, setResolvedQty] = useState<number | "">("");
+
   if (!isOpen) return null;
 
   const handleResolve = (status: "RESOLVED" | "REJECTED") => {
-    onResolve(orderId, status);
+    onResolve(orderId, status, resolvedQty === "" ? undefined : resolvedQty);
   };
 
   return (
@@ -53,6 +61,24 @@ export default function ResolveExceptionModal({
         </div>
 
         <div className="space-y-4">
+          <div>
+            <Label htmlFor="resolvedQty" className="text-sm font-medium mb-1.5 block">
+              Resolved Quantity (Optional)
+            </Label>
+            <Input
+              id="resolvedQty"
+              type="number"
+              placeholder="Defaults to exception quantity"
+              value={resolvedQty}
+              onChange={(e) => setResolvedQty(e.target.value === "" ? "" : Number(e.target.value))}
+              className="w-full"
+              min={1}
+            />
+            <p className="text-xs text-gray-500 mt-1">
+              Specify how many items are being resolved/rejected.
+            </p>
+          </div>
+ 
           <p className="text-gray-600">
             Please select the resolution status for this exception:
           </p>

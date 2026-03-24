@@ -185,6 +185,12 @@ export interface GetOrdersParams {
   isLagosOrder?: boolean;
   isNonLagosOrder?: boolean;
 }
+ 
+export interface ManualReleaseDto {
+  items: { itemId: string; qty: number }[];
+  releaseDelivery: boolean;
+  note: string;
+}
 
 export interface GetOrderByIdParams {
   populate?: string[];
@@ -319,6 +325,19 @@ export const orderApi = createApi({
         { type: "Order", id: orderId },
       ],
     }),
+ 
+    // Manual release funds
+    manualRelease: builder.mutation<
+      ApiResponse<any>,
+      { id: string; data: ManualReleaseDto }
+    >({
+      query: ({ id, data }) => ({
+        url: `/orders/${id}/admin/manual-release`,
+        method: "POST",
+        body: data,
+      }),
+      invalidatesTags: (result, error, { id }) => [{ type: "Order", id }],
+    }),
   }),
 });
 
@@ -328,4 +347,5 @@ export const {
   useGetOrderByIdQuery,
   useCancelOrderMutation,
   useRejectBulkItemsMutation,
+  useManualReleaseMutation,
 } = orderApi;

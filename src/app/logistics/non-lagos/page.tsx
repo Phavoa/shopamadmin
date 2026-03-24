@@ -383,7 +383,7 @@ export default function NonLagosHubDashboard() {
   );
 
   const handleResolveExceptionSubmit = useCallback(
-    async (orderId: string, status: "RESOLVED" | "REJECTED") => {
+    async (orderId: string, status: "RESOLVED" | "REJECTED", resolvedQty?: number) => {
       // Find the exception to get the actual order ID
       const exception = orderExceptionsData?.data?.items?.find(
         (ex: OrderException) => ex.id === selectedException,
@@ -392,13 +392,13 @@ export default function NonLagosHubDashboard() {
         showError("Exception not found");
         return;
       }
-
+ 
       await handleAsyncOperation(
         () =>
           resolveException({
             orderId: exception.orderId,
             exId: selectedException,
-            data: { status },
+            data: { status, resolvedQty },
           }).unwrap(),
         {
           onSuccess: () => {

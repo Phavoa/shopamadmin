@@ -61,6 +61,7 @@ export interface BuyerRespondDto {
 
 export interface AdminResolveDto {
   status: "OPEN" | "IN_REVIEW" | "RESOLVED" | "REJECTED";
+  resolvedQty?: number;
 }
 
 export interface OrderExceptionListResponse {

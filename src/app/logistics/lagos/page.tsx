@@ -52,6 +52,7 @@ interface LogisticsOrder {
     status: string;
     hubId?: string;
     assignedRiderId?: string | null;
+    pickupRequestId?: string | null;
   };
 }
 
@@ -433,7 +434,7 @@ export default function LagosHubDashboard() {
   );
 
   const handleResolveExceptionSubmit = useCallback(
-    async (orderId: string, status: "RESOLVED" | "REJECTED") => {
+    async (orderId: string, status: "RESOLVED" | "REJECTED", resolvedQty?: number) => {
       // Find the exception to get the actual order ID
       const exception = orderExceptionsData?.data?.items?.find(
         (ex: OrderException) => ex.id === selectedException,
@@ -448,7 +449,7 @@ export default function LagosHubDashboard() {
           resolveException({
             orderId: exception.orderId,
             exId: selectedException,
-            data: { status },
+            data: { status, resolvedQty },
           }).unwrap(),
         {
           onSuccess: () => {
