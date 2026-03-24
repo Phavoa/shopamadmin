@@ -14,6 +14,20 @@ export interface OrderItem {
   qty: number;
   unitPriceKobo: string;
   lineTotalKobo: string;
+  status: string;
+  fulfillment?: {
+    receivedQty: number;
+    pendingQty: number;
+    status: string;
+  };
+  exception?: {
+    totalRejectedQty: number;
+  };
+  financial?: {
+    payoutPendingKobo: number;
+    payoutReleasedKobo: number;
+    refundedKobo: number;
+  };
   product: {
     id: string;
     sellerId: string;
@@ -131,6 +145,7 @@ export interface Order {
   sellerProfile: SellerProfile;
   checkoutSession: CheckoutSession;
   shipment?: Shipment;
+  orderExceptions?: any[];
 }
 
 export interface OrderListResponse {
@@ -289,6 +304,21 @@ export const orderApi = createApi({
       }),
       invalidatesTags: (result, error, { id }) => [{ type: "Order", id }],
     }),
+
+    // Bulk reject items
+    rejectBulkItems: builder.mutation<
+      ApiResponse<any>,
+      { orderId: string; items: { itemId: string; qty: number }[] }
+    >({
+      query: ({ orderId, items }) => ({
+        url: `/orders/${orderId}/items/reject-bulk`,
+        method: "POST",
+        body: { items },
+      }),
+      invalidatesTags: (result, error, { orderId }) => [
+        { type: "Order", id: orderId },
+      ],
+    }),
   }),
 });
 
@@ -297,4 +327,5 @@ export const {
   useGetOrdersQuery,
   useGetOrderByIdQuery,
   useCancelOrderMutation,
+  useRejectBulkItemsMutation,
 } = orderApi;

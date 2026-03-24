@@ -22,6 +22,8 @@ import { ErrorBoundary } from "@/components/ui/error-boundary";
 import { useGetOrderByIdQuery, useCancelOrderMutation } from "@/api/orderApi";
 import { useUpdateShipmentStatusByCodeMutation } from "@/api/shipmentApi";
 import { ConfirmationDialog } from "@/components/ui/confirmation-dialog";
+import { InspectionPanel } from "@/components/admin/InspectionPanel";
+import { AlertTriangle, Info } from "lucide-react";
 
 interface TrackingStep {
   id: string;
@@ -52,6 +54,7 @@ export default function TrackOrderPage() {
 
   const [isCancelDialogOpen, setIsCancelDialogOpen] = useState(false);
   const [updatingStatus, setUpdatingStatus] = useState<string | null>(null);
+  const [explicitInspectionCompleted, setExplicitInspectionCompleted] = useState(false);
 
   // Get order ID from URL on mount
   useEffect(() => {
@@ -70,12 +73,29 @@ export default function TrackOrderPage() {
   } = useGetOrderByIdQuery(
     {
       id: orderId!,
-      params: { populate: ["buyer", "seller", "shipment", "items"] },
+      params: {
+        populate: [
+          "items",
+          "items.product",
+          "payments",
+          "buyer",
+          "seller",
+          "seller.user",
+          "shipment",
+          "shipment.events",
+          "checkoutSession",
+        ],
+      },
     },
     { skip: !orderId },
   );
 
   const orderData = orderResponse?.data;
+
+  const isInspectionPhase = useMemo(
+    () => orderData?.shipment?.status === "AT_SHOPAM_HUB",
+    [orderData],
+  );
 
   // Default tracking steps
   const defaultTrackingSteps: TrackingStep[] = useMemo(
@@ -501,14 +521,44 @@ export default function TrackOrderPage() {
                       {orderData.items.map((item) => (
                         <div
                           key={item.id}
-                          className="flex justify-between text-sm"
+                          className="flex flex-col gap-1 p-2 bg-gray-50 rounded border border-gray-100"
                         >
-                          <span className="text-gray-700">
-                            {item.title} x{item.qty}
-                          </span>
-                          <span className="font-medium">
-                            {formatPrice(item.lineTotalKobo)}
-                          </span>
+                          <div className="flex justify-between text-sm">
+                            <div className="flex items-center gap-2">
+                              <span className="font-medium text-gray-800">
+                                {item.title}
+                              </span>
+                              <Badge
+                                variant="outline"
+                                className="text-[9px] h-4"
+                              >
+                                {item.status}
+                              </Badge>
+                              {item.fulfillment?.status && (
+                                <Badge className="text-[9px] h-4 bg-purple-50 text-purple-600 border-purple-100">
+                                  {item.fulfillment.status}
+                                </Badge>
+                              )}
+                              {item.exception?.totalRejectedQty ? (
+                                <AlertTriangle className="w-3 h-3 text-red-500" />
+                              ) : null}
+                            </div>
+                            <span className="font-semibold">x{item.qty}</span>
+                          </div>
+                          <div className="flex justify-between items-center text-[10px] text-gray-500">
+                            <div className="flex gap-2">
+                              <span>
+                                Recv: {item.fulfillment?.receivedQty || 0}
+                              </span>
+                              <span className="text-gray-300">|</span>
+                              <span>
+                                Pnd: {item.fulfillment?.pendingQty || 0}
+                              </span>
+                            </div>
+                            <span className="font-medium text-gray-700">
+                              {formatPrice(item.lineTotalKobo)}
+                            </span>
+                          </div>
                         </div>
                       ))}
                     </div>
@@ -528,7 +578,8 @@ export default function TrackOrderPage() {
                   onClick={() => handleUpdateStatus("IN_TRANSIT")}
                   disabled={
                     orderData.shipment?.status !== "AWAITING_SELLER_SHIPMENT" ||
-                    isUpdatingStatus
+                    isUpdatingStatus ||
+                    (isInspectionPhase && !explicitInspectionCompleted)
                   }
                   className="w-full bg-pink-500 hover:bg-pink-600 flex items-center justify-center gap-2 cursor-pointer disabled:cursor-not-allowed"
                 >
@@ -542,7 +593,8 @@ export default function TrackOrderPage() {
                   onClick={() => handleUpdateStatus("AT_SHOPAM_HUB")}
                   disabled={
                     orderData.shipment?.status !== "IN_TRANSIT" ||
-                    isUpdatingStatus
+                    isUpdatingStatus ||
+                    (isInspectionPhase && !explicitInspectionCompleted)
                   }
                   className="w-full bg-orange-500 hover:bg-orange-600 flex items-center justify-center gap-2 cursor-pointer disabled:cursor-not-allowed"
                 >
@@ -559,7 +611,8 @@ export default function TrackOrderPage() {
                   onClick={() => handleUpdateStatus("OUT_FOR_DELIVERY")}
                   disabled={
                     orderData.shipment?.status !== "AT_SHOPAM_HUB" ||
-                    isUpdatingStatus
+                    isUpdatingStatus ||
+                    (isInspectionPhase && !explicitInspectionCompleted)
                   }
                   className="w-full bg-blue-500 hover:bg-blue-600 flex items-center justify-center gap-2 cursor-pointer disabled:cursor-not-allowed"
                 >
@@ -572,11 +625,18 @@ export default function TrackOrderPage() {
                     </>
                   )}
                 </Button>
+                {isInspectionPhase && !explicitInspectionCompleted && (
+                  <div className="flex items-center gap-2 p-2 bg-red-50 border border-red-100 rounded text-[10px] text-red-600">
+                    <AlertTriangle className="w-3 h-3 flex-shrink-0" />
+                    <span>Complete item inspection before proceeding</span>
+                  </div>
+                )}
                 <Button
                   onClick={() => handleUpdateStatus("DELIVERED")}
                   disabled={
                     orderData.shipment?.status !== "OUT_FOR_DELIVERY" ||
-                    isUpdatingStatus
+                    isUpdatingStatus ||
+                    (isInspectionPhase && !explicitInspectionCompleted)
                   }
                   className="w-full bg-green-500 hover:bg-green-600 flex items-center justify-center gap-2 cursor-pointer disabled:cursor-not-allowed"
                 >
@@ -601,7 +661,10 @@ export default function TrackOrderPage() {
                       isUpdatingStatus ||
                       orderData.status === "DELIVERED" ||
                       orderData.status === "REFUNDED" ||
-                      orderData.shipment?.status === "DELIVERED"
+                      orderData.shipment?.status === "DELIVERED" ||
+                      orderData.items.some(
+                        (item) => (item.financial?.payoutReleasedKobo || 0) > 0,
+                      )
                     }
                   >
                     {isCancelling ? (
@@ -610,6 +673,13 @@ export default function TrackOrderPage() {
                       "Cancel Order"
                     )}
                   </Button>
+                  {orderData.items.some(
+                    (item) => (item.financial?.payoutReleasedKobo || 0) > 0,
+                  ) && (
+                    <p className="text-[10px] text-red-500 text-center mt-2 font-medium">
+                      Cannot cancel orders with released funds
+                    </p>
+                  )}
                   {(orderData.status === "DELIVERED" ||
                     orderData.status === "REFUNDED") && (
                     <p className="text-[10px] text-gray-400 text-center mt-2 font-medium">
@@ -626,6 +696,17 @@ export default function TrackOrderPage() {
               </p>
             </Card>
           </div>
+        )}
+
+        {/* Inspection Panel Integration */}
+        {orderData && isInspectionPhase && (
+          <InspectionPanel
+            items={orderData.items}
+            orderId={orderData.id}
+            onSuccess={refetch}
+            isCompleted={explicitInspectionCompleted}
+            onCompleteChange={setExplicitInspectionCompleted}
+          />
         )}
 
         {/* Tracking Timeline */}
