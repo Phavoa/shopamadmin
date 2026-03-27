@@ -128,12 +128,10 @@ export default function NonLagosHubDashboard() {
 
   const [exceptionPage, setExceptionPage] = useState(1);
   const [exceptionParams, setExceptionParams] = useState<GetOrderExceptionsParams>({
-    params: {
-      limit: 10,
-      sortBy: "createdAt",
-      sortDir: "desc",
-      populate: ["buyer", "seller", "order"],
-    },
+    limit: 10,
+    sortBy: "createdAt",
+    sortDir: "desc",
+    populate: ["buyer", "seller", "order"],
   });
 
   // API calls with optimized query parameters
@@ -181,7 +179,7 @@ export default function NonLagosHubDashboard() {
     isLoading: exceptionsLoading,
     error: exceptionsError,
     refetch: refetchExceptions,
-  } = useGetOrderExceptionsQuery(exceptionParams);
+  } = useGetOrderExceptionsQuery({ params: exceptionParams });
 
   // Pagination Handlers
   const handlePickupNext = useCallback(() => {
@@ -189,7 +187,7 @@ export default function NonLagosHubDashboard() {
       setPickupPage((prev) => prev + 1);
       setPickupParams((prev) => ({
         ...prev,
-        after: pickupOrdersData.data.nextCursor,
+        after: pickupOrdersData.data.nextCursor ?? undefined,
         before: undefined,
       }));
     }
@@ -200,7 +198,7 @@ export default function NonLagosHubDashboard() {
       setPickupPage((prev) => Math.max(1, prev - 1));
       setPickupParams((prev) => ({
         ...prev,
-        before: pickupOrdersData.data.prevCursor,
+        before: pickupOrdersData.data.prevCursor ?? undefined,
         after: undefined,
       }));
     }
@@ -230,7 +228,7 @@ export default function NonLagosHubDashboard() {
       setDeliveryPage((prev) => prev + 1);
       setDeliveryParams((prev) => ({
         ...prev,
-        after: deliveryOrdersData.data.nextCursor,
+        after: deliveryOrdersData.data.nextCursor ?? undefined,
         before: undefined,
       }));
     }
@@ -241,7 +239,7 @@ export default function NonLagosHubDashboard() {
       setDeliveryPage((prev) => Math.max(1, prev - 1));
       setDeliveryParams((prev) => ({
         ...prev,
-        before: deliveryOrdersData.data.prevCursor,
+        before: deliveryOrdersData.data.prevCursor ?? undefined,
         after: undefined,
       }));
     }
@@ -271,7 +269,7 @@ export default function NonLagosHubDashboard() {
       setExceptionPage((prev) => prev + 1);
       setExceptionParams((prev) => ({
         ...prev,
-        after: orderExceptionsData.data.nextCursor,
+        after: orderExceptionsData.data.nextCursor ?? undefined,
         before: undefined,
       }));
     }
@@ -282,7 +280,7 @@ export default function NonLagosHubDashboard() {
       setExceptionPage((prev) => Math.max(1, prev - 1));
       setExceptionParams((prev) => ({
         ...prev,
-        before: orderExceptionsData.data.prevCursor,
+        before: orderExceptionsData.data.prevCursor ?? undefined,
         after: undefined,
       }));
     }
@@ -797,7 +795,7 @@ export default function NonLagosHubDashboard() {
           onNextPage={handleExceptionNext}
           onPrevPage={handleExceptionPrev}
           currentPage={exceptionPage}
-          limit={exceptionParams.params?.limit || 10}
+          limit={exceptionParams.limit || 10}
           onLimitChange={handleExceptionLimitChange}
           onGoToFirst={handleGoToFirstException}
         />

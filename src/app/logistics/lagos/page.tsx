@@ -319,7 +319,7 @@ export default function LagosHubDashboard() {
       setPickupPage((p) => p + 1);
       setPickupParams((prev) => ({
         ...prev,
-        after: pickupOrdersData.data.nextCursor!,
+        after: pickupOrdersData.data.nextCursor ?? undefined,
         before: undefined,
       }));
     }
@@ -330,7 +330,7 @@ export default function LagosHubDashboard() {
       setPickupPage((p) => Math.max(1, p - 1));
       setPickupParams((prev) => ({
         ...prev,
-        before: pickupOrdersData.data.prevCursor!,
+        before: pickupOrdersData.data.prevCursor ?? undefined,
         after: undefined,
       }));
     }
@@ -341,7 +341,7 @@ export default function LagosHubDashboard() {
       setDeliveryPage((p) => p + 1);
       setDeliveryParams((prev) => ({
         ...prev,
-        after: deliveryOrdersData.data.nextCursor!,
+        after: deliveryOrdersData.data.nextCursor ?? undefined,
         before: undefined,
       }));
     }
@@ -352,7 +352,7 @@ export default function LagosHubDashboard() {
       setDeliveryPage((p) => Math.max(1, p - 1));
       setDeliveryParams((prev) => ({
         ...prev,
-        before: deliveryOrdersData.data.prevCursor!,
+        before: deliveryOrdersData.data.prevCursor ?? undefined,
         after: undefined,
       }));
     }
@@ -363,7 +363,7 @@ export default function LagosHubDashboard() {
       setExceptionPage((p) => p + 1);
       setExceptionParams((prev) => ({
         ...prev,
-        after: orderExceptionsData.data.nextCursor!,
+        after: orderExceptionsData.data.nextCursor ?? undefined,
         before: undefined,
       }));
     }
@@ -374,7 +374,7 @@ export default function LagosHubDashboard() {
       setExceptionPage((p) => Math.max(1, p - 1));
       setExceptionParams((prev) => ({
         ...prev,
-        before: orderExceptionsData.data.prevCursor!,
+        before: orderExceptionsData.data.prevCursor ?? undefined,
         after: undefined,
       }));
     }
