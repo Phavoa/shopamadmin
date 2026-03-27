@@ -17,6 +17,7 @@ interface ResolveExceptionModalProps {
     resolvedQty?: number
   ) => void;
   isLoading: boolean;
+  status?: string;
 }
 
 export default function ResolveExceptionModal({
@@ -26,12 +27,18 @@ export default function ResolveExceptionModal({
   orderId,
   onResolve,
   isLoading,
+  status,
 }: ResolveExceptionModalProps) {
   const [resolvedQty, setResolvedQty] = useState<number | "">("");
+  const [isProcessing, setIsProcessing] = useState(false);
 
   if (!isOpen) return null;
 
+  const isActionLocked = isLoading || isProcessing || status === "RESOLVED" || status === "REJECTED";
+  const isModalLocked = isLoading || isProcessing;
+
   const handleResolve = (status: "RESOLVED" | "REJECTED") => {
+    setIsProcessing(true);
     onResolve(orderId, status, resolvedQty === "" ? undefined : resolvedQty);
   };
 
@@ -40,7 +47,7 @@ export default function ResolveExceptionModal({
       <div className="bg-white rounded-lg p-6 w-full max-w-lg relative shadow-2xl">
         <button
           onClick={onClose}
-          className="absolute right-4 top-4 text-gray-500 hover:text-gray-700"
+          className="absolute right-4 top-4 text-gray-500 hover:text-gray-700 cursor-pointer"
         >
           <X className="w-5 h-5" />
         </button>
@@ -73,6 +80,7 @@ export default function ResolveExceptionModal({
               onChange={(e) => setResolvedQty(e.target.value === "" ? "" : Number(e.target.value))}
               className="w-full"
               min={1}
+              disabled={isActionLocked}
             />
             <p className="text-xs text-gray-500 mt-1">
               Specify how many items are being resolved/rejected.
@@ -86,28 +94,32 @@ export default function ResolveExceptionModal({
           <div className="grid grid-cols-1 gap-3">
             <Button
               onClick={() => handleResolve("RESOLVED")}
-              className="bg-green-500 hover:bg-green-600 flex items-center justify-center gap-2 p-6"
-              disabled={isLoading}
+              className="bg-green-500 hover:bg-green-600 flex items-center justify-center gap-2 p-6 cursor-pointer"
+              disabled={isActionLocked}
             >
               <CheckCircle className="w-5 h-5" />
               <div className="text-left">
-                <div className="font-semibold">Resolve Exception</div>
+                <div className="font-semibold">
+                  {status === "RESOLVED" ? "Resolved" : "Resolve Exception"}
+                </div>
                 <div className="text-sm opacity-90">
-                  Mark this exception as resolved
+                  {status === "RESOLVED" ? "This exception has been resolved" : "Mark this exception as resolved"}
                 </div>
               </div>
             </Button>
 
             <Button
               onClick={() => handleResolve("REJECTED")}
-              className="bg-red-500 hover:bg-red-600 flex items-center justify-center gap-2 p-6"
-              disabled={isLoading}
+              className="bg-red-500 hover:bg-red-600 flex items-center justify-center gap-2 p-6 cursor-pointer"
+              disabled={isActionLocked}
             >
               <XCircle className="w-5 h-5" />
               <div className="text-left">
-                <div className="font-semibold">Reject Exception</div>
+                <div className="font-semibold">
+                  {status === "REJECTED" ? "Rejected" : "Reject Exception"}
+                </div>
                 <div className="text-sm opacity-90">
-                  Mark this exception as invalid/rejected
+                  {status === "REJECTED" ? "This exception was rejected" : "Mark this exception as invalid/rejected"}
                 </div>
               </div>
             </Button>
@@ -117,8 +129,7 @@ export default function ResolveExceptionModal({
             <Button
               onClick={onClose}
               variant="outline"
-              className="flex-1"
-              disabled={isLoading}
+              className="flex-1 cursor-pointer"
             >
               Cancel
             </Button>

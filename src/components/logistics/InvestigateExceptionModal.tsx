@@ -1,6 +1,16 @@
 // src/components/logistics/InvestigateExceptionModal.tsx
 
-import { X, Package, AlertTriangle, Eye, Copy, Phone, ChevronLeft, ChevronRight, DollarSign } from "lucide-react";
+import {
+  X,
+  Package,
+  AlertTriangle,
+  Eye,
+  Copy,
+  Phone,
+  ChevronLeft,
+  ChevronRight,
+  DollarSign,
+} from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useState, useEffect } from "react";
 import Image from "next/image";
@@ -45,7 +55,7 @@ export default function InvestigateExceptionModal({
   exception,
 }: InvestigateExceptionModalProps) {
   const [selectedImageIndex, setSelectedImageIndex] = useState<number | null>(
-    null
+    null,
   );
   const [copiedPhone, setCopiedPhone] = useState<string | null>(null);
   const [showRequestEvidenceModal, setShowRequestEvidenceModal] =
@@ -56,6 +66,7 @@ export default function InvestigateExceptionModal({
     useRequestMoreEvidenceMutation();
   const [resolveException, { isLoading: isResolvingException }] =
     useResolveExceptionMutation();
+  const [isProcessing, setIsProcessing] = useState(false);
   const { showSuccess, showError } = useNotifications();
 
   // Auto-hide copy feedback
@@ -113,7 +124,7 @@ export default function InvestigateExceptionModal({
       setSelectedImageIndex(
         selectedImageIndex === 0
           ? exception.images.length - 1
-          : selectedImageIndex - 1
+          : selectedImageIndex - 1,
       );
     }
   };
@@ -142,6 +153,15 @@ export default function InvestigateExceptionModal({
     }
   };
 
+  const isActionLocked =
+    isResolvingException ||
+    isRequestingEvidence ||
+    isProcessing ||
+    exception.status === "RESOLVED" ||
+    exception.status === "REJECTED";
+  const isModalLocked =
+    isResolvingException || isRequestingEvidence || isProcessing;
+
   const handleContactBuyer = () => {
     if (exception.buyer?.phone) {
       copyToClipboard(exception.buyer.phone, "Buyer");
@@ -165,6 +185,7 @@ export default function InvestigateExceptionModal({
         exId: exception.id,
         data: { note },
       }).unwrap();
+      setIsProcessing(true);
       setShowRequestEvidenceModal(false);
       showSuccess("Evidence request sent successfully");
     } catch (error) {
@@ -175,6 +196,7 @@ export default function InvestigateExceptionModal({
 
   const handleApproveRefund = async () => {
     try {
+      setIsProcessing(true);
       await resolveException({
         orderId: exception.orderId,
         exId: exception.id,
@@ -190,6 +212,7 @@ export default function InvestigateExceptionModal({
 
   const handleCloseException = async () => {
     try {
+      setIsProcessing(true);
       await resolveException({
         orderId: exception.orderId,
         exId: exception.id,
@@ -208,7 +231,7 @@ export default function InvestigateExceptionModal({
       <div className="bg-white rounded-lg p-6 w-full max-w-lg max-h-[90vh] overflow-y-auto relative shadow-2xl">
         <button
           onClick={onClose}
-          className="absolute right-4 top-4 text-gray-500 hover:text-gray-700"
+          className="absolute right-4 top-4 text-gray-500 hover:text-gray-700 cursor-pointer"
         >
           <X className="w-5 h-5" />
         </button>
@@ -312,7 +335,7 @@ export default function InvestigateExceptionModal({
           <h3 className="font-semibold mb-3">Staff Actions</h3>
           <div className="grid grid-cols-2 gap-2">
             <Button
-              className="bg-orange-500 hover:bg-orange-600 flex items-center gap-2"
+              className="bg-orange-500 hover:bg-orange-600 flex items-center gap-2 cursor-pointer"
               onClick={handleContactBuyer}
               disabled={!exception.buyer?.phone}
               title={
@@ -328,7 +351,7 @@ export default function InvestigateExceptionModal({
               )}
             </Button>
             <Button
-              className="bg-orange-500 hover:bg-orange-600 flex items-center gap-2"
+              className="bg-orange-500 hover:bg-orange-600 flex items-center gap-2 cursor-pointer"
               onClick={handleContactSeller}
               disabled={!exception.seller?.phone}
               title={
@@ -344,34 +367,42 @@ export default function InvestigateExceptionModal({
               )}
             </Button>
             <Button
-              className="bg-orange-500 hover:bg-orange-600"
+              className="bg-orange-500 hover:bg-orange-600 cursor-pointer"
               onClick={handleRequestMoreEvidence}
+              disabled={isRequestingEvidence}
             >
-              Request More Evidence
+              {isRequestingEvidence ? "Requesting..." : "Request More Evidence"}
             </Button>
             <Button
-              className="bg-green-500 hover:bg-green-600"
+              className="bg-green-500 hover:bg-green-600 cursor-pointer"
               onClick={handleApproveRefund}
-              disabled={isResolvingException}
+              disabled={isActionLocked}
             >
-              {isResolvingException ? "Processing..." : "Approve Refund"}
+              {isResolvingException ||
+              (isProcessing && exception.status === "OPEN")
+                ? "Processing..."
+                : "Approve Refund"}
             </Button>
             <Button className="bg-green-500 hover:bg-green-600" disabled>
               Send Replacement
             </Button>
-            <Button
-              className="bg-orange-600 hover:bg-orange-700 flex items-center gap-2"
+            {/* <Button
+              className="bg-orange-600 hover:bg-orange-700 flex items-center gap-2 cursor-pointer"
               onClick={() => setShowManualReleaseModal(true)}
+              disabled={isActionLocked}
             >
               <DollarSign className="w-4 h-4" />
               Manual Release
-            </Button>
+            </Button> */}
             <Button
-              className="bg-red-500 hover:bg-red-600"
+              className="bg-red-500 hover:bg-red-600 cursor-pointer"
               onClick={handleCloseException}
-              disabled={isResolvingException}
+              disabled={isActionLocked}
             >
-              {isResolvingException ? "Processing..." : "Close"}
+              {isResolvingException ||
+              (isProcessing && exception.status === "OPEN")
+                ? "Processing..."
+                : "Reject"}
             </Button>
           </div>
         </div>
@@ -447,7 +478,7 @@ export default function InvestigateExceptionModal({
           onSubmit={handleRequestEvidenceSubmit}
           isLoading={isRequestingEvidence}
         />
- 
+
         {/* Manual Release Modal */}
         {exception && (
           <ManualReleaseModal

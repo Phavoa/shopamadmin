@@ -5,7 +5,7 @@ import { useState, useCallback, useMemo, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Plus, RefreshCw, Search, LayoutDashboard, Loader2 } from "lucide-react";
-import { useGetOrdersQuery, Order } from "@/api/orderApi";
+import { useGetOrdersQuery, Order, GetOrdersParams } from "@/api/orderApi";
 import { useCreateRiderMutation, useGetRidersQuery } from "@/api/ridersApi";
 import {
   useAssignRiderToShipmentMutation,
@@ -16,6 +16,7 @@ import {
   useRequestMoreEvidenceMutation,
   useResolveExceptionMutation,
   OrderException,
+  GetOrderExceptionsParams,
 } from "@/api/orderExceptionsApi";
 import { useNotifications } from "@/hooks/useNotifications";
 import { ErrorBoundary } from "@/components/ui/error-boundary";
@@ -93,13 +94,9 @@ export default function NonLagosHubDashboard() {
     useState<OrderException | null>(null);
   const [isNavigatingBack, setIsNavigatingBack] = useState(false);
 
-  // API calls with optimized query parameters
-  const {
-    data: pickupOrdersData,
-    isLoading: pickupLoading,
-    error: pickupError,
-    refetch: refetchPickupOrders,
-  } = useGetOrdersQuery({
+  // Pagination States
+  const [pickupPage, setPickupPage] = useState(1);
+  const [pickupParams, setPickupParams] = useState<GetOrdersParams>({
     pickup: true,
     populate: [
       "items",
@@ -116,22 +113,43 @@ export default function NonLagosHubDashboard() {
     isNonLagosOrder: true,
     sortBy: "createdAt",
     sortDir: "desc",
-    limit: 100,
+    limit: 10,
   });
+
+  const [deliveryPage, setDeliveryPage] = useState(1);
+  const [deliveryParams, setDeliveryParams] = useState<GetOrdersParams>({
+    delivery: true,
+    populate: ["buyer", "seller", "shipment", "shipment.hub"],
+    isNonLagosOrder: true,
+    sortBy: "createdAt",
+    sortDir: "desc",
+    limit: 10,
+  });
+
+  const [exceptionPage, setExceptionPage] = useState(1);
+  const [exceptionParams, setExceptionParams] = useState<GetOrderExceptionsParams>({
+    params: {
+      limit: 10,
+      sortBy: "createdAt",
+      sortDir: "desc",
+      populate: ["buyer", "seller", "order"],
+    },
+  });
+
+  // API calls with optimized query parameters
+  const {
+    data: pickupOrdersData,
+    isLoading: pickupLoading,
+    error: pickupError,
+    refetch: refetchPickupOrders,
+  } = useGetOrdersQuery(pickupParams);
 
   const {
     data: deliveryOrdersData,
     isLoading: deliveryLoading,
     error: deliveryError,
     refetch: refetchDeliveryOrders,
-  } = useGetOrdersQuery({
-    delivery: true,
-    populate: ["buyer", "seller", "shipment", "shipment.hub"],
-    isNonLagosOrder: true,
-    sortBy: "createdAt",
-    sortDir: "desc",
-    limit: 50,
-  });
+  } = useGetOrdersQuery(deliveryParams);
 
   // Riders API
   const [createRider, { isLoading: isCreatingRider }] =
@@ -163,14 +181,131 @@ export default function NonLagosHubDashboard() {
     isLoading: exceptionsLoading,
     error: exceptionsError,
     refetch: refetchExceptions,
-  } = useGetOrderExceptionsQuery({
-    params: {
-      limit: 50,
-      sortBy: "createdAt",
-      sortDir: "desc",
-      populate: ["buyer", "seller", "order"],
-    },
-  });
+  } = useGetOrderExceptionsQuery(exceptionParams);
+
+  // Pagination Handlers
+  const handlePickupNext = useCallback(() => {
+    if (pickupOrdersData?.data?.nextCursor) {
+      setPickupPage((prev) => prev + 1);
+      setPickupParams((prev) => ({
+        ...prev,
+        after: pickupOrdersData.data.nextCursor,
+        before: undefined,
+      }));
+    }
+  }, [pickupOrdersData]);
+
+  const handlePickupPrev = useCallback(() => {
+    if (pickupOrdersData?.data?.prevCursor) {
+      setPickupPage((prev) => Math.max(1, prev - 1));
+      setPickupParams((prev) => ({
+        ...prev,
+        before: pickupOrdersData.data.prevCursor,
+        after: undefined,
+      }));
+    }
+  }, [pickupOrdersData]);
+
+  const handlePickupLimitChange = useCallback((newLimit: number) => {
+    setPickupPage(1);
+    setPickupParams((prev) => ({
+      ...prev,
+      limit: newLimit,
+      after: undefined,
+      before: undefined,
+    }));
+  }, []);
+
+  const handleGoToFirstPickup = useCallback(() => {
+    setPickupPage(1);
+    setPickupParams((prev) => ({
+      ...prev,
+      after: undefined,
+      before: undefined,
+    }));
+  }, []);
+
+  const handleDeliveryNext = useCallback(() => {
+    if (deliveryOrdersData?.data?.nextCursor) {
+      setDeliveryPage((prev) => prev + 1);
+      setDeliveryParams((prev) => ({
+        ...prev,
+        after: deliveryOrdersData.data.nextCursor,
+        before: undefined,
+      }));
+    }
+  }, [deliveryOrdersData]);
+
+  const handleDeliveryPrev = useCallback(() => {
+    if (deliveryOrdersData?.data?.prevCursor) {
+      setDeliveryPage((prev) => Math.max(1, prev - 1));
+      setDeliveryParams((prev) => ({
+        ...prev,
+        before: deliveryOrdersData.data.prevCursor,
+        after: undefined,
+      }));
+    }
+  }, [deliveryOrdersData]);
+
+  const handleDeliveryLimitChange = useCallback((newLimit: number) => {
+    setDeliveryPage(1);
+    setDeliveryParams((prev) => ({
+      ...prev,
+      limit: newLimit,
+      after: undefined,
+      before: undefined,
+    }));
+  }, []);
+
+  const handleGoToFirstDelivery = useCallback(() => {
+    setDeliveryPage(1);
+    setDeliveryParams((prev) => ({
+      ...prev,
+      after: undefined,
+      before: undefined,
+    }));
+  }, []);
+
+  const handleExceptionNext = useCallback(() => {
+    if (orderExceptionsData?.data?.nextCursor) {
+      setExceptionPage((prev) => prev + 1);
+      setExceptionParams((prev) => ({
+        ...prev,
+        after: orderExceptionsData.data.nextCursor,
+        before: undefined,
+      }));
+    }
+  }, [orderExceptionsData]);
+
+  const handleExceptionPrev = useCallback(() => {
+    if (orderExceptionsData?.data?.prevCursor) {
+      setExceptionPage((prev) => Math.max(1, prev - 1));
+      setExceptionParams((prev) => ({
+        ...prev,
+        before: orderExceptionsData.data.prevCursor,
+        after: undefined,
+      }));
+    }
+  }, [orderExceptionsData]);
+
+  const handleExceptionLimitChange = useCallback((newLimit: number) => {
+    setExceptionPage(1);
+    setExceptionParams((prev) => ({
+      ...prev,
+      limit: newLimit,
+      after: undefined,
+      before: undefined,
+    }));
+  }, []);
+
+  const handleGoToFirstException = useCallback(() => {
+    setExceptionPage(1);
+    setExceptionParams((prev) => ({
+      ...prev,
+      after: undefined,
+      before: undefined,
+    }));
+  }, []);
 
   // Error handling with useEffect to prevent infinite re-renders
   useEffect(() => {
@@ -609,6 +744,14 @@ export default function NonLagosHubDashboard() {
               isLoading={pickupLoading}
               error={pickupErrorMessage}
               onRefresh={refetchPickupOrders}
+              hasNext={pickupOrdersData?.data?.hasNext}
+              hasPrev={pickupOrdersData?.data?.hasPrev}
+              onNextPage={handlePickupNext}
+              onPrevPage={handlePickupPrev}
+              currentPage={pickupPage}
+              limit={pickupParams.limit}
+              onLimitChange={handlePickupLimitChange}
+              onGoToFirst={handleGoToFirstPickup}
             />
           )}
         </ErrorBoundary>
@@ -626,6 +769,14 @@ export default function NonLagosHubDashboard() {
               isLoading={deliveryLoading}
               error={deliveryErrorMessage}
               onRefresh={refetchDeliveryOrders}
+              hasNext={deliveryOrdersData?.data?.hasNext}
+              hasPrev={deliveryOrdersData?.data?.hasPrev}
+              onNextPage={handleDeliveryNext}
+              onPrevPage={handleDeliveryPrev}
+              currentPage={deliveryPage}
+              limit={deliveryParams.limit}
+              onLimitChange={handleDeliveryLimitChange}
+              onGoToFirst={handleGoToFirstDelivery}
             />
           )}
         </ErrorBoundary>
@@ -641,6 +792,14 @@ export default function NonLagosHubDashboard() {
           isLoading={exceptionsLoading}
           error={getErrorMessage(exceptionsError)}
           onRefresh={refetchExceptions}
+          hasNext={orderExceptionsData?.data?.hasNext}
+          hasPrev={orderExceptionsData?.data?.hasPrev}
+          onNextPage={handleExceptionNext}
+          onPrevPage={handleExceptionPrev}
+          currentPage={exceptionPage}
+          limit={exceptionParams.params?.limit || 10}
+          onLimitChange={handleExceptionLimitChange}
+          onGoToFirst={handleGoToFirstException}
         />
 
         {/* Modals */}
@@ -722,6 +881,11 @@ export default function NonLagosHubDashboard() {
             orderExceptionsData?.data?.items?.find(
               (ex: OrderException) => ex.id === selectedException,
             )?.orderId || ""
+          }
+          status={
+            orderExceptionsData?.data?.items?.find(
+              (ex: OrderException) => ex.id === selectedException,
+            )?.status || ""
           }
           onResolve={handleResolveExceptionSubmit}
           isLoading={isResolvingException}

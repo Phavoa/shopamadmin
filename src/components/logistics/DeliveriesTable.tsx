@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { PackageIcon } from "./LogisticsIcons";
 import { ErrorFallback } from "@/components/ui/error-boundary";
 import { OrdersEmptyState } from "@/components/ui/empty-state";
+import LogisticsPagination from "./LogisticsPagination";
 
 interface Order {
   id: string;
@@ -34,6 +35,15 @@ interface DeliveriesTableProps {
   isLoading?: boolean;
   error?: string | null;
   onRefresh?: () => void;
+  // Pagination props
+  hasNext?: boolean;
+  hasPrev?: boolean;
+  onNextPage?: () => void;
+  onPrevPage?: () => void;
+  currentPage?: number;
+  limit?: number;
+  onLimitChange?: (newLimit: number) => void;
+  onGoToFirst?: () => void;
 }
 
 const statusColor = (status: string) => {
@@ -90,6 +100,14 @@ export default function DeliveriesTable({
   isLoading = false,
   error = null,
   onRefresh,
+  hasNext = false,
+  hasPrev = false,
+  onNextPage = () => {},
+  onPrevPage = () => {},
+  currentPage = 1,
+  limit = 10,
+  onLimitChange,
+  onGoToFirst,
 }: DeliveriesTableProps) {
   const router = useRouter();
 
@@ -219,6 +237,19 @@ export default function DeliveriesTable({
           </tbody>
         </table>
       </div>
+
+      <LogisticsPagination
+        currentPage={currentPage}
+        hasNext={hasNext}
+        hasPrev={hasPrev}
+        onNext={onNextPage}
+        onPrev={onPrevPage}
+        count={deliveries.length}
+        entityName="deliveries"
+        limit={limit}
+        onLimitChange={onLimitChange}
+        onGoToFirst={onGoToFirst}
+      />
     </Card>
   );
 }

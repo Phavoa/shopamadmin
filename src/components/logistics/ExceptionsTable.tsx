@@ -1,9 +1,11 @@
 // src/components/logistics/ExceptionsTable.tsx
 
+import React from "react";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { AlertTriangle } from "lucide-react";
+import LogisticsPagination from "./LogisticsPagination";
 
 interface Exception {
   order: string;
@@ -22,6 +24,15 @@ interface ExceptionsTableProps {
   isLoading?: boolean;
   error?: string | null;
   onRefresh?: () => void;
+  // Pagination props
+  hasNext?: boolean;
+  hasPrev?: boolean;
+  onNextPage?: () => void;
+  onPrevPage?: () => void;
+  currentPage?: number;
+  limit?: number;
+  onLimitChange?: (newLimit: number) => void;
+  onGoToFirst?: () => void;
 }
 
 const getStatusColor = (status: string) => {
@@ -42,6 +53,14 @@ export default function ExceptionsTable({
   onInvestigate,
   onRequestMoreEvidence,
   onResolveException,
+  hasNext = false,
+  hasPrev = false,
+  onNextPage = () => {},
+  onPrevPage = () => {},
+  currentPage = 1,
+  limit = 10,
+  onLimitChange,
+  onGoToFirst,
 }: ExceptionsTableProps) {
   return (
     <Card>
@@ -110,6 +129,19 @@ export default function ExceptionsTable({
           </tbody>
         </table>
       </div>
+
+      <LogisticsPagination
+        currentPage={currentPage}
+        hasNext={hasNext}
+        hasPrev={hasPrev}
+        onNext={onNextPage}
+        onPrev={onPrevPage}
+        count={exceptions.length}
+        entityName="exceptions"
+        limit={limit}
+        onLimitChange={onLimitChange}
+        onGoToFirst={onGoToFirst}
+      />
     </Card>
   );
 }

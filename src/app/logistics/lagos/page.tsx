@@ -5,7 +5,7 @@ import { useState, useCallback, useMemo, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Plus, RefreshCw, Search, LayoutDashboard, Loader2 } from "lucide-react";
-import { useGetOrdersQuery, Order } from "@/api/orderApi";
+import { useGetOrdersQuery, Order, GetOrdersParams } from "@/api/orderApi";
 import { useCreateRiderMutation, useGetRidersQuery } from "@/api/ridersApi";
 import {
   useAssignRiderToShipmentMutation,
@@ -16,6 +16,7 @@ import {
   useRequestMoreEvidenceMutation,
   useResolveExceptionMutation,
   OrderException,
+  GetOrderExceptionsParams,
 } from "@/api/orderExceptionsApi";
 import { useNotifications } from "@/hooks/useNotifications";
 import { ErrorBoundary } from "@/components/ui/error-boundary";
@@ -47,12 +48,14 @@ interface LogisticsOrder {
   pickupAddress?: string;
   deliveryAddress?: string;
   phone: string;
+  email?: string;
   status: string;
   shipment?: {
     status: string;
     hubId?: string;
     assignedRiderId?: string | null;
     pickupRequestId?: string | null;
+    hub?: any;
   };
 }
 
@@ -92,34 +95,49 @@ export default function LagosHubDashboard() {
     useState<OrderException | null>(null);
   const [isNavigatingBack, setIsNavigatingBack] = useState(false);
 
-  // API calls with optimized query parameters
+  // Pagination States
+  const [pickupPage, setPickupPage] = useState(1);
+  const [pickupParams, setPickupParams] = useState<GetOrdersParams>({
+    pickup: true,
+    populate: ["buyer", "seller", "shipment", "shipment.hub"],
+    isLagosOrder: true,
+    sortBy: "createdAt",
+    sortDir: "desc",
+    limit: 10,
+  });
+
+  const [deliveryPage, setDeliveryPage] = useState(1);
+  const [deliveryParams, setDeliveryParams] = useState<GetOrdersParams>({
+    delivery: true,
+    populate: ["buyer", "seller", "shipment"],
+    isLagosOrder: true,
+    sortBy: "createdAt",
+    sortDir: "desc",
+    limit: 10,
+  });
+
+  const [exceptionPage, setExceptionPage] = useState(1);
+  const [exceptionParams, setExceptionParams] = useState<GetOrderExceptionsParams>({
+    limit: 10,
+    sortBy: "createdAt",
+    sortDir: "desc",
+    populate: ["buyer", "seller", "order"],
+  });
+
+  // API calls with managed parameters
   const {
     data: pickupOrdersData,
     isLoading: pickupLoading,
     error: pickupError,
     refetch: refetchPickupOrders,
-  } = useGetOrdersQuery({
-    pickup: true,
-    populate: ["buyer", "seller", "shipment"],
-    isLagosOrder: true,
-    sortBy: "createdAt",
-    sortDir: "desc",
-    limit: 50,
-  });
+  } = useGetOrdersQuery(pickupParams);
 
   const {
     data: deliveryOrdersData,
     isLoading: deliveryLoading,
     error: deliveryError,
     refetch: refetchDeliveryOrders,
-  } = useGetOrdersQuery({
-    delivery: true,
-    populate: ["buyer", "seller", "shipment"],
-    isLagosOrder: true,
-    sortBy: "createdAt",
-    sortDir: "desc",
-    limit: 50,
-  });
+  } = useGetOrdersQuery(deliveryParams);
 
   // Riders API
   const [createRider, { isLoading: isCreatingRider }] =
@@ -152,12 +170,7 @@ export default function LagosHubDashboard() {
     error: exceptionsError,
     refetch: refetchExceptions,
   } = useGetOrderExceptionsQuery({
-    params: {
-      limit: 50,
-      sortBy: "createdAt",
-      sortDir: "desc",
-      populate: ["buyer", "seller", "order"],
-    },
+    params: exceptionParams,
   });
 
   // Error handling with useEffect to prevent infinite re-renders
@@ -210,10 +223,18 @@ export default function LagosHubDashboard() {
         order.sellerProfile?.shopName ||
         order.sellerProfile?.businessName ||
         "Unknown Seller",
-      pickupAddress:
-        `${order.shipFromSnapshot?.state}, ${order.shipFromSnapshot?.city}, ${order.shipFromSnapshot?.line1}` ||
-        "Address not available",
-      phone: order.shipFromSnapshot?.phone || "Phone not available",
+      pickupAddress: order.shipment?.hub
+        ? `${order.shipment.hub.state}, ${order.shipment.hub.city}, ${order.shipment.hub.address}`
+        : `${order.shipFromSnapshot?.state}, ${order.shipFromSnapshot?.city}, ${order.shipFromSnapshot?.line1}` ||
+          "Address not available",
+      phone:
+        order.shipment?.hub?.phone ||
+        order.shipFromSnapshot?.phone ||
+        "Phone not available",
+      email:
+        order.shipment?.hub?.email ||
+        order.shipFromSnapshot?.email ||
+        "Email not available",
       status: order.shipment?.status || "AWAITING_SELLER_SHIPMENT",
       shipment: order.shipment,
     }));
@@ -291,6 +312,130 @@ export default function LagosHubDashboard() {
     ],
     [],
   );
+
+  // Pagination Handlers
+  const handleNextPickup = useCallback(() => {
+    if (pickupOrdersData?.data?.hasNext && pickupOrdersData.data.nextCursor) {
+      setPickupPage((p) => p + 1);
+      setPickupParams((prev) => ({
+        ...prev,
+        after: pickupOrdersData.data.nextCursor!,
+        before: undefined,
+      }));
+    }
+  }, [pickupOrdersData]);
+
+  const handlePrevPickup = useCallback(() => {
+    if (pickupOrdersData?.data?.hasPrev && pickupOrdersData.data.prevCursor) {
+      setPickupPage((p) => Math.max(1, p - 1));
+      setPickupParams((prev) => ({
+        ...prev,
+        before: pickupOrdersData.data.prevCursor!,
+        after: undefined,
+      }));
+    }
+  }, [pickupOrdersData]);
+
+  const handleNextDelivery = useCallback(() => {
+    if (deliveryOrdersData?.data?.hasNext && deliveryOrdersData.data.nextCursor) {
+      setDeliveryPage((p) => p + 1);
+      setDeliveryParams((prev) => ({
+        ...prev,
+        after: deliveryOrdersData.data.nextCursor!,
+        before: undefined,
+      }));
+    }
+  }, [deliveryOrdersData]);
+
+  const handlePrevDelivery = useCallback(() => {
+    if (deliveryOrdersData?.data?.hasPrev && deliveryOrdersData.data.prevCursor) {
+      setDeliveryPage((p) => Math.max(1, p - 1));
+      setDeliveryParams((prev) => ({
+        ...prev,
+        before: deliveryOrdersData.data.prevCursor!,
+        after: undefined,
+      }));
+    }
+  }, [deliveryOrdersData]);
+
+  const handleNextException = useCallback(() => {
+    if (orderExceptionsData?.data?.hasNext && orderExceptionsData.data.nextCursor) {
+      setExceptionPage((p) => p + 1);
+      setExceptionParams((prev) => ({
+        ...prev,
+        after: orderExceptionsData.data.nextCursor!,
+        before: undefined,
+      }));
+    }
+  }, [orderExceptionsData]);
+
+  const handlePrevException = useCallback(() => {
+    if (orderExceptionsData?.data?.hasPrev && orderExceptionsData.data.prevCursor) {
+      setExceptionPage((p) => Math.max(1, p - 1));
+      setExceptionParams((prev) => ({
+        ...prev,
+        before: orderExceptionsData.data.prevCursor!,
+        after: undefined,
+      }));
+    }
+  }, [orderExceptionsData]);
+
+  const handlePickupLimitChange = useCallback((newLimit: number) => {
+    setPickupPage(1);
+    setPickupParams((prev) => ({
+      ...prev,
+      limit: newLimit,
+      after: undefined,
+      before: undefined,
+    }));
+  }, []);
+
+  const handleDeliveryLimitChange = useCallback((newLimit: number) => {
+    setDeliveryPage(1);
+    setDeliveryParams((prev) => ({
+      ...prev,
+      limit: newLimit,
+      after: undefined,
+      before: undefined,
+    }));
+  }, []);
+
+  const handleExceptionLimitChange = useCallback((newLimit: number) => {
+    setExceptionPage(1);
+    setExceptionParams((prev) => ({
+      ...prev,
+      limit: newLimit,
+      after: undefined,
+      before: undefined,
+    }));
+  }, []);
+
+  const handleGoToFirstPickup = useCallback(() => {
+    setPickupPage(1);
+    setPickupParams((prev) => ({
+      ...prev,
+      after: undefined,
+      before: undefined,
+    }));
+  }, []);
+
+  const handleGoToFirstDelivery = useCallback(() => {
+    setDeliveryPage(1);
+    setDeliveryParams((prev) => ({
+      ...prev,
+      after: undefined,
+      before: undefined,
+    }));
+  }, []);
+
+  const handleGoToFirstException = useCallback(() => {
+    setExceptionPage(1);
+    setExceptionParams((prev) => ({
+      ...prev,
+      after: undefined,
+      before: undefined,
+    }));
+  }, []);
 
   // Event handlers
   const handleAssignRider = useCallback((orderId: string) => {
@@ -592,6 +737,14 @@ export default function LagosHubDashboard() {
               isLoading={pickupLoading}
               error={pickupErrorMessage}
               onRefresh={refetchPickupOrders}
+              hasNext={pickupOrdersData?.data?.hasNext}
+              hasPrev={pickupOrdersData?.data?.hasPrev}
+              onNextPage={handleNextPickup}
+              onPrevPage={handlePrevPickup}
+              currentPage={pickupPage}
+              limit={pickupParams.limit}
+              onLimitChange={handlePickupLimitChange}
+              onGoToFirst={handleGoToFirstPickup}
             />
           )}
         </ErrorBoundary>
@@ -609,6 +762,14 @@ export default function LagosHubDashboard() {
               isLoading={deliveryLoading}
               error={deliveryErrorMessage}
               onRefresh={refetchDeliveryOrders}
+              hasNext={deliveryOrdersData?.data?.hasNext}
+              hasPrev={deliveryOrdersData?.data?.hasPrev}
+              onNextPage={handleNextDelivery}
+              onPrevPage={handlePrevDelivery}
+              currentPage={deliveryPage}
+              limit={deliveryParams.limit}
+              onLimitChange={handleDeliveryLimitChange}
+              onGoToFirst={handleGoToFirstDelivery}
             />
           )}
         </ErrorBoundary>
@@ -625,6 +786,14 @@ export default function LagosHubDashboard() {
           isLoading={exceptionsLoading}
           error={getErrorMessage(exceptionsError)}
           onRefresh={refetchExceptions}
+          hasNext={orderExceptionsData?.data?.hasNext}
+          hasPrev={orderExceptionsData?.data?.hasPrev}
+          onNextPage={handleNextException}
+          onPrevPage={handlePrevException}
+          currentPage={exceptionPage}
+          limit={exceptionParams.limit}
+          onLimitChange={handleExceptionLimitChange}
+          onGoToFirst={handleGoToFirstException}
         />
 
         {/* Modals */}
@@ -692,6 +861,11 @@ export default function LagosHubDashboard() {
             orderExceptionsData?.data?.items?.find(
               (ex: OrderException) => ex.id === selectedException,
             )?.orderId || ""
+          }
+          status={
+            orderExceptionsData?.data?.items?.find(
+              (ex: OrderException) => ex.id === selectedException,
+            )?.status || ""
           }
           onResolve={handleResolveExceptionSubmit}
           isLoading={isResolvingException}
