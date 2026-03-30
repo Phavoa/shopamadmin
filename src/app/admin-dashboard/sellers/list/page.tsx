@@ -47,6 +47,7 @@ interface DisplaySeller {
   completedOrders?: number;
   activeListings?: number;
   nextSlot?: string;
+  effectiveTierName?: string;
 }
 
 const Page = () => {
@@ -182,6 +183,7 @@ const Page = () => {
             completedOrders: totalOrders, // Fallback if completed not available
             activeListings: 35,
             nextSlot: "None",
+            effectiveTierName: seller.effectiveLivestreamTier?.name,
           };
         },
       );

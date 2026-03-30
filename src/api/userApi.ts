@@ -383,6 +383,30 @@ export const userApi = createApi({
       }),
       providesTags: (result, error, userId) => [{ type: "User", id: userId }],
     }),
+
+    // Override livestream tier
+    overrideLivestreamTier: builder.mutation<
+      ApiResponse<any>,
+      { userId: string; tierId: string; reason: string }
+    >({
+      query: ({ userId, tierId, reason }) => ({
+        url: `/seller/admin/${userId}/livestream-tier/override`,
+        method: "POST",
+        body: { tierId, reason },
+      }),
+      invalidatesTags: (result, error, { userId }) => [
+        { type: "User", id: userId },
+      ],
+    }),
+
+    // Reset livestream tier
+    resetLivestreamTier: builder.mutation<ApiResponse<any>, string>({
+      query: (userId) => ({
+        url: `/seller/admin/${userId}/livestream-tier/reset`,
+        method: "POST",
+      }),
+      invalidatesTags: (result, error, userId) => [{ type: "User", id: userId }],
+    }),
   }),
 });
 
@@ -398,4 +422,6 @@ export const {
   useGetStatesQuery,
   useGetUsersQuery,
   useGetUserByIdQuery,
+  useOverrideLivestreamTierMutation,
+  useResetLivestreamTierMutation,
 } = userApi;

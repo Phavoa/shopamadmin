@@ -23,6 +23,7 @@ interface DisplaySeller {
   completedOrders?: number;
   activeListings?: number;
   nextSlot?: string;
+  effectiveTierName?: string;
 }
 
 interface SellerRowProps {
@@ -47,13 +48,11 @@ const SellerRow: React.FC<SellerRowProps> = ({
         {seller.shopName}
       </TableCell>
       <TableCell className="py-4 px-6">
-        <Badge
-          className={`inline-flex px-3 py-1 rounded-full text-xs font-medium border-0 ${getTierBadgeStyles(
-            seller.tier
-          )}`}
-        >
-          {seller.tier}
-        </Badge>
+        {seller.effectiveTierName && (
+          <div className="text-sm text-gray-700 mt-0.5 ml-1">
+            {seller.effectiveTierName}
+          </div>
+        )}
       </TableCell>
       <TableCell className="py-4 px-6 text-sm text-black">
         {seller.lastLive}
@@ -62,7 +61,9 @@ const SellerRow: React.FC<SellerRowProps> = ({
         {seller.reliability}
       </TableCell>
       <TableCell className="py-4 px-6 text-sm text-black">
-        {seller.strikes && seller.strikes > 0 ? `Strike(${seller.strikes}/3)` : "0"}
+        {seller.strikes && seller.strikes > 0
+          ? `Strike(${seller.strikes}/3)`
+          : "0"}
       </TableCell>
       <TableCell className="py-4 px-6 text-sm text-black">
         ₦{parseFloat(seller.totalSales).toLocaleString()}

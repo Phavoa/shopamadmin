@@ -27,6 +27,7 @@ import { revenueReportsApi } from "../../api/revenueReportsApi";
 import { weeklySummaryApi } from "../../api/weeklySummaryApi";
 import { feeConfigApi } from "../../api/feeConfigApi";
 import { withdrawalsApi } from "../../api/withdrawalsApi";
+import { supportChatApi } from "@/api/supportChatApi";
 
 import {
   FLUSH,
@@ -73,6 +74,7 @@ const rootReducer = combineReducers({
   [weeklySummaryApi.reducerPath]: weeklySummaryApi.reducer,
   [feeConfigApi.reducerPath]: feeConfigApi.reducer,
   [withdrawalsApi.reducerPath]: withdrawalsApi.reducer,
+  [supportChatApi.reducerPath]: supportChatApi.reducer,
 
   auth: authReducer,
   header: headerReducer,
@@ -113,6 +115,7 @@ export const store = configureStore({
       weeklySummaryApi.middleware,
       feeConfigApi.middleware,
       withdrawalsApi.middleware,
+      supportChatApi.middleware,
     ),
   devTools: process.env.NODE_ENV !== "production",
 });

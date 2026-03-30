@@ -22,6 +22,7 @@ import {
   Loader2,
   X,
   Store,
+  MessageSquare,
 } from "lucide-react";
 import Link from "next/link";
 import { useLogoutMutation } from "@/api/authApi";
@@ -117,6 +118,9 @@ function Sidebar() {
       else if (pathname === "/admin-dashboard/reports/seller-leaderboard") setActiveSubItem("reports-seller");
       else if (pathname === "/admin-dashboard/reports/buyer-insights") setActiveSubItem("reports-buyer");
       else setActiveSubItem(null);
+    } else if (pathname.startsWith("/admin-dashboard/support")) {
+      setActiveMainItem("support");
+      setActiveSubItem(null);
     } else if (pathname.startsWith("/admin-dashboard/settings")) {
       setActiveMainItem("settings");
       setActiveSubItem(null);
@@ -361,6 +365,18 @@ function Sidebar() {
                 </li>
               </ul>
             </div>
+          </li>
+
+          {/* Support */}
+          <li>
+            <button
+              onClick={() => handleNavClick("support", "/admin-dashboard/support")}
+              disabled={isNavigating && navigatingTo !== "support"}
+              className={mainItemClass("support")}
+            >
+              {spinnerOrIcon("support", <MessageSquare className="w-[var(--icon-size-sm)] h-[var(--icon-size-sm)]" />)}
+              <span>Support</span>
+            </button>
           </li>
 
         </ul>

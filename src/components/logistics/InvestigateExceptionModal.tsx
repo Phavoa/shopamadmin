@@ -79,6 +79,13 @@ export default function InvestigateExceptionModal({
     }
   }, [copiedPhone]);
 
+  // Reset processing state when modal opens
+  useEffect(() => {
+    if (isOpen) {
+      setIsProcessing(false);
+    }
+  }, [isOpen]);
+
   // Keyboard navigation for image viewer
   useEffect(() => {
     const handleKeyPress = (event: KeyboardEvent) => {
@@ -185,7 +192,6 @@ export default function InvestigateExceptionModal({
         exId: exception.id,
         data: { note },
       }).unwrap();
-      setIsProcessing(true);
       setShowRequestEvidenceModal(false);
       showSuccess("Evidence request sent successfully");
     } catch (error) {
@@ -207,6 +213,7 @@ export default function InvestigateExceptionModal({
     } catch (error) {
       console.error("Failed to approve refund:", error);
       showError("Failed to approve refund");
+      setIsProcessing(false);
     }
   };
 
@@ -223,6 +230,7 @@ export default function InvestigateExceptionModal({
     } catch (error) {
       console.error("Failed to close exception:", error);
       showError("Failed to close exception");
+      setIsProcessing(false);
     }
   };
 

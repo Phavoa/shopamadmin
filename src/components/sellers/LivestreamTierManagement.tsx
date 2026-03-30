@@ -1,11 +1,15 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { AnimatedWrapper } from "@/components/shared/AnimatedWrapper";
 import { User } from "@/types/auth";
-
-type TierType = "Beginner" | "Bronze" | "Gold";
+import { toast } from "react-hot-toast";
+import { useGetLivestreamTiersQuery } from "@/api/slotApi";
+import {
+  useOverrideLivestreamTierMutation,
+  useResetLivestreamTierMutation,
+} from "@/api/userApi";
 
 interface DisplaySeller {
   id: string;
@@ -26,6 +30,13 @@ interface DisplaySeller {
   completedOrders?: number;
   activeListings?: number;
   nextSlot?: string;
+  manualLivestreamTierId?: string | null;
+  effectiveTier?: {
+    name: string;
+    durationMinutes: number;
+    maxViewers: number;
+    key: string;
+  };
 }
 
 interface SellerProfile {
@@ -99,33 +110,83 @@ const LivestreamTierManagement: React.FC<LivestreamTierManagementProps> = ({
   user,
   seller,
 }) => {
-  // Initialize with actual tier from API data
-  const getInitialTier = (): TierType => {
-    if (!displaySeller?.tier) return "Bronze";
-
-    const tier = displaySeller.tier.toLowerCase();
-    if (tier.includes("beginner")) return "Beginner";
-    if (tier.includes("gold")) return "Gold";
-    return "Bronze"; // Default fallback
-  };
-
-  const [selectedTier, setSelectedTier] = useState<TierType>(getInitialTier());
+  const { data: tiersResponse, isLoading: tiersLoading } =
+    useGetLivestreamTiersQuery({ limit: 3, allowedIntents: ["SCHEDULED"] });
+  const [overrideLivestreamTier] = useOverrideLivestreamTierMutation();
+  const [resetLivestreamTier] = useResetLivestreamTierMutation();
+  const [selectedTierId, setSelectedTierId] = useState<string>("");
   const [overrideReason, setOverrideReason] = useState("");
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
-  const handleApplyOverride = () => {
-    console.log("Applying override:", {
-      tier: selectedTier,
-      reason: overrideReason,
-      currentTier: displaySeller?.tier,
-    });
-    // Handle override logic here
+  // Initialize selected tier
+  useEffect(() => {
+    if (tiersResponse?.data?.items && displaySeller?.tier && !selectedTierId) {
+      const initial = tiersResponse.data.items.find(
+        (t) => t.name.toLowerCase() === displaySeller.tier.toLowerCase(),
+      );
+      if (initial) setSelectedTierId(initial.id);
+      else if (tiersResponse.data.items.length > 0)
+        setSelectedTierId(tiersResponse.data.items[0].id);
+    }
+  }, [tiersResponse?.data?.items, displaySeller?.tier, selectedTierId]);
+
+  const handleApplyOverride = async () => {
+    if (!seller?.userId) {
+      toast.error("Seller ID not found");
+      return;
+    }
+
+    if (!selectedTierId) {
+      toast.error("Please select a tier");
+      return;
+    }
+
+    if (!overrideReason.trim()) {
+      toast.error("Please provide a reason for the override");
+      return;
+    }
+
+    try {
+      setIsSubmitting(true);
+      await overrideLivestreamTier({
+        userId: seller.userId,
+        tierId: selectedTierId,
+        reason: overrideReason.trim(),
+      }).unwrap();
+      toast.success("Livestream tier overridden successfully");
+      setOverrideReason("");
+
+      // Removed window.location.reload() - RTK Query handles refetch via tag invalidation
+    } catch (error) {
+      console.error("Override error:", error);
+      toast.error(
+        error instanceof Error ? error.message : "Failed to override tier",
+      );
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
-  const handleResetToAuto = () => {
-    console.log("Resetting to auto");
-    setSelectedTier(getInitialTier());
-    setOverrideReason("");
-    // Handle reset logic here
+  const handleResetToAuto = async () => {
+    if (!seller?.userId) {
+      toast.error("Seller ID not found");
+      return;
+    }
+
+    try {
+      setIsSubmitting(true);
+      await resetLivestreamTier(seller.userId).unwrap();
+      toast.success("Livestream tier reset to auto successfully");
+      setSelectedTierId(""); // Clear selection to trigger re-initialization from new props
+      setOverrideReason("");
+    } catch (error) {
+      console.error("Reset error:", error);
+      toast.error(
+        error instanceof Error ? error.message : "Failed to reset tier",
+      );
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   return (
@@ -141,14 +202,48 @@ const LivestreamTierManagement: React.FC<LivestreamTierManagementProps> = ({
 
               {/* Current Tier Info */}
               <div className="space-y-3 mb-6">
-                <InfoRow
-                  label="Current Tier:"
-                  value={displaySeller.tier || "N/A"}
-                />
+                <div className="flex flex-wrap items-baseline gap-1">
+                  <span className="text-sm md:text-base font-semibold text-gray-900">
+                    Current Tier:
+                  </span>
+                  <span className="text-sm md:text-base text-blue-600 font-bold">
+                    {displaySeller.effectiveTier?.name || "N/A"}
+                  </span>
+                  {!displaySeller.manualLivestreamTierId && (
+                    <span className="text-[10px] bg-green-100 text-green-700 px-1.5 py-0.5 rounded-full font-medium ml-1">
+                      Auto
+                    </span>
+                  )}
+                  {displaySeller.manualLivestreamTierId && (
+                    <span className="text-[10px] bg-amber-100 text-amber-700 px-1.5 py-0.5 rounded-full font-medium ml-1">
+                      Overridden
+                    </span>
+                  )}
+                </div>
+                {displaySeller.effectiveTier && (
+                  <div className="grid grid-cols-2 gap-2 mt-1 p-2 bg-gray-50 rounded-lg border border-gray-100">
+                    <div>
+                      <p className="text-[10px] uppercase tracking-wider text-gray-500 font-bold">
+                        Max Duration
+                      </p>
+                      <p className="text-sm font-semibold text-gray-900">
+                        {displaySeller.effectiveTier.durationMinutes} mins
+                      </p>
+                    </div>
+                    <div>
+                      <p className="text-[10px] uppercase tracking-wider text-gray-500 font-bold">
+                        Max Viewers
+                      </p>
+                      <p className="text-sm font-semibold text-gray-900">
+                        {displaySeller.effectiveTier.maxViewers.toLocaleString()}
+                      </p>
+                    </div>
+                  </div>
+                )}
                 <InfoRow
                   label="Auto-eligibility:"
                   value={`Sales: ₦${parseFloat(
-                    displaySeller.totalSales
+                    displaySeller.totalSales,
                   ).toLocaleString()}`}
                 />
                 <InfoRow
@@ -159,10 +254,10 @@ const LivestreamTierManagement: React.FC<LivestreamTierManagementProps> = ({
                   label="Shop Name:"
                   value={displaySeller.shopName || "N/A"}
                 />
-                <InfoRow
+                {/* <InfoRow
                   label="Business Name:"
                   value={seller?.businessName || "N/A"}
-                />
+                /> */}
               </div>
 
               {/* Manual Override Section */}
@@ -172,30 +267,30 @@ const LivestreamTierManagement: React.FC<LivestreamTierManagementProps> = ({
                 </h2>
 
                 {/* Tier Selection Buttons */}
-                <div className="grid grid-cols-3 gap-3 mb-4">
-                  <TierButton
-                    label="Beginner"
-                    isSelected={selectedTier === "Beginner"}
-                    onClick={() => setSelectedTier("Beginner")}
-                  />
-                  <TierButton
-                    label="Bronze"
-                    isSelected={selectedTier === "Bronze"}
-                    onClick={() => setSelectedTier("Bronze")}
-                  />
-                  <TierButton
-                    label="Gold"
-                    isSelected={selectedTier === "Gold"}
-                    onClick={() => setSelectedTier("Gold")}
-                  />
-                </div>
+                {tiersLoading ? (
+                  <div className="text-sm text-gray-500 mb-4 animate-pulse">
+                    Loading tiers...
+                  </div>
+                ) : (
+                  <div className="flex flex-wrap gap-2 mb-4">
+                    {tiersResponse?.data?.items?.map((tier) => (
+                      <TierButton
+                        key={tier.id}
+                        label={tier.name}
+                        isSelected={selectedTierId === tier.id}
+                        onClick={() => setSelectedTierId(tier.id)}
+                      />
+                    ))}
+                  </div>
+                )}
 
                 {/* Apply Override Button */}
                 <Button
                   onClick={handleApplyOverride}
-                  className="w-full bg-[#E67E22] hover:bg-orange-600 text-white font-medium py-6 rounded-lg transition-colors mb-4"
+                  disabled={isSubmitting}
+                  className="w-full bg-[#E67E22] hover:bg-orange-600 text-white font-medium py-6 rounded-lg transition-colors mb-4 disabled:opacity-70 disabled:cursor-not-allowed"
                 >
-                  Apply Override
+                  {isSubmitting ? "Applying..." : "Apply Override"}
                 </Button>
 
                 {/* Reason Input */}
@@ -208,13 +303,13 @@ const LivestreamTierManagement: React.FC<LivestreamTierManagementProps> = ({
                 />
               </div>
 
-              {/* Reset Button */}
               <Button
                 onClick={handleResetToAuto}
+                disabled={isSubmitting}
                 variant="outline"
-                className="w-full border border-[#E67E22] text-[#E67E22]  hover:bg-[#E67E22]/50 hover:text-[#E67E22] font-medium py-4 rounded-lg transition-colors"
+                className="w-full border border-[#E67E22] text-[#E67E22]  hover:bg-[#E67E22]/50 hover:text-[#E67E22] font-medium py-4 rounded-lg transition-colors disabled:opacity-70"
               >
-                Reset to Auto
+                {isSubmitting ? "Resetting..." : "Reset to Auto"}
               </Button>
             </div>
           </Card>

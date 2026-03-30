@@ -42,10 +42,19 @@ const MAX_ACTIVITY_ITEMS = 100;
 const REACTION_FLUSH_MS = 500;
 const RECONNECT_FLAG_TIMEOUT_MS = 3000;
 
-const WS_URL =
-  process.env.NEXT_PUBLIC_WS_URL ||
-  process.env.NEXT_PUBLIC_API_URL?.replace("/api", "") ||
-  "https://shapam-ecomerce-backend.onrender.com";
+const API_URL = process.env.NEXT_PUBLIC_API_URL || "https://shapam-ecomerce-backend.onrender.com/api";
+
+const resolveWsUrl = (apiUrl: string) => {
+  try {
+    const url = new URL(apiUrl.trim());
+    const pathname = url.pathname.replace(/\/api\/?$/, "");
+    return `${url.protocol}//${url.host}${pathname}`;
+  } catch (e) {
+    return apiUrl.trim().replace(/\/api\/?$/, "");
+  }
+};
+
+const WS_URL = process.env.NEXT_PUBLIC_WS_URL || resolveWsUrl(API_URL);
 
 // ─── Reducer ──────────────────────────────────────────────────────────────────
 

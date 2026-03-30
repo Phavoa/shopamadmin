@@ -56,6 +56,7 @@ const SellerStatsGrid: React.FC<SellerStatsGridProps> = ({
   displaySeller,
   user,
 }) => {
+  console.log(displaySeller);
   return (
     <AnimatedWrapper animation="fadeIn" delay={0.3}>
       <div className="px-5 md:px-6">
@@ -85,15 +86,17 @@ const SellerStatsGrid: React.FC<SellerStatsGridProps> = ({
               user?.totalSpent
                 ? `₦${(parseInt(user.totalSpent) / 100).toLocaleString()}`
                 : displaySeller.totalSales
-                ? `₦${parseFloat(displaySeller.totalSales).toLocaleString()}`
-                : "N/A"
+                  ? `₦${parseFloat(displaySeller.totalSales).toLocaleString()}`
+                  : "N/A"
             }
             className="col-span-2 md:col-span-2"
           />
           <StatItem
             label="Status"
             value={
-              (user?.disciplineStatus || displaySeller.status).charAt(0).toUpperCase() +
+              (user?.disciplineStatus || displaySeller.status)
+                .charAt(0)
+                .toUpperCase() +
               (user?.disciplineStatus || displaySeller.status).slice(1)
             }
             className="col-span-2"
@@ -110,7 +113,7 @@ const SellerStatsGrid: React.FC<SellerStatsGridProps> = ({
           />
           <StatItem
             label="Location"
-            value={displaySeller.location || "N/A"}
+            value={displaySeller.location?.line1 || "N/A"}
             className="col-span-2 md:col-span-3"
           />
         </div>

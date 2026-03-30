@@ -22,6 +22,7 @@ export interface ShipmentEvent {
   id: string;
   status: string;
   note: string;
+  description?: string;
   createdAt: string;
 }
 

@@ -20,6 +20,16 @@ export interface Address {
   };
 }
 
+export interface LivestreamTier {
+  id: string;
+  key: string;
+  name: string;
+  durationMinutes: number;
+  maxViewers: number;
+  minTotalSales: string;
+  allowedIntents: string[];
+}
+
 export interface SellerProfile {
   id: string;
   userId: string;
@@ -37,6 +47,8 @@ export interface SellerProfile {
   totalSales: string;
   createdAt: string;
   updatedAt: string;
+  manualLivestreamTierId?: string | null;
+  effectiveLivestreamTier?: LivestreamTier;
 }
 
 export interface UserProfileVM {

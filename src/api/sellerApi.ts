@@ -26,6 +26,16 @@ export interface SellerProfileVM {
   updatedAt: string;
   nextStep: string;
   nextEndpoint: string;
+  manualLivestreamTierId?: string | null;
+  effectiveLivestreamTier?: {
+    id: string;
+    key: string;
+    name: string;
+    durationMinutes: number;
+    maxViewers: number;
+    minTotalSales: string;
+    allowedIntents: string[];
+  };
 }
 
 export interface ApiResponse<T> {
@@ -286,6 +296,27 @@ export const getUserById = async (userId: string): Promise<UserProfileVM> => {
 
   if (!response.ok) {
     throw new Error(`Failed to fetch user: ${response.statusText}`);
+  }
+
+  return response.json();
+};
+
+export const overrideLivestreamTier = async (
+  userId: string,
+  payload: { tierId: string; reason: string }
+): Promise<ApiResponse<SellerProfileVM>> => {
+  const token = authStorage.getAccessToken();
+  const response = await fetch(`${API_BASE_URL}/seller/admin/${userId}/livestream-tier/override`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${token}`,
+    },
+    body: JSON.stringify(payload),
+  });
+
+  if (!response.ok) {
+    throw new Error(`Failed to override livestream tier: ${response.statusText}`);
   }
 
   return response.json();

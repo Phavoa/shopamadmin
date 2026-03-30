@@ -85,6 +85,7 @@ export interface ShipmentEvent {
   id: string;
   status: string;
   note: string;
+  description?: string;
   createdAt: string;
 }
 
@@ -143,6 +144,7 @@ export interface Order {
   items: OrderItem[];
   buyer: Buyer;
   sellerProfile: SellerProfile;
+  seller?: SellerProfile;
   checkoutSession: CheckoutSession;
   shipment?: Shipment;
   orderExceptions?: any[];

@@ -38,6 +38,13 @@ interface DisplaySeller {
   disciplineStatus?: string;
   totalOrders?: number;
   completedOrders?: number;
+  manualLivestreamTierId?: string | null;
+  effectiveTier?: {
+    name: string;
+    durationMinutes: number;
+    maxViewers: number;
+    key: string;
+  };
 }
 
 const SellerProfilePage = () => {
@@ -72,6 +79,8 @@ const SellerProfilePage = () => {
   // Process user data for display
   const user = userResponse?.data;
   const seller = user?.seller;
+  // console.log("user", user);
+  // console.log("seller", seller);
 
   // Fetch order statistics and last live stream when seller data is available
   useEffect(() => {
@@ -179,7 +188,9 @@ const SellerProfilePage = () => {
           tier: seller.tier,
           shopName: seller.shopName,
           businessCategory: seller.businessCategory,
-          location: `${seller.locationCity}, ${seller.locationState}`,
+          location: user.defaultAddress
+            ? `${user.defaultAddress.city}, ${user.defaultAddress.state}`
+            : "N/A",
           totalSales: seller.totalSales,
           createdAt: seller.createdAt,
           reliability: "95%",
@@ -193,6 +204,15 @@ const SellerProfilePage = () => {
           activeListings: activeListingsCount,
           nextSlot: "None", // Would need slotApi logic
           disciplineStatus: user.disciplineStatus,
+          manualLivestreamTierId: seller.manualLivestreamTierId,
+          effectiveTier: seller.effectiveLivestreamTier
+            ? {
+                name: seller.effectiveLivestreamTier.name,
+                durationMinutes: seller.effectiveLivestreamTier.durationMinutes,
+                maxViewers: seller.effectiveLivestreamTier.maxViewers,
+                key: seller.effectiveLivestreamTier.key,
+              }
+            : undefined,
         }
       : null;
 

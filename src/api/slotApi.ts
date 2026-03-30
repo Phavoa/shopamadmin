@@ -158,7 +158,7 @@ export const slotApi = createApi({
         // Handle allowedIntents parameter (array)
         if (params.allowedIntents) {
           params.allowedIntents.forEach((intent) =>
-            url.searchParams.append("allowedIntents", intent),
+            url.searchParams.append("allowedIntents[]", intent),
           );
         }
 

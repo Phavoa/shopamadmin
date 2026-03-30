@@ -29,6 +29,7 @@ interface DisplaySeller {
   completedOrders?: number;
   activeListings?: number;
   nextSlot?: string;
+  effectiveTierName?: string;
 }
 
 interface SellersTableProps {
