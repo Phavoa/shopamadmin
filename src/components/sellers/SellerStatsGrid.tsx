@@ -113,7 +113,11 @@ const SellerStatsGrid: React.FC<SellerStatsGridProps> = ({
           />
           <StatItem
             label="Location"
-            value={displaySeller.location?.line1 || "N/A"}
+            value={
+              typeof displaySeller.location === "string"
+                ? displaySeller.location
+                : (displaySeller.location as any)?.line1 || "N/A"
+            }
             className="col-span-2 md:col-span-3"
           />
         </div>
