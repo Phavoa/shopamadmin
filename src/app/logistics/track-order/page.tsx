@@ -19,11 +19,11 @@ import {
 } from "lucide-react";
 import { useNotifications } from "@/hooks/useNotifications";
 import { ErrorBoundary } from "@/components/ui/error-boundary";
-import { useGetOrderByIdQuery, useCancelOrderMutation } from "@/api/orderApi";
+import { useGetOrderByIdQuery, useCancelOrderMutation, useGetOrdersQuery } from "@/api/orderApi";
 import { useUpdateShipmentStatusByCodeMutation } from "@/api/shipmentApi";
 import { ConfirmationDialog } from "@/components/ui/confirmation-dialog";
 import { InspectionPanel } from "@/components/admin/InspectionPanel";
-import { AlertTriangle, Info } from "lucide-react";
+import { AlertTriangle, Info, ListFilter, X } from "lucide-react";
 
 interface TrackingStep {
   id: string;
@@ -42,8 +42,21 @@ export default function TrackOrderPage() {
   const searchParams = useSearchParams();
   const { showSuccess, showError } = useNotifications();
 
-  const [trackingId, setTrackingId] = useState("");
+  const [searchTerm, setSearchTerm] = useState("");
+  const [debouncedSearchTerm, setDebouncedSearchTerm] = useState("");
   const [orderId, setOrderId] = useState<string | null>(null);
+
+  // Debouncing logic
+  useEffect(() => {
+    if (!searchTerm.trim()) {
+      setDebouncedSearchTerm("");
+      return;
+    }
+    const timer = setTimeout(() => {
+      setDebouncedSearchTerm(searchTerm);
+    }, 500); // 500ms debounce
+    return () => clearTimeout(timer);
+  }, [searchTerm]);
 
   // Mutation for updating shipment status
   const [updateShipmentStatus, { isLoading: isUpdatingStatus }] =
@@ -61,8 +74,39 @@ export default function TrackOrderPage() {
     const idFromUrl = searchParams.get("id");
     if (idFromUrl) {
       setOrderId(idFromUrl);
+    } else {
+      setOrderId(null);
     }
   }, [searchParams]);
+
+  // Search Results Query
+  const {
+    data: searchResultsData,
+    isFetching: isSearching,
+    error: searchError,
+  } = useGetOrdersQuery(
+    {
+      q: debouncedSearchTerm,
+      limit: 20,
+      sortBy: "createdAt",
+      sortDir: "desc",
+      populate: [
+        "items",
+        "items.product",
+        "payments",
+        "buyer",
+        "seller",
+        "seller.user",
+        "shipment",
+        "shipment.events",
+        "checkoutSession",
+      ],
+      // Optionally add isLagosOrder or isNonLagosOrder here if context exists
+    },
+    { skip: !debouncedSearchTerm || debouncedSearchTerm.length < 3 },
+  );
+
+  const searchResults = searchResultsData?.data?.items || [];
 
   // Fetch order details using the API
   const {
@@ -170,15 +214,22 @@ export default function TrackOrderPage() {
   }, [orderData, defaultTrackingSteps]);
 
   const handleSearch = useCallback(async () => {
-    if (!trackingId.trim()) {
+    if (!searchTerm.trim()) {
       showError("Please enter a tracking ID or order code");
       return;
     }
+    // Manually trigger debounced search if needed
+    setDebouncedSearchTerm(searchTerm);
+  }, [searchTerm, showError]);
 
-    // Navigate to the page with the tracking ID as a query parameter
-    // In a real implementation, you'd search by tracking code first to get the order ID
-    router.push(`/logistics/track-order?id=${trackingId}`);
-  }, [trackingId, router, showError]);
+  const selectOrder = useCallback(
+    (id: string) => {
+      setSearchTerm("");
+      setDebouncedSearchTerm("");
+      router.push(`/logistics/track-order?id=${id}`);
+    },
+    [router],
+  );
 
   const handleUpdateStatus = useCallback(
     async (newStatus: string) => {
@@ -277,25 +328,111 @@ export default function TrackOrderPage() {
         {/* Search Section */}
         <Card className="mb-6 p-6">
           <div className="flex gap-4">
-            <div className="flex-1">
+            <div className="flex-1 relative">
               <Input
-                placeholder="Enter Order ID or Tracking Code (e.g., cmi24lpa7002ues34sq4zwtj4)"
-                value={trackingId}
-                onChange={(e) => setTrackingId(e.target.value)}
+                placeholder="Search by Order ID, Tracking Code, or Order Code..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
                 onKeyDown={(e) => e.key === "Enter" && handleSearch()}
-                className="w-full"
+                className="w-full pr-10"
               />
+              {searchTerm && (
+                <button
+                  onClick={() => setSearchTerm("")}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              )}
             </div>
             <Button
               onClick={handleSearch}
-              disabled={isLoading}
+              disabled={isLoading || isSearching}
               className="bg-orange-500 hover:bg-orange-600 flex items-center gap-2"
             >
               <Search className="w-4 h-4" />
-              {isLoading ? "Searching..." : "Track Order"}
+              {isSearching ? "Searching..." : "Search"}
             </Button>
           </div>
         </Card>
+
+        {/* Search Results List */}
+        {debouncedSearchTerm && debouncedSearchTerm.length >= 3 && (
+          <Card className="mb-6 overflow-hidden">
+            <div className="p-4 border-b bg-gray-50 flex justify-between items-center">
+              <h3 className="font-semibold flex items-center gap-2">
+                <ListFilter className="w-4 h-4 text-orange-500" />
+                Search Results ({searchResults.length})
+              </h3>
+              {isSearching && <Loader2 className="w-4 h-4 animate-spin text-orange-500" />}
+            </div>
+
+            <div className="max-h-[400px] overflow-y-auto">
+              {isSearching && searchResults.length === 0 ? (
+                <div className="p-12 text-center">
+                  <Loader2 className="w-8 h-8 animate-spin text-orange-500 mx-auto mb-2" />
+                  <p className="text-gray-500 text-sm">Searching orders...</p>
+                </div>
+              ) : searchResults.length > 0 ? (
+                <div className="divide-y divide-gray-100">
+                  {searchResults.map((result) => (
+                    <div
+                      key={result.id}
+                      onClick={() => selectOrder(result.id)}
+                      className={`p-5 hover:bg-orange-50/50 cursor-pointer transition-all flex items-center gap-4 group ${
+                        orderId === result.id ? "bg-orange-50 border-l-4 border-orange-500" : ""
+                      }`}
+                    >
+                      <div className="bg-gray-100 p-2 rounded-full group-hover:bg-orange-100 transition-colors">
+                        <Package className="w-5 h-5 text-gray-500 group-hover:text-orange-500" />
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <div className="flex justify-between items-start mb-1">
+                          <div className="flex flex-col">
+                            <span className="font-bold text-gray-900 group-hover:text-orange-600 transition-colors">
+                              {result.orderCode}
+                            </span>
+                            <span className="text-[10px] font-mono text-gray-400 mt-0.5">
+                              {result.trackingCode}
+                            </span>
+                          </div>
+                          <Badge
+                            variant="secondary"
+                            style={{
+                              backgroundColor: getStatusColor(result.shipment?.status || "").bg,
+                              color: getStatusColor(result.shipment?.status || "").color,
+                            }}
+                            className="text-[10px] px-2 py-0"
+                          >
+                            {getStatusColor(result.shipment?.status || "").text}
+                          </Badge>
+                        </div>
+                        <div className="flex justify-between text-xs text-gray-500 mt-1">
+                          <span className="truncate">
+                            {result.buyer?.firstName} {result.buyer?.lastName}
+                          </span>
+                          <span className="flex-shrink-0">
+                            {new Date(result.createdAt).toLocaleDateString()}
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              ) : !isSearching ? (
+                <div className="p-12 text-center">
+                  <div className="bg-gray-50 w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4">
+                    <Search className="w-8 h-8 text-gray-300" />
+                  </div>
+                  <h4 className="text-gray-900 font-medium mb-1">No orders found</h4>
+                  <p className="text-gray-500 text-sm max-w-[200px] mx-auto">
+                    We couldn&apos;t find any orders matching &quot;{debouncedSearchTerm}&quot;
+                  </p>
+                </div>
+              ) : null}
+            </div>
+          </Card>
+        )}
 
         {/* Loading State */}
         {isLoading && (
