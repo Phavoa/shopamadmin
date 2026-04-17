@@ -120,6 +120,15 @@ const SellerDetails: React.FC<SellerDetailsProps> = ({
               <strong>Location:</strong> {selectedSeller.locationCity},{" "}
               {selectedSeller.locationState}
             </p>
+            <p>
+              <strong>VAT Registered:</strong>{" "}
+              {selectedSeller.isVatRegistered ? "Yes" : "No"}
+            </p>
+            {selectedSeller.isVatRegistered && (
+              <p>
+                <strong>VAT Number:</strong> {selectedSeller.vatNumber || "N/A"}
+              </p>
+            )}
           </div>
 
           <DocumentList

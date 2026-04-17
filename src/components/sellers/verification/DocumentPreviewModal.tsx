@@ -39,12 +39,21 @@ const DocumentPreviewModal: React.FC<DocumentPreviewModalProps> = ({
           </button>
         </div>
 
-        <div className="flex items-center justify-center bg-gray-100 rounded-lg p-4">
-          <img
-            src={document.url}
-            alt={document.title}
-            className="max-w-full max-h-[70vh] object-contain"
-          />
+        <div className="flex items-center justify-center bg-gray-100 rounded-lg p-4 min-h-[50vh]">
+          {document.url.toLowerCase().endsWith(".pdf") ? (
+            <iframe
+              src={document.url}
+              title={document.title}
+              className="w-full border-none rounded-lg"
+              style={{ height: "75vh", minHeight: "500px" }}
+            />
+          ) : (
+            <img
+              src={document.url}
+              alt={document.title}
+              className="max-w-full max-h-[70vh] object-contain"
+            />
+          )}
         </div>
       </div>
     </div>

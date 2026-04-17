@@ -9,6 +9,9 @@ export type DisplaySeller = {
   createdAt: string;
   govIdUrl?: string;
   businessDocUrl?: string;
+  isVatRegistered: boolean;
+  vatNumber?: string | null;
+  vatDocUrl?: string;
 };
 
 export const getStatusBadgeStyles = (status: string) => {
@@ -16,6 +19,7 @@ export const getStatusBadgeStyles = (status: string) => {
     case "ACTIVE":
       return "bg-[#D1FAE5] text-[#065F46] border-[#D1FAE5]";
     case "SUSPENDED":
+    case "REJECTED":
       return "bg-[#FEE2E2] text-[#991B1B] border-[#FEE2E2]";
     case "PENDING":
     case "UNDER_REVIEW":

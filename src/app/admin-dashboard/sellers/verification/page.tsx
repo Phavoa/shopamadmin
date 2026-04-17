@@ -2,7 +2,7 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
-import { approveSeller, suspendSeller, getSellers } from "@/api/sellerApi";
+import { approveSeller, rejectSeller, getSellers } from "@/api/sellerApi";
 import {
   VerificationPageHeader,
   SellerTable,
@@ -81,12 +81,12 @@ const Page = () => {
 
     setLoading(true);
     try {
-      await suspendSeller(selectedSeller.userId);
+      await rejectSeller(selectedSeller.userId);
 
       setSellers((prev) =>
         prev.map((seller) =>
           seller.userId === selectedSeller.userId
-            ? { ...seller, status: "SUSPENDED" }
+            ? { ...seller, status: "REJECTED" }
             : seller,
         ),
       );

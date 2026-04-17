@@ -26,6 +26,9 @@ export interface SellerProfileVM {
   updatedAt: string;
   nextStep: string;
   nextEndpoint: string;
+  isVatRegistered: boolean;
+  vatNumber?: string | null;
+  vatDocUrl?: string;
   manualLivestreamTierId?: string | null;
   effectiveLivestreamTier?: {
     id: string;
@@ -55,7 +58,7 @@ export interface SellerListParams {
   before?: string;
   sortBy?: "createdAt" | "totalSales" | "shopName";
   sortDir?: "asc" | "desc";
-  status?: "PENDING" | "UNDER_REVIEW" | "ACTIVE" | "SUSPENDED";
+  status?: "PENDING" | "UNDER_REVIEW" | "ACTIVE" | "SUSPENDED" | "REJECTED";
   tier?: "A" | "B" | "C";
   state?: string;
   city?: string;
@@ -95,6 +98,9 @@ export interface SellerApplyPayload {
   businessDocUrl: string;
   locationState: string;
   locationCity: string;
+  isVatRegistered: boolean;
+  vatNumber?: string | null;
+  vatDocUrl?: string;
 }
 
 export interface UserProfileVM {
@@ -151,6 +157,25 @@ export const suspendSeller = async (
 
   if (!response.ok) {
     throw new Error(`Failed to suspend seller: ${response.statusText}`);
+  }
+
+  return response.json();
+};
+
+export const rejectSeller = async (
+  userId: string
+): Promise<ApiResponse<SellerProfileVM>> => {
+  const token = authStorage.getAccessToken(); // Use authStorage utility
+  const response = await fetch(`${API_BASE_URL}/seller/reject/${userId}`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${token}`,
+    },
+  });
+
+  if (!response.ok) {
+    throw new Error(`Failed to reject seller: ${response.statusText}`);
   }
 
   return response.json();

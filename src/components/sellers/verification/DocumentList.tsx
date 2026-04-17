@@ -69,6 +69,35 @@ const DocumentList: React.FC<DocumentListProps> = ({
           <ZoomIn className="w-4 h-4 text-gray-400" />
         </div>
       )}
+
+      {seller.vatDocUrl && (
+        <div
+          className="flex items-center gap-3 p-3 bg-gray-50 rounded-lg cursor-pointer hover:bg-gray-100"
+          onClick={() =>
+            seller.vatDocUrl && onDocumentClick(seller.vatDocUrl, "VAT Document")
+          }
+        >
+          <div
+            style={{
+              width: "36px",
+              height: "36px",
+              borderRadius: "8px",
+              background: "#FFF",
+              border: "0.3px solid rgba(0, 0, 0, 0.10)",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+            }}
+          >
+            <File className="w-4 h-4 text-gray-600" />
+          </div>
+          <div className="flex-1">
+            <span className="text-sm text-gray-700">VAT Document</span>
+            <p className="text-xs text-blue-600">Click to preview</p>
+          </div>
+          <ZoomIn className="w-4 h-4 text-gray-400" />
+        </div>
+      )}
     </div>
   );
 };
