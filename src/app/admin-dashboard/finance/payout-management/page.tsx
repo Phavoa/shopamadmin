@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState } from "react";
-import { Search, Loader2, AlertCircle, ChevronDown, ChevronUp } from "lucide-react";
+import { Search, Loader2, AlertCircle, ChevronDown, ChevronUp, X, ChevronLeft, ChevronRight } from "lucide-react";
 import { 
   useGetWithdrawalsQuery, 
   useReviewWithdrawalMutation, 
@@ -22,7 +22,9 @@ const getStatusLabel = (status: string) => {
     case "PENDING": return "Pending";
     case "APPROVED": return "Approved";
     case "REJECTED": return "Rejected";
-    case "HELD": return "Held";
+    case "ON_HOLD": return "Held";
+    case "PAID": return "Paid";
+    case "CANCELLED": return "Cancelled";
     case "FAILED": return "Failed";
     case "PROCESSING": return "Processing";
     default: return status;
@@ -32,8 +34,12 @@ const getStatusLabel = (status: string) => {
 const getStatusStyle = (status: string) => {
   switch (status) {
     case "PENDING":
-    case "HELD":
+    case "ON_HOLD":
       return { background: "#FFE9D5", color: "#E67E22" };
+    case "PAID":
+      return { background: "#D7FDD9", color: "#008D3F" };
+    case "CANCELLED":
+      return { background: "#F3F4F6", color: "#6B7280" };
     case "APPROVED":
       return { background: "#D7FDD9", color: "#008D3F" };
     case "REJECTED":
@@ -51,6 +57,13 @@ const PayoutManagementPage = () => {
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedPayouts, setSelectedPayouts] = useState<string[]>([]);
   const [expandedPayout, setExpandedPayout] = useState<string | null>(null);
+  const [after, setAfter] = useState<string | undefined>(undefined);
+  const [before, setBefore] = useState<string | undefined>(undefined);
+  const [sortBy, setSortBy] = useState<"createdAt" | "name">("createdAt");
+  const [sortDir, setSortDir] = useState<"asc" | "desc">("desc");
+  const [reviewModal, setReviewModal] = useState<{ isOpen: boolean; id: string; action: "APPROVE" | "REJECT" | "HOLD" } | null>(null);
+  const [bulkReviewModal, setBulkReviewModal] = useState<{ isOpen: boolean; action: "APPROVE" | "REJECT" | "HOLD" } | null>(null);
+  const [reason, setReason] = useState("");
 
   // Status mapping for API
   const tabToStatus: Record<string, string | undefined> = {
@@ -58,15 +71,21 @@ const PayoutManagementPage = () => {
     "Pending": "PENDING",
     "Approved": "APPROVED",
     "Processing": "PROCESSING",
+    "Paid": "PAID",
     "Failed": "FAILED",
-    "Held": "HELD",
-    "Rejected": "REJECTED"
+    "Held": "ON_HOLD",
+    "Rejected": "REJECTED",
+    "Cancelled": "CANCELLED"
   };
 
-  const { data: withdrawalsResponse, isLoading, error } = useGetWithdrawalsQuery({
+  const { data: withdrawalsResponse, isLoading, error, isFetching } = useGetWithdrawalsQuery({
     status: tabToStatus[activeTab],
     q: searchQuery || undefined,
-    limit: 50,
+    limit: 20,
+    after,
+    before,
+    sortBy,
+    sortDir,
   });
 
   const [reviewWithdrawal, { isLoading: isReviewing }] = useReviewWithdrawalMutation();
@@ -74,7 +93,7 @@ const PayoutManagementPage = () => {
 
   const withdrawals = withdrawalsResponse?.data?.items || [];
 
-  const tabs = ["All", "Pending", "Approved", "Processing", "Held", "Rejected", "Failed"];
+  const tabs = ["All", "Pending", "Approved", "Processing", "Paid", "Held", "Rejected", "Failed", "Cancelled"];
 
   const handleSelectPayout = (id: string) => {
     setSelectedPayouts((prev: string[]) => 
@@ -90,26 +109,52 @@ const PayoutManagementPage = () => {
     }
   };
 
-  const handleReview = async (id: string, action: "APPROVE" | "REJECT" | "HOLD") => {
-    const reason = prompt(`Enter reason for ${action.toLowerCase()} (optional):`);
+  const handleReview = async () => {
+    if (!reviewModal) return;
     try {
-      await reviewWithdrawal({ id, body: { action, reason: reason || undefined } }).unwrap();
-      alert(`Withdrawal ${action.toLowerCase()}ed successfully`);
+      await reviewWithdrawal({ id: reviewModal.id, body: { action: reviewModal.action, reason: reason || undefined } }).unwrap();
+      setReviewModal(null);
+      setReason("");
+      alert(`Withdrawal ${reviewModal.action.toLowerCase()}ed successfully`);
     } catch (err: any) {
-      alert(`Failed to ${action.toLowerCase()}: ${err?.data?.message || err.message}`);
+      alert(`Failed to ${reviewModal.action.toLowerCase()}: ${err?.data?.message || err.message}`);
     }
   };
 
-  const handleBulkAction = async (action: "APPROVE" | "REJECT" | "HOLD") => {
-    if (selectedPayouts.length === 0) return;
-    const reason = prompt(`Enter reason for bulk ${action.toLowerCase()} (optional):`);
+  const handleBulkAction = async () => {
+    if (!bulkReviewModal || selectedPayouts.length === 0) return;
     try {
-      await bulkReviewWithdrawals({ ids: selectedPayouts, action, reason: reason || undefined }).unwrap();
-      alert(`${selectedPayouts.length} withdrawals ${action.toLowerCase()}ed successfully`);
+      await bulkReviewWithdrawals({ ids: selectedPayouts, action: bulkReviewModal.action, reason: reason || undefined }).unwrap();
+      setBulkReviewModal(null);
+      setReason("");
       setSelectedPayouts([]);
+      alert(`${selectedPayouts.length} withdrawals ${bulkReviewModal.action.toLowerCase()}ed successfully`);
     } catch (err: any) {
-      alert(`Bulk ${action.toLowerCase()} failed: ${err?.data?.message || err.message}`);
+      alert(`Bulk ${bulkReviewModal.action.toLowerCase()} failed: ${err?.data?.message || err.message}`);
     }
+  };
+
+  const handleTabChange = (tab: string) => {
+    setActiveTab(tab);
+    setAfter(undefined);
+    setBefore(undefined);
+  };
+
+  const handleSearch = (q: string) => {
+    setSearchQuery(q);
+    setAfter(undefined);
+    setBefore(undefined);
+  };
+
+  const toggleSort = (key: "createdAt" | "name") => {
+    if (sortBy === key) {
+      setSortDir(sortDir === "asc" ? "desc" : "asc");
+    } else {
+      setSortBy(key);
+      setSortDir("desc");
+    }
+    setAfter(undefined);
+    setBefore(undefined);
   };
 
   const handleExpandPayout = (id: string) => {
@@ -120,13 +165,13 @@ const PayoutManagementPage = () => {
     <div className="min-h-screen bg-white">
       {/* Header */}
       <div className="flex items-center justify-between px-6 py-4 border-b border-gray-200">
-        <h1 className="text-2xl font-semibold text-black">Payout Management</h1>
+        <h1 className="text-2xl font-semibold text-black">Withdrawals</h1>
         <div className="relative">
           <input
             type="text"
             placeholder="Search Users or Payout ID"
             value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
+            onChange={(e) => handleSearch(e.target.value)}
             className="w-[320px] h-10 pl-10 pr-4 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#E67E22]"
           />
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
@@ -138,7 +183,7 @@ const PayoutManagementPage = () => {
         {tabs.map((tab) => (
           <button
             key={tab}
-            onClick={() => setActiveTab(tab)}
+            onClick={() => handleTabChange(tab)}
             className={`text-sm font-medium pb-2 transition-colors ${
               activeTab === tab
                 ? "text-[#E67E22] border-b-2 border-[#E67E22]"
@@ -154,53 +199,23 @@ const PayoutManagementPage = () => {
       <div className="flex items-center justify-between px-6 py-4">
         <div className="flex gap-3">
           <button
-            onClick={() => handleBulkAction("APPROVE")}
+            onClick={() => setBulkReviewModal({ isOpen: true, action: "APPROVE" })}
             disabled={selectedPayouts.length === 0 || isBulkReviewing}
-            style={{
-              padding: "8px 20px",
-              borderRadius: "8px",
-              background: "#E67E22",
-              color: "#FFF",
-              fontSize: "14px",
-              fontWeight: 500,
-              border: "none",
-              cursor: selectedPayouts.length === 0 || isBulkReviewing ? "not-allowed" : "pointer",
-              opacity: selectedPayouts.length === 0 || isBulkReviewing ? 0.6 : 1,
-            }}
+            className="px-5 py-2 bg-[#E67E22] text-white rounded-lg text-sm font-medium disabled:opacity-60 disabled:cursor-not-allowed hover:bg-[#cf711d] transition-colors"
           >
-            {isBulkReviewing ? "Reviewing..." : "Approve Selected"}
+            Approve Selected
           </button>
           <button
-            onClick={() => handleBulkAction("HOLD")}
+            onClick={() => setBulkReviewModal({ isOpen: true, action: "HOLD" })}
             disabled={selectedPayouts.length === 0 || isBulkReviewing}
-            style={{
-              padding: "8px 20px",
-              borderRadius: "8px",
-              background: "#F3F4F6",
-              color: "#374151",
-              fontSize: "14px",
-              fontWeight: 500,
-              border: "none",
-              cursor: selectedPayouts.length === 0 || isBulkReviewing ? "not-allowed" : "pointer",
-              opacity: selectedPayouts.length === 0 || isBulkReviewing ? 0.6 : 1,
-            }}
+            className="px-5 py-2 bg-gray-100 text-gray-700 rounded-lg text-sm font-medium disabled:opacity-60 disabled:cursor-not-allowed hover:bg-gray-200 transition-colors"
           >
             Hold
           </button>
           <button
-            onClick={() => handleBulkAction("REJECT")}
+            onClick={() => setBulkReviewModal({ isOpen: true, action: "REJECT" })}
             disabled={selectedPayouts.length === 0 || isBulkReviewing}
-            style={{
-              padding: "8px 20px",
-              borderRadius: "8px",
-              background: "#FFE5E5",
-              color: "#DC3545",
-              fontSize: "14px",
-              fontWeight: 500,
-              border: "none",
-              cursor: selectedPayouts.length === 0 || isBulkReviewing ? "not-allowed" : "pointer",
-              opacity: selectedPayouts.length === 0 || isBulkReviewing ? 0.6 : 1,
-            }}
+            className="px-5 py-2 bg-red-50 text-red-600 rounded-lg text-sm font-medium disabled:opacity-60 disabled:cursor-not-allowed hover:bg-red-100 transition-colors"
           >
             Reject
           </button>
@@ -232,10 +247,26 @@ const PayoutManagementPage = () => {
                 />
               </th>
               <th className="text-left py-4 px-6 text-sm font-medium text-black">Payout ID</th>
-              <th className="text-left py-4 px-6 text-sm font-medium text-black">User</th>
+              <th 
+                className="text-left py-4 px-6 text-sm font-medium text-black cursor-pointer hover:bg-gray-50"
+                onClick={() => toggleSort("name")}
+              >
+                <div className="flex items-center gap-1">
+                  User
+                  {sortBy === "name" && (sortDir === "asc" ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />)}
+                </div>
+              </th>
               <th className="text-left py-4 px-6 text-sm font-medium text-black">Bank Detail</th>
               <th className="text-left py-4 px-6 text-sm font-medium text-black">Amount</th>
-              <th className="text-left py-4 px-6 text-sm font-medium text-black">Requested</th>
+              <th 
+                className="text-left py-4 px-6 text-sm font-medium text-black cursor-pointer hover:bg-gray-50"
+                onClick={() => toggleSort("createdAt")}
+              >
+                <div className="flex items-center gap-1">
+                  Requested
+                  {sortBy === "createdAt" && (sortDir === "asc" ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />)}
+                </div>
+              </th>
               <th className="text-left py-4 px-6 text-sm font-medium text-black">Status</th>
               <th className="text-left py-4 px-6 text-sm font-medium text-black">Note/Reason</th>
             </tr>
@@ -285,8 +316,10 @@ const PayoutManagementPage = () => {
                     </td>
                     <td className="py-4 px-6 text-sm text-black">
                       <div className="flex flex-col">
-                        <span className="font-medium">{withdrawal.user.firstName} {withdrawal.user.lastName}</span>
-                        <span className="text-xs text-gray-500">{withdrawal.user.email}</span>
+                        <span className="font-medium">
+                          {withdrawal.user ? `${withdrawal.user.firstName} ${withdrawal.user.lastName}` : "Unknown User"}
+                        </span>
+                        <span className="text-xs text-gray-500">{withdrawal.user?.email || "No email provided"}</span>
                       </div>
                     </td>
                     <td className="py-4 px-6 text-sm text-black">
@@ -344,8 +377,10 @@ const PayoutManagementPage = () => {
                                 <div className="grid grid-cols-2 gap-8">
                                   <div>
                                     <h4 className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-2">Recipient Information</h4>
-                                    <p className="text-sm text-black font-semibold">{withdrawal.user.firstName} {withdrawal.user.lastName}</p>
-                                    <p className="text-sm text-gray-600">{withdrawal.user.email}</p>
+                                    <p className="text-sm text-black font-semibold">
+                                      {withdrawal.user ? `${withdrawal.user.firstName} ${withdrawal.user.lastName}` : "Unknown User"}
+                                    </p>
+                                    <p className="text-sm text-gray-600">{withdrawal.user?.email || "No email provided"}</p>
                                     {withdrawal.sellerId && (
                                       <p className="text-sm text-orange-600 font-medium mt-1">Seller ID: {withdrawal.sellerId}</p>
                                     )}
@@ -384,21 +419,21 @@ const PayoutManagementPage = () => {
                                     {withdrawal.status === "PENDING" && (
                                       <>
                                         <button
-                                          onClick={() => handleReview(withdrawal.id, "APPROVE")}
+                                          onClick={() => setReviewModal({ isOpen: true, id: withdrawal.id, action: "APPROVE" })}
                                           disabled={isReviewing}
                                           className="px-6 py-2.5 bg-[#008D3F] text-white rounded-lg text-sm font-bold hover:bg-[#007032] transition-colors"
                                         >
                                           Approve Payout
                                         </button>
                                         <button
-                                          onClick={() => handleReview(withdrawal.id, "HOLD")}
+                                          onClick={() => setReviewModal({ isOpen: true, id: withdrawal.id, action: "HOLD" })}
                                           disabled={isReviewing}
                                           className="px-6 py-2.5 bg-[#E67E22] text-white rounded-lg text-sm font-bold hover:bg-[#cf711d] transition-colors"
                                         >
                                           Put on Hold
                                         </button>
                                         <button
-                                          onClick={() => handleReview(withdrawal.id, "REJECT")}
+                                          onClick={() => setReviewModal({ isOpen: true, id: withdrawal.id, action: "REJECT" })}
                                           disabled={isReviewing}
                                           className="px-6 py-2.5 bg-red-600 text-white rounded-lg text-sm font-bold hover:bg-red-700 transition-colors"
                                         >
@@ -430,6 +465,134 @@ const PayoutManagementPage = () => {
           </tbody>
         </table>
       </div>
+      {/* Pagination Footer */}
+      <div className="flex items-center justify-between px-6 py-4 border-t border-gray-200 mt-auto bg-gray-50">
+        <div className="text-sm text-gray-500">
+          {isFetching ? "Loading..." : `Showing ${withdrawals.length} results`}
+        </div>
+        <div className="flex items-center gap-2">
+          <button
+            onClick={() => {
+              setBefore(withdrawalsResponse?.data?.items?.[0]?.id);
+              setAfter(undefined);
+            }}
+            disabled={isLoading || isFetching}
+            className="p-2 border border-gray-300 rounded-lg hover:bg-white disabled:opacity-50 transition-colors"
+          >
+            <ChevronLeft className="w-5 h-5" />
+          </button>
+          <button
+            onClick={() => {
+              setAfter(withdrawalsResponse?.data?.items?.[withdrawals.length - 1]?.id);
+              setBefore(undefined);
+            }}
+            disabled={isLoading || isFetching || !withdrawalsResponse?.data?.hasNext}
+            className="p-2 border border-gray-300 rounded-lg hover:bg-white disabled:opacity-50 transition-colors"
+          >
+            <ChevronRight className="w-5 h-5" />
+          </button>
+        </div>
+      </div>
+
+      {/* Review Modal */}
+      {reviewModal && (
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full overflow-hidden animate-in fade-in zoom-in duration-200">
+            <div className="px-6 py-4 border-b border-gray-100 flex items-center justify-between bg-gray-50/50">
+              <h3 className="text-lg font-bold text-gray-900 capitalize">
+                {reviewModal.action.toLowerCase()} Withdrawal
+              </h3>
+              <button onClick={() => setReviewModal(null)} className="p-1 hover:bg-gray-200 rounded-full transition-colors">
+                <X className="w-5 h-5 text-gray-500" />
+              </button>
+            </div>
+            <div className="p-6 space-y-4">
+              <p className="text-sm text-gray-600">
+                Are you sure you want to <strong>{reviewModal.action.toLowerCase()}</strong> this withdrawal request? 
+                This action will be recorded in the system.
+              </p>
+              <div>
+                <label className="block text-xs font-bold text-gray-400 uppercase mb-2">Reason (Optional)</label>
+                <textarea
+                  value={reason}
+                  onChange={(e) => setReason(e.target.value)}
+                  placeholder="Provide a reason for this action..."
+                  className="w-full h-24 p-3 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-[#E67E22] resize-none"
+                />
+              </div>
+            </div>
+            <div className="px-6 py-4 bg-gray-50 flex gap-3">
+              <button
+                onClick={() => setReviewModal(null)}
+                className="flex-1 px-4 py-2.5 text-gray-700 font-semibold hover:bg-gray-100 rounded-xl transition-colors"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleReview}
+                disabled={isReviewing}
+                className={`flex-1 px-4 py-2.5 text-white font-bold rounded-xl transition-colors ${
+                  reviewModal.action === "APPROVE" ? "bg-[#008D3F] hover:bg-[#007032]" :
+                  reviewModal.action === "REJECT" ? "bg-red-600 hover:bg-red-700" :
+                  "bg-[#E67E22] hover:bg-[#cf711d]"
+                }`}
+              >
+                {isReviewing ? <Loader2 className="w-5 h-5 animate-spin mx-auto" /> : `Confirm ${reviewModal.action.charAt(0) + reviewModal.action.slice(1).toLowerCase()}`}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Bulk Review Modal */}
+      {bulkReviewModal && (
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full overflow-hidden animate-in fade-in zoom-in duration-200">
+            <div className="px-6 py-4 border-b border-gray-100 flex items-center justify-between bg-gray-50/50">
+              <h3 className="text-lg font-bold text-gray-900 capitalize">
+                Bulk {bulkReviewModal.action.toLowerCase()}
+              </h3>
+              <button onClick={() => setBulkReviewModal(null)} className="p-1 hover:bg-gray-200 rounded-full transition-colors">
+                <X className="w-5 h-5 text-gray-500" />
+              </button>
+            </div>
+            <div className="p-6 space-y-4">
+              <p className="text-sm text-gray-600">
+                You are about to <strong>{bulkReviewModal.action.toLowerCase()}</strong> {selectedPayouts.length} selected withdrawals. 
+                This action cannot be undone.
+              </p>
+              <div>
+                <label className="block text-xs font-bold text-gray-400 uppercase mb-2">Reason (Optional)</label>
+                <textarea
+                  value={reason}
+                  onChange={(e) => setReason(e.target.value)}
+                  placeholder="Provide a reason for this bulk action..."
+                  className="w-full h-24 p-3 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-[#E67E22] resize-none"
+                />
+              </div>
+            </div>
+            <div className="px-6 py-4 bg-gray-50 flex gap-3">
+              <button
+                onClick={() => setBulkReviewModal(null)}
+                className="flex-1 px-4 py-2.5 text-gray-700 font-semibold hover:bg-gray-100 rounded-xl transition-colors"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleBulkAction}
+                disabled={isBulkReviewing}
+                className={`flex-1 px-4 py-2.5 text-white font-bold rounded-xl transition-colors ${
+                  bulkReviewModal.action === "APPROVE" ? "bg-[#008D3F] hover:bg-[#007032]" :
+                  bulkReviewModal.action === "REJECT" ? "bg-red-600 hover:bg-red-700" :
+                  "bg-[#E67E22] hover:bg-[#cf711d]"
+                }`}
+              >
+                {isBulkReviewing ? <Loader2 className="w-5 h-5 animate-spin mx-auto" /> : `Confirm Bulk ${bulkReviewModal.action.charAt(0) + bulkReviewModal.action.slice(1).toLowerCase()}`}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

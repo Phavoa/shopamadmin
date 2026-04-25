@@ -314,7 +314,7 @@ function Sidebar() {
                 <li>
                   <button onClick={() => handleNavClick("finance-payout", "/admin-dashboard/finance/payout-management")} disabled={isNavigating && navigatingTo !== "finance-payout"} className={subItemClass("finance-payout")}>
                     {spinnerOrIcon("finance-payout", <CreditCard className="w-[var(--icon-size-sm)] h-[var(--icon-size-sm)]" />)}
-                    Payout Management
+                    Withdrawals
                   </button>
                 </li>
                 <li>

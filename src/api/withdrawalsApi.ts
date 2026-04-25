@@ -5,10 +5,11 @@ import { authStorage } from "@/lib/auth/authUtils";
 export interface Withdrawal {
   id: string;
   userId: string;
-  user: {
+  user?: {
     firstName: string;
     lastName: string;
     email: string;
+    addresses?: any[];
   };
   sellerId?: string;
   seller?: {
@@ -20,21 +21,21 @@ export interface Withdrawal {
     accountName: string;
   };
   amountKobo: string;
-  status: "PENDING" | "APPROVED" | "REJECTED" | "HELD" | "FAILED" | "PROCESSING";
+  status: "PENDING" | "PROCESSING" | "PAID" | "FAILED" | "CANCELLED" | "APPROVED" | "REJECTED" | "ON_HOLD";
   reason?: string;
   createdAt: string;
   updatedAt: string;
 }
 
 export interface ListWithdrawalsParams {
-  populate?: string[];
+  populate?: string[] | string;
   sellerId?: string;
   q?: string;
   phone?: string;
   limit?: number;
   after?: string;
   before?: string;
-  sortBy?: string;
+  sortBy?: "createdAt" | "name";
   sortDir?: "asc" | "desc";
   userId?: string;
   walletId?: string;
