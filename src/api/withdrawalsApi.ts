@@ -5,37 +5,49 @@ import { authStorage } from "@/lib/auth/authUtils";
 export interface Withdrawal {
   id: string;
   userId: string;
+  walletId: string;
+  payoutAccountId: string;
   user?: {
+    id: string;
     firstName: string;
     lastName: string;
     email: string;
-    addresses?: any[];
+    phone?: string;
   };
-  sellerId?: string;
-  seller?: {
-    sellerTotalSales: string;
-  };
-  bankDetail?: {
+  payoutAccount?: {
+    id: string;
+    bankCode: string;
     bankName: string;
     accountNumber: string;
     accountName: string;
+    status: string;
+    provider: string;
+  };
+  wallet?: {
+    id: string;
+    balanceKobo: string;
+    currency: string;
   };
   amountKobo: string;
   status: "PENDING" | "PROCESSING" | "PAID" | "FAILED" | "CANCELLED" | "APPROVED" | "REJECTED" | "ON_HOLD";
   reason?: string;
+  adminNote?: string | null;
+  providerRef?: string;
+  providerTxn?: string;
   createdAt: string;
   updatedAt: string;
+  paidAt?: string | null;
+  approvedAt?: string | null;
+  rejectedAt?: string | null;
 }
 
 export interface ListWithdrawalsParams {
   populate?: string[] | string;
-  sellerId?: string;
   q?: string;
-  phone?: string;
   limit?: number;
   after?: string;
   before?: string;
-  sortBy?: "createdAt" | "name";
+  sortBy?: "createdAt" | "amountKobo" | "status";
   sortDir?: "asc" | "desc";
   userId?: string;
   walletId?: string;

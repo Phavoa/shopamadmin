@@ -59,7 +59,7 @@ const PayoutManagementPage = () => {
   const [expandedPayout, setExpandedPayout] = useState<string | null>(null);
   const [after, setAfter] = useState<string | undefined>(undefined);
   const [before, setBefore] = useState<string | undefined>(undefined);
-  const [sortBy, setSortBy] = useState<"createdAt" | "name">("createdAt");
+  const [sortBy, setSortBy] = useState<"createdAt" | "amountKobo" | "status">("createdAt");
   const [sortDir, setSortDir] = useState<"asc" | "desc">("desc");
   const [reviewModal, setReviewModal] = useState<{ isOpen: boolean; id: string; action: "APPROVE" | "REJECT" | "HOLD" } | null>(null);
   const [bulkReviewModal, setBulkReviewModal] = useState<{ isOpen: boolean; action: "APPROVE" | "REJECT" | "HOLD" } | null>(null);
@@ -86,6 +86,7 @@ const PayoutManagementPage = () => {
     before,
     sortBy,
     sortDir,
+    populate: ["user", "payoutAccount"],
   });
 
   const [reviewWithdrawal, { isLoading: isReviewing }] = useReviewWithdrawalMutation();
@@ -146,7 +147,7 @@ const PayoutManagementPage = () => {
     setBefore(undefined);
   };
 
-  const toggleSort = (key: "createdAt" | "name") => {
+  const toggleSort = (key: "createdAt" | "amountKobo" | "status") => {
     if (sortBy === key) {
       setSortDir(sortDir === "asc" ? "desc" : "asc");
     } else {
@@ -249,11 +250,11 @@ const PayoutManagementPage = () => {
               <th className="text-left py-4 px-6 text-sm font-medium text-black">Payout ID</th>
               <th 
                 className="text-left py-4 px-6 text-sm font-medium text-black cursor-pointer hover:bg-gray-50"
-                onClick={() => toggleSort("name")}
+                onClick={() => toggleSort("createdAt")}
               >
                 <div className="flex items-center gap-1">
                   User
-                  {sortBy === "name" && (sortDir === "asc" ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />)}
+                  {sortBy === "createdAt" && (sortDir === "asc" ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />)}
                 </div>
               </th>
               <th className="text-left py-4 px-6 text-sm font-medium text-black">Bank Detail</th>
@@ -323,10 +324,10 @@ const PayoutManagementPage = () => {
                       </div>
                     </td>
                     <td className="py-4 px-6 text-sm text-black">
-                      {withdrawal.bankDetail ? (
+                      {withdrawal.payoutAccount ? (
                         <div className="flex flex-col">
-                          <span>{withdrawal.bankDetail.bankName}</span>
-                          <span className="text-xs text-gray-500">{withdrawal.bankDetail.accountNumber}</span>
+                          <span>{withdrawal.payoutAccount.bankName}</span>
+                          <span className="text-xs text-gray-500">{withdrawal.payoutAccount.accountNumber}</span>
                         </div>
                       ) : "—"}
                     </td>
@@ -381,17 +382,16 @@ const PayoutManagementPage = () => {
                                       {withdrawal.user ? `${withdrawal.user.firstName} ${withdrawal.user.lastName}` : "Unknown User"}
                                     </p>
                                     <p className="text-sm text-gray-600">{withdrawal.user?.email || "No email provided"}</p>
-                                    {withdrawal.sellerId && (
-                                      <p className="text-sm text-orange-600 font-medium mt-1">Seller ID: {withdrawal.sellerId}</p>
-                                    )}
+                                    <p className="text-xs text-gray-400 mt-1">User ID: {withdrawal.userId}</p>
+                                    <p className="text-xs text-gray-400">Wallet ID: {withdrawal.walletId}</p>
                                   </div>
                                   
                                   <div>
                                     <h4 className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-2">Bank Details</h4>
-                                    {withdrawal.bankDetail ? (
+                                    {withdrawal.payoutAccount ? (
                                       <>
-                                        <p className="text-sm text-black font-semibold">{withdrawal.bankDetail.accountName}</p>
-                                        <p className="text-sm text-gray-600">{withdrawal.bankDetail.bankName} • {withdrawal.bankDetail.accountNumber}</p>
+                                        <p className="text-sm text-black font-semibold">{withdrawal.payoutAccount.accountName}</p>
+                                        <p className="text-sm text-gray-600">{withdrawal.payoutAccount.bankName} • {withdrawal.payoutAccount.accountNumber}</p>
                                       </>
                                     ) : (
                                       <p className="text-sm text-red-500 italic">No bank details provided</p>
@@ -405,14 +405,15 @@ const PayoutManagementPage = () => {
                                       <span className="text-gray-600">Requested Amount</span>
                                       <span className="font-medium text-black">{formatNaira(koboToNaira(withdrawal.amountKobo))}</span>
                                     </div>
-                                    <div className="flex justify-between w-64 text-sm">
-                                      <span className="text-gray-600">Service Fee</span>
-                                      <span className="text-gray-400">₦0.00</span>
-                                    </div>
                                     <div className="flex justify-between w-64 text-lg font-bold pt-1 border-t border-gray-50">
                                       <span className="text-black">Net Payout</span>
                                       <span className="text-[#E67E22]">{formatNaira(koboToNaira(withdrawal.amountKobo))}</span>
                                     </div>
+                                    {withdrawal.providerRef && (
+                                      <div className="text-xs text-gray-400 mt-2">
+                                        Ref: {withdrawal.providerRef} {withdrawal.providerTxn ? `| Txn: ${withdrawal.providerTxn}` : ""}
+                                      </div>
+                                    )}
                                   </div>
 
                                   <div className="flex gap-2">
@@ -446,14 +447,32 @@ const PayoutManagementPage = () => {
                               </div>
                             </div>
 
-                            {withdrawal.reason && (
-                              <div className="mt-6 pt-4 border-t border-gray-100">
-                                <h4 className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-2">Reason for status</h4>
-                                <p className="text-sm text-gray-700 bg-gray-50 p-3 rounded-lg border border-gray-200">
-                                  {withdrawal.reason}
-                                </p>
+                            {(withdrawal.reason || withdrawal.adminNote) && (
+                              <div className="mt-6 pt-4 border-t border-gray-100 grid grid-cols-2 gap-4">
+                                {withdrawal.reason && (
+                                  <div>
+                                    <h4 className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-2">User Reason</h4>
+                                    <p className="text-sm text-gray-700 bg-gray-50 p-3 rounded-lg border border-gray-200">
+                                      {withdrawal.reason}
+                                    </p>
+                                  </div>
+                                )}
+                                {withdrawal.adminNote && (
+                                  <div>
+                                    <h4 className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-2">Admin Note</h4>
+                                    <p className="text-sm text-gray-700 bg-orange-50 p-3 rounded-lg border border-orange-100">
+                                      {withdrawal.adminNote}
+                                    </p>
+                                  </div>
+                                )}
                               </div>
                             )}
+
+                            <div className="mt-4 flex gap-4 text-[10px] text-gray-400 uppercase font-bold">
+                              {withdrawal.approvedAt && <span>Approved: {format(new Date(withdrawal.approvedAt), "MMM d, HH:mm")}</span>}
+                              {withdrawal.paidAt && <span>Paid: {format(new Date(withdrawal.paidAt), "MMM d, HH:mm")}</span>}
+                              {withdrawal.rejectedAt && <span>Rejected: {format(new Date(withdrawal.rejectedAt), "MMM d, HH:mm")}</span>}
+                            </div>
                           </div>
                         </div>
                       </td>
