@@ -152,6 +152,8 @@ export interface ListPricesParams {
   sortDir?: "asc" | "desc";
   originZoneId?: string;
   destinationZoneId?: string;
+  parentId?: string;
+  isSubzone?: boolean;
 }
 
 /**
@@ -268,6 +270,9 @@ export const deliveryApi = createApi({
         if (params.originZoneId) qs.set("originZoneId", params.originZoneId);
         if (params.destinationZoneId)
           qs.set("destinationZoneId", params.destinationZoneId);
+        if (params.parentId) qs.set("parentId", params.parentId);
+        if (params.isSubzone !== undefined)
+          qs.set("isSubzone", String(params.isSubzone));
         if (params.q) qs.set("q", params.q);
         return {
           url: `/delivery/prices?${qs.toString()}`,

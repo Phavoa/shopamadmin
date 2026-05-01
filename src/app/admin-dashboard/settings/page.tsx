@@ -71,6 +71,17 @@ export default function SettingsPage() {
       items: ["Referrals", "Bonus & Amount"],
       route: "/admin-dashboard/settings/referrals",
     },
+    {
+      icon: Shield,
+      title: "System Configuration",
+      items: [
+        "Global platform fees",
+        "Feature toggles (Referral, Sub)",
+        "Escrow & Payout limits",
+        "Livestream pricing config",
+      ],
+      route: "/admin-dashboard/settings/system-config",
+    },
   ];
 
   return (

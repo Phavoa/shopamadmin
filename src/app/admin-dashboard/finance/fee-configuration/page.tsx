@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import {
   useGetFeeConfigQuery,
   useSaveDraftMutation,
@@ -34,15 +34,30 @@ export default function FeeConfigurationPage() {
     useGetFeeConfigQuery();
   const config = configResponse?.data;
 
-  // Fetch zones for name lookup and prices separately (populate causes 500 on backend)
+  // Fetch zones for name lookup
   const { data: zonesResponse, isLoading: isZonesLoading } = useGetZonesQuery(
     { limit: 1000 },
   );
   const zones = zonesResponse?.data?.items ?? [];
 
-  const { data: pricesResponse, isLoading: isPricesLoading } =
-    useGetPricesQuery({ limit: 100, sortBy: "createdAt" });
-  const prices = pricesResponse?.items ?? [];
+  // Fetch root prices (Inter-state / Parent-to-parent)
+  const { data: rootPricesResponse, isLoading: isRootLoading } = useGetPricesQuery({
+    limit: 1000,
+    isSubzone: false,
+  });
+
+  // Fetch sub-zone prices (Internal city pricing)
+  const { data: subPricesResponse, isLoading: isSubLoading } = useGetPricesQuery({
+    limit: 5000,
+    isSubzone: true,
+  });
+
+  const isPricesLoading = isRootLoading || isSubLoading;
+  const prices = useMemo(() => {
+    const roots = rootPricesResponse?.items ?? [];
+    const subs = subPricesResponse?.items ?? [];
+    return [...roots, ...subs];
+  }, [rootPricesResponse, subPricesResponse]);
 
   const [updateZonePrice, { isLoading: isUpdatingPrice }] =
     useUpdatePriceMutation();
