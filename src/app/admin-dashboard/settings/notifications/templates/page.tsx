@@ -32,9 +32,22 @@ export default function MessageTemplatesPage() {
     dispatch(setHeaderTitle("Message Templates"));
   }, [dispatch]);
 
-  const { data: emailData, isLoading: isLoadingEmail, error: emailError } = useGetEmailTemplatesQuery();
-  const { data: smsData, isLoading: isLoadingSms, error: smsError } = useGetSmsTemplatesQuery();
-  const { data: pushData, isLoading: isLoadingPush, error: pushError } = useGetPushTemplatesQuery();
+  const [emailCursor, setEmailCursor] = useState<string | undefined>(undefined);
+  const [smsCursor, setSmsCursor] = useState<string | undefined>(undefined);
+  const [pushCursor, setPushCursor] = useState<string | undefined>(undefined);
+
+  const { data: emailData, isLoading: isLoadingEmail, isFetching: isFetchingEmail, error: emailError } = useGetEmailTemplatesQuery({ limit: 10, after: emailCursor });
+  const { data: smsData, isLoading: isLoadingSms, isFetching: isFetchingSms, error: smsError } = useGetSmsTemplatesQuery({ limit: 10, after: smsCursor });
+  const { data: pushData, isLoading: isLoadingPush, isFetching: isFetchingPush, error: pushError } = useGetPushTemplatesQuery({ limit: 10, after: pushCursor });
+
+  const emailNextCursor = emailData?.data?.nextCursor || (emailData as any)?.nextCursor;
+  const emailHasNext = !!emailNextCursor;
+  
+  const smsNextCursor = smsData?.data?.nextCursor || (smsData as any)?.nextCursor;
+  const smsHasNext = !!smsNextCursor;
+
+  const pushNextCursor = pushData?.data?.nextCursor || (pushData as any)?.nextCursor;
+  const pushHasNext = !!pushNextCursor;
 
   const [updateEmail] = useUpdateEmailTemplateMutation();
   const [updateSms] = useUpdateSmsTemplateMutation();
@@ -61,17 +74,32 @@ export default function MessageTemplatesPage() {
 
   React.useEffect(() => {
     const items = emailData?.data?.items || (emailData as any)?.items;
-    if (items) setEmailTemplates(items);
+    if (items) {
+      setEmailTemplates(prev => {
+        const newItems = items.filter((item: EmailTemplate) => !prev.some(p => p.id === item.id));
+        return [...prev, ...newItems];
+      });
+    }
   }, [emailData]);
 
   React.useEffect(() => {
     const items = smsData?.data?.items || (smsData as any)?.items;
-    if (items) setSmsTemplates(items);
+    if (items) {
+      setSmsTemplates(prev => {
+        const newItems = items.filter((item: SmsTemplate) => !prev.some(p => p.id === item.id));
+        return [...prev, ...newItems];
+      });
+    }
   }, [smsData]);
 
   React.useEffect(() => {
     const items = pushData?.data?.items || (pushData as any)?.items;
-    if (items) setPushTemplates(items);
+    if (items) {
+      setPushTemplates(prev => {
+        const newItems = items.filter((item: PushTemplate) => !prev.some(p => p.id === item.id));
+        return [...prev, ...newItems];
+      });
+    }
   }, [pushData]);
 
   const handleSave = async () => {
@@ -220,6 +248,13 @@ export default function MessageTemplatesPage() {
                         }}
                       />
                     ))}
+                    {filteredEmail.length > 0 && emailHasNext && (
+                      <ScrollObserver 
+                        onIntersect={() => setEmailCursor(emailNextCursor)} 
+                        hasMore={emailHasNext} 
+                        isFetching={isFetchingEmail} 
+                      />
+                    )}
                   </div>
                 )}
 
@@ -239,6 +274,13 @@ export default function MessageTemplatesPage() {
                         }}
                       />
                     ))}
+                    {filteredSms.length > 0 && smsHasNext && (
+                      <ScrollObserver 
+                        onIntersect={() => setSmsCursor(smsNextCursor)} 
+                        hasMore={smsHasNext} 
+                        isFetching={isFetchingSms} 
+                      />
+                    )}
                   </div>
                 )}
 
@@ -275,6 +317,13 @@ export default function MessageTemplatesPage() {
                         }}
                       />
                     ))}
+                    {filteredPush.length > 0 && pushHasNext && (
+                      <ScrollObserver 
+                        onIntersect={() => setPushCursor(pushNextCursor)} 
+                        hasMore={pushHasNext} 
+                        isFetching={isFetchingPush} 
+                      />
+                    )}
                   </div>
                 )}
               </motion.div>
@@ -524,4 +573,36 @@ function getUniqueVariables(emails: EmailTemplate[], sms: SmsTemplate[], push: P
   sms.forEach(t => t.variables.forEach(v => vars.add(v)));
   push.forEach(t => t.variables.forEach(v => vars.add(v)));
   return Array.from(vars);
+}
+
+function ScrollObserver({ onIntersect, hasMore, isFetching }: { onIntersect: () => void, hasMore: boolean, isFetching: boolean }) {
+  const observerRef = React.useRef<HTMLDivElement>(null);
+  const onIntersectRef = React.useRef(onIntersect);
+
+  React.useEffect(() => {
+    onIntersectRef.current = onIntersect;
+  }, [onIntersect]);
+
+  React.useEffect(() => {
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries[0].isIntersecting && hasMore && !isFetching) {
+          onIntersectRef.current();
+        }
+      },
+      { threshold: 0.1 }
+    );
+
+    if (observerRef.current) {
+      observer.observe(observerRef.current);
+    }
+
+    return () => observer.disconnect();
+  }, [hasMore, isFetching]);
+
+  return (
+    <div ref={observerRef} className="py-8 flex justify-center w-full h-20">
+      {isFetching && <Loader2 className="w-6 h-6 animate-spin text-[var(--primary)]" />}
+    </div>
+  );
 }
