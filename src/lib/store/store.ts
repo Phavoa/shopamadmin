@@ -29,6 +29,7 @@ import { feeConfigApi } from "../../api/feeConfigApi";
 import { withdrawalsApi } from "../../api/withdrawalsApi";
 import { supportChatApi } from "@/api/supportChatApi";
 import { systemConfigApi } from "@/api/systemConfigApi";
+import { notificationTemplatesApi } from "@/api/notificationTemplatesApi";
 
 import {
   FLUSH,
@@ -77,6 +78,7 @@ const rootReducer = combineReducers({
   [withdrawalsApi.reducerPath]: withdrawalsApi.reducer,
   [supportChatApi.reducerPath]: supportChatApi.reducer,
   [systemConfigApi.reducerPath]: systemConfigApi.reducer,
+  [notificationTemplatesApi.reducerPath]: notificationTemplatesApi.reducer,
 
   auth: authReducer,
   header: headerReducer,
@@ -119,6 +121,7 @@ export const store = configureStore({
       withdrawalsApi.middleware,
       supportChatApi.middleware,
       systemConfigApi.middleware,
+      notificationTemplatesApi.middleware,
     ),
   devTools: process.env.NODE_ENV !== "production",
 });

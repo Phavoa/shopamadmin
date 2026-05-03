@@ -10,7 +10,7 @@ import {
   useCreateCommissionTierMutation,
   useUpdateCommissionTierMutation,
   useDeleteCommissionTierMutation,
-  type CommissionTier, // 👈 add this
+  type CommissionTier,
 } from "@/api/feeConfigApi";
 import {
   useUpdatePriceMutation,
@@ -110,26 +110,33 @@ export default function FeeConfigurationPage() {
   // Initialize state from API
   useEffect(() => {
     if (config) {
-      setEffectiveDate(config.effectiveFrom || "");
-      setGracePeriod(config.gracePeriodDays?.toString() || "");
-      setWhoCanPublish(config.whoCanPublish || "FINANCE_ADMIN");
-      setWalletFee(koboToNaira(config.walletFeeKobo).toString());
-      setWithdrawalFee(koboToNaira(config.withdrawalFeeKobo).toString());
-      setSubscriptionEnabled(config.subscriptionEnabled);
-      setSubscriptionPrice(koboToNaira(config.subscriptionFeeKobo).toString());
-      setReferralEnabled(config.referralEnabled);
+      // Prioritize draft values if they exist, otherwise fallback to published config
+      const hasDraft = config.draft && Object.keys(config.draft).length > 0;
+      const source = hasDraft ? config.draft : config;
 
-      // Initialize local tiers
-      if (tiers.length > 0) {
-        setLocalTiers(
-          tiers.map((t) => ({
-            ...t,
-            minAmount: koboToNaira(t.minAmount).toString(),
-            maxAmount: koboToNaira(t.maxAmount).toString(),
-          })),
-        );
-      }
+      setEffectiveDate(config.effectiveFrom || ""); // Effective date is usually on the published config
+      setGracePeriod(source.gracePeriodDays?.toString() || config.gracePeriodDays?.toString() || "7");
+      setWhoCanPublish(source.whoCanPublish || config.whoCanPublish || "FINANCE_ADMIN");
 
+      setWalletFee(koboToNaira(source.walletFeeKobo).toString());
+      setWithdrawalFee(koboToNaira(source.withdrawalFeeKobo).toString());
+      setSubscriptionEnabled(source.subscriptionEnabled ?? config.subscriptionEnabled);
+      setSubscriptionPrice(koboToNaira(source.subscriptionFeeKobo).toString());
+      setReferralEnabled(source.referralEnabled ?? config.referralEnabled);
+    }
+
+    // Initialize local tiers
+    if (config && tiers.length > 0) {
+      setLocalTiers(
+        tiers.map((t) => ({
+          ...t,
+          minAmount: koboToNaira(t.minAmount).toString(),
+          maxAmount: koboToNaira(t.maxAmount).toString(),
+        })),
+      );
+    }
+
+    if (config) {
       handleSimulate();
     }
   }, [config, tiers]);
