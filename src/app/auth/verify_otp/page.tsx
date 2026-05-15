@@ -9,9 +9,9 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { useVerifyOtpMutation, useRequestOtpMutation } from "@/api/authApi";
 import { otpSchema, type OtpFormData } from "@/lib/auth/validationSchemas";
-import { VerifyOtpResetResponse } from "../../types/auth";
+import { VerifyOtpResetResponse } from "@/types/auth";
 
-export function VerifyOtpContent() {
+function VerifyOtpContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const purpose = (searchParams.get("purpose") as "SIGNUP" | "RESET") || "SIGNUP";
