@@ -26,6 +26,8 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 import { useLogoutMutation } from "@/api/authApi";
+import { useSelector } from "react-redux";
+import { RootState } from "@/lib/store/store";
 
 function Sidebar() {
   const router = useRouter();
@@ -44,6 +46,13 @@ function Sidebar() {
   const [navigatingTo, setNavigatingTo] = useState<string | null>(null);
 
   const [logout, { isLoading: isLoggingOut }] = useLogoutMutation();
+  const { user } = useSelector((state: RootState) => state.auth);
+
+  useEffect(() => {
+    if (user) {
+      console.log("👤 Sidebar Active User Role:", user.role);
+    }
+  }, [user]);
 
   // ✅ Clear loading state when pathname changes (page loaded)
   useEffect(() => {
@@ -382,19 +391,20 @@ function Sidebar() {
         </ul>
       </nav>
 
-      {/* Bottom — Settings + Logout */}
       <div className="mt-auto px-2">
         <hr className="border-[var(--sidebar-border)] my-4" />
-        <button
-          onClick={() => handleNavClick("settings", "/admin-dashboard/settings")}
-          disabled={isNavigating && navigatingTo !== "settings"}
-          className={`flex items-center gap-2 text-sm font-normal leading-5 cursor-pointer
-            ${isNavigating && navigatingTo !== "settings" ? "opacity-40 pointer-events-none" : ""}
-            ${activeMainItem === "settings" ? "text-[var(--sidebar-primary)] font-semibold" : "text-muted-foreground hover:text-foreground"}`}
-        >
-          {spinnerOrIcon("settings", <Settings className="w-[var(--icon-size-sm)] h-[var(--icon-size-sm)]" />)}
-          Settings
-        </button>
+        {(user?.role === "SUPER_ADMIN" || user?.role === "ADMIN" || user?.role === "HUB_ADMIN") && (
+          <button
+            onClick={() => handleNavClick("settings", "/admin-dashboard/settings")}
+            disabled={isNavigating && navigatingTo !== "settings"}
+            className={`flex items-center gap-2 text-sm font-normal leading-5 cursor-pointer
+              ${isNavigating && navigatingTo !== "settings" ? "opacity-40 pointer-events-none" : ""}
+              ${activeMainItem === "settings" ? "text-[var(--sidebar-primary)] font-semibold" : "text-muted-foreground hover:text-foreground"}`}
+          >
+            {spinnerOrIcon("settings", <Settings className="w-[var(--icon-size-sm)] h-[var(--icon-size-sm)]" />)}
+            Settings
+          </button>
+        )}
         <button
           onClick={handleLogoutClick}
           disabled={isLoggingOut || isNavigating}

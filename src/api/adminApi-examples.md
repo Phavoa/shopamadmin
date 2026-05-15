@@ -13,12 +13,13 @@ import {
   useLazyGetAdminByIdQuery,
   useUpdateAdminMutation,
   useDeleteAdminMutation,
-} from '@/api/adminApi';
+} from "@/api/adminApi";
 ```
 
 ## Valid Admin Roles
 
 The adminApi supports three admin roles:
+
 - `SUPER_ADMIN` - Full system access
 - `ADMIN` - Standard admin access
 - `HUB_ADMIN` - Hub-specific admin access

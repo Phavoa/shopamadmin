@@ -1,7 +1,7 @@
 "use client";
 
-import React, { useEffect, useRef, useState } from "react";
-import { useRouter } from "next/navigation";
+import React, { useEffect, useRef, useState, Suspense } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Card } from "@/components/ui/card";
@@ -9,9 +9,13 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { useVerifyOtpMutation, useRequestOtpMutation } from "@/api/authApi";
 import { otpSchema, type OtpFormData } from "@/lib/auth/validationSchemas";
+import { VerifyOtpResetResponse } from "../../types/auth";
 
-export default function VerifyOtpPage() {
+export function VerifyOtpContent() {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const purpose = (searchParams.get("purpose") as "SIGNUP" | "RESET") || "SIGNUP";
+
   const [verifyOtp, { isLoading: isVerifying }] = useVerifyOtpMutation();
   const [requestOtp, { isLoading: isRequestingOtp }] = useRequestOtpMutation();
   const [apiError, setApiError] = React.useState<string | null>(null);
@@ -137,13 +141,26 @@ export default function VerifyOtpPage() {
     }
 
     try {
-      await verifyOtp({
+      const result = await verifyOtp({
         destination: email,
-        purpose: "SIGNUP",
+        purpose: purpose,
         code: otp,
       }).unwrap();
 
-      // Clear the stored email
+      if (purpose === "RESET") {
+        // For reset, we get a resetToken
+        const resetData = result.data as VerifyOtpResetResponse;
+        localStorage.setItem("passwordResetToken", resetData.resetToken);
+        
+        setSuccessMessage("Code verified! Now you can reset your password.");
+        
+        setTimeout(() => {
+          router.push("/auth/reset_password");
+        }, 1500);
+        return;
+      }
+
+      // Clear the stored email (only for signup, for reset we might still need it)
       localStorage.removeItem("pendingVerificationEmail");
 
       setSuccessMessage("Email verified successfully! Redirecting to login...");
@@ -178,7 +195,7 @@ export default function VerifyOtpPage() {
     try {
       await requestOtp({
         destination: email,
-        purpose: "SIGNUP",
+        purpose: purpose,
       }).unwrap();
 
       setStatus("A new code was sent. Check your messages.");
@@ -310,5 +327,13 @@ export default function VerifyOtpPage() {
         </div>
       </form>
     </Card>
+  );
+}
+
+export default function VerifyOtpPage() {
+  return (
+    <Suspense fallback={<div className="flex items-center justify-center min-h-screen">Loading...</div>}>
+      <VerifyOtpContent />
+    </Suspense>
   );
 }

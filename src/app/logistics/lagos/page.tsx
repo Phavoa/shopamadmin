@@ -20,6 +20,8 @@ import {
 } from "@/api/orderExceptionsApi";
 import { useNotifications } from "@/hooks/useNotifications";
 import { ErrorBoundary } from "@/components/ui/error-boundary";
+import { useSelector } from "react-redux";
+import { RootState } from "@/lib/store/store";
 
 // Import all components
 import KPIGrid from "@/components/logistics/KPIGrid";
@@ -78,6 +80,7 @@ interface Rider {
 export default function LagosHubDashboard() {
   const router = useRouter();
   const { showSuccess, showError, handleAsyncOperation } = useNotifications();
+  const { user } = useSelector((state: RootState) => state.auth);
 
   // Modal states
   const [showAddRiderModal, setShowAddRiderModal] = useState(false);
@@ -666,22 +669,24 @@ export default function LagosHubDashboard() {
             </p>
           </div>
           <div className="flex gap-3">
-            <Button
-              onClick={() => {
-                setIsNavigatingBack(true);
-                router.push("/admin-dashboard");
-              }}
-              variant="outline"
-              disabled={isNavigatingBack}
-              className="group flex items-center gap-2 border-slate-200 bg-white text-slate-700 shadow-sm hover:shadow-md hover:border-blue-400 hover:text-blue-600 hover:bg-blue-50/50 transition-all duration-300 rounded-full px-5 py-2"
-            >
-              {isNavigatingBack ? (
-                <Loader2 className="w-4 h-4 animate-spin text-blue-500" />
-              ) : (
-                <LayoutDashboard className="w-4 h-4 text-slate-400 group-hover:text-blue-500 group-hover:scale-110 transition-all duration-300" />
-              )}
-              <span className="font-semibold tracking-tight">Back to Admin</span>
-            </Button>
+            {(user?.role === "SUPER_ADMIN" || user?.role === "ADMIN" || user?.role === "HUB_ADMIN") && (
+              <Button
+                onClick={() => {
+                  setIsNavigatingBack(true);
+                  router.push("/admin-dashboard");
+                }}
+                variant="outline"
+                disabled={isNavigatingBack}
+                className="group flex items-center gap-2 border-slate-200 bg-white text-slate-700 shadow-sm hover:shadow-md hover:border-blue-400 hover:text-blue-600 hover:bg-blue-50/50 transition-all duration-300 rounded-full px-5 py-2"
+              >
+                {isNavigatingBack ? (
+                  <Loader2 className="w-4 h-4 animate-spin text-blue-500" />
+                ) : (
+                  <LayoutDashboard className="w-4 h-4 text-slate-400 group-hover:text-blue-500 group-hover:scale-110 transition-all duration-300" />
+                )}
+                <span className="font-semibold tracking-tight">Back to Admin</span>
+              </Button>
+            )}
 
             <Button
               onClick={() => router.push("/logistics/track-order")}

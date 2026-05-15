@@ -68,6 +68,17 @@ export default function AdminManagementPage() {
   const [deleteAdmin, { isLoading: isDeleting }] = useDeleteAdminMutation();
 
   const admins = adminsData?.data?.items || [];
+  
+  // LOG THE ADMINS DATA FOR DEBUGGING
+  useEffect(() => {
+    if (admins.length > 0) {
+      console.log("📋 Admin Users Fetched:", admins.map(a => ({
+        name: `${a.firstName} ${a.lastName}`,
+        email: a.email,
+        role: a.role
+      })));
+    }
+  }, [admins]);
 
   // Reset form function
   const resetForm = () => {

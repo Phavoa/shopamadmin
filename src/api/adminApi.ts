@@ -8,7 +8,7 @@ export interface Admin {
   lastName: string;
   email: string;
   role: "SUPER_ADMIN" | "ADMIN" | "HUB_ADMIN";
-  isActive: boolean;
+  isActive?: boolean;
   createdAt: string;
   updatedAt: string;
   lastLoginAt?: string;
@@ -149,7 +149,7 @@ export const adminApi = createApi({
     // Create new admin
     createAdmin: builder.mutation<ApiResponse<Admin>, CreateAdminRequest>({
       query: (adminData) => ({
-        url: "/admin",
+        url: "/admin/accounts",
         method: "POST",
         body: adminData,
       }),
@@ -160,7 +160,7 @@ export const adminApi = createApi({
     getAdmins: builder.query<ApiResponse<{ items: Admin[] }>, ListAdminsParams>(
       {
         query: (params = {}) => ({
-          url: "/admin",
+          url: "/admin/accounts",
           method: "GET",
           params,
         }),
@@ -180,7 +180,7 @@ export const adminApi = createApi({
     // Get admin by id
     getAdminById: builder.query<ApiResponse<Admin>, string>({
       query: (adminId) => ({
-        url: `/admin/${adminId}`,
+        url: `/admin/accounts/${adminId}`,
         method: "GET",
       }),
       providesTags: (result, error, adminId) => [
@@ -194,7 +194,7 @@ export const adminApi = createApi({
       { id: string; data: UpdateAdminRequest }
     >({
       query: ({ id, data }) => ({
-        url: `/admin/${id}`,
+        url: `/admin/accounts/${id}`,
         method: "PATCH",
         body: data,
       }),
@@ -207,7 +207,7 @@ export const adminApi = createApi({
     // Remove admin (soft delete)
     deleteAdmin: builder.mutation<ApiResponse<{ ok: boolean }>, string>({
       query: (adminId) => ({
-        url: `/admin/${adminId}`,
+        url: `/admin/accounts/${adminId}`,
         method: "DELETE",
       }),
       invalidatesTags: (result, error, adminId) => [

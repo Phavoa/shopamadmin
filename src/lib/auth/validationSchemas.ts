@@ -11,7 +11,7 @@ const passwordSchema = z
   .regex(/\d/, "Password must contain at least one number")
   .regex(
     /[!@#$%^&*(),.?":{}|<>]/,
-    "Password must contain at least one special character"
+    "Password must contain at least one special character",
   );
 
 // Signup form validation

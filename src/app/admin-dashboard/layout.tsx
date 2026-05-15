@@ -3,6 +3,7 @@ import { Geist, Geist_Mono } from "next/font/google";
 import { Header } from "@/components/dashboard/header";
 import { Sidebar } from "@/components/dashboard/sidebar";
 import AppWapper from "../AppWrapper";
+import { RoleGuard } from "@/components/shared/RoleGuard";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -31,7 +32,11 @@ export default function RootLayout({
         <Header />
         <div className="mx-auto pr-[var(--page-gutter)] grid grid-cols-1 md:grid-cols-[var(--sidebar-width)_1fr] gap-[var(--card-gap)]">
           <Sidebar />
-          <AppWapper>{children}</AppWapper>
+          <AppWapper>
+            <RoleGuard allowedRoles={["SUPER_ADMIN", "ADMIN", "HUB_ADMIN"]}>
+              {children}
+            </RoleGuard>
+          </AppWapper>
         </div>
       </div>
   );

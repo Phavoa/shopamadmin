@@ -1,6 +1,7 @@
 "use client";
 
 import React from "react";
+import { useRouter } from "next/navigation";
 import { useForm, Controller } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import Link from "next/link";
@@ -16,6 +17,7 @@ import {
 } from "@/lib/auth/validationSchemas";
 
 export default function ForgotPasswordCard() {
+  const router = useRouter();
   const [forgotPassword, { isLoading: isSending }] =
     useForgotPasswordMutation();
   const [apiError, setApiError] = React.useState<string | null>(null);
@@ -45,11 +47,19 @@ export default function ForgotPasswordCard() {
         destination: data.email,
       }).unwrap();
 
+      // Store email for verification
+      localStorage.setItem("pendingVerificationEmail", data.email);
+
       // Show success message without revealing if email exists
       setSuccessMessage(
-        "If an account exists for that email, you'll receive password reset instructions shortly."
+        "If an account exists for that email, you'll receive password reset instructions shortly. Redirecting..."
       );
       reset(); // Clear the form
+
+      // Redirect to OTP verification page
+      setTimeout(() => {
+        router.push("/auth/verify_otp?purpose=RESET");
+      }, 2000);
     } catch (err) {
       console.error("Forgot password failed:", err);
       const error = err as { data?: { message?: string | string[] } };

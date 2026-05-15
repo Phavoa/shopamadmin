@@ -129,7 +129,7 @@ export default function LoginPage() {
               <span className="text-red-500 ml-1">*</span>
             </Label>
             <a
-              href="#forgot"
+              href="/auth/forget_password"
               className="text-sm text-[#9CA3AF] hover:text-gray-500 focus:outline-none focus:ring-2 focus:ring-[#E67E22] rounded"
             >
               Forgot password?
