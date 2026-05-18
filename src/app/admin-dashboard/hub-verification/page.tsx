@@ -20,9 +20,15 @@ const Page = () => {
   const [selectedHub, setSelectedHub] = useState<HubDisplay | null>(null);
   const [isProcessing, setIsProcessing] = useState(false);
   const [hubs, setHubs] = useState<HubDisplay[]>([]);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [queryParams, setQueryParams] = useState({
+    limit: 10,
+    after: undefined as string | undefined,
+    before: undefined as string | undefined,
+  });
 
   // Fetch hubs (using API but mocking missing fields)
-  const { data: hubsData, isLoading, error } = useGetHubsQuery({});
+  const { data: hubsData, isLoading, error } = useGetHubsQuery(queryParams);
   const [reviewHub] = useReviewHubMutation();
 
   useEffect(() => {
@@ -108,6 +114,40 @@ const Page = () => {
     }
   };
 
+  const handleNextPage = () => {
+    if (hubsData?.data?.hasNext && hubsData?.data?.nextCursor) {
+      setSelectedHub(null);
+      setCurrentPage((prev) => prev + 1);
+      setQueryParams((prev) => ({
+        ...prev,
+        after: hubsData.data.nextCursor || undefined,
+        before: undefined,
+      }));
+    }
+  };
+
+  const handlePrevPage = () => {
+    if (hubsData?.data?.hasPrev && hubsData?.data?.prevCursor) {
+      setSelectedHub(null);
+      setCurrentPage((prev) => Math.max(1, prev - 1));
+      setQueryParams((prev) => ({
+        ...prev,
+        before: hubsData.data.prevCursor || undefined,
+        after: undefined,
+      }));
+    }
+  };
+
+  const handleGoToFirstPage = () => {
+    setSelectedHub(null);
+    setCurrentPage(1);
+    setQueryParams((prev) => ({
+      ...prev,
+      after: undefined,
+      before: undefined,
+    }));
+  };
+
   return (
     <PageWrapper className="min-h-screen px-6 py-8">
       <div className="grid grid-cols-12 gap-6">
@@ -119,6 +159,12 @@ const Page = () => {
               error={error ? "Failed to load hubs" : null}
               selectedHub={selectedHub}
               onHubSelect={handleHubSelect}
+              currentPage={currentPage}
+              hasNext={hubsData?.data?.hasNext ?? false}
+              hasPrev={hubsData?.data?.hasPrev ?? false}
+              onNextPage={handleNextPage}
+              onPrevPage={handlePrevPage}
+              onGoToFirst={handleGoToFirstPage}
             />
           </AnimatedWrapper>
         </div>

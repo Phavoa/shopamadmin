@@ -10,6 +10,7 @@ import {
 import { Skeleton } from "@/components/ui/skeleton";
 import { HubDisplay } from "./types";
 import { formatTimeAgo } from "./hub-utils";
+import HubsPagination from "./HubsPagination";
 
 interface HubVerificationTableProps {
   hubs: HubDisplay[];
@@ -17,6 +18,12 @@ interface HubVerificationTableProps {
   error: string | null;
   selectedHub: HubDisplay | null;
   onHubSelect: (hub: HubDisplay) => void;
+  currentPage: number;
+  hasNext: boolean;
+  hasPrev: boolean;
+  onNextPage: () => void;
+  onPrevPage: () => void;
+  onGoToFirst: () => void;
 }
 
 const StatusBadge = ({ status }: { status: string }) => {
@@ -56,6 +63,12 @@ const HubVerificationTable: React.FC<HubVerificationTableProps> = ({
   error,
   selectedHub,
   onHubSelect,
+  currentPage,
+  hasNext,
+  hasPrev,
+  onNextPage,
+  onPrevPage,
+  onGoToFirst,
 }) => {
   return (
     <div
@@ -63,6 +76,7 @@ const HubVerificationTable: React.FC<HubVerificationTableProps> = ({
         borderRadius: "16px",
         border: "0.3px solid rgba(0, 0, 0, 0.05)",
         overflow: "hidden",
+        backgroundColor: "#FFF",
       }}
     >
       <div className="overflow-x-auto">
@@ -179,6 +193,18 @@ const HubVerificationTable: React.FC<HubVerificationTableProps> = ({
           </TableBody>
         </Table>
       </div>
+      {!isLoading && !error && (
+        <HubsPagination
+          currentPage={currentPage}
+          hasNext={hasNext}
+          hasPrev={hasPrev}
+          isLoading={isLoading}
+          onNextPage={onNextPage}
+          onPrevPage={onPrevPage}
+          onGoToFirst={onGoToFirst}
+          hubsCount={hubs.length}
+        />
+      )}
     </div>
   );
 };

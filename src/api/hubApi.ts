@@ -127,6 +127,8 @@ export interface ListHubsParams {
   state?: string;
   limit?: number;
   page?: number;
+  after?: string;
+  before?: string;
 }
 
 export interface HubPaginatedData {
