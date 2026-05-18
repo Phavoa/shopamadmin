@@ -11,12 +11,20 @@ import {
 import StatusBadge from "./StatusBadge";
 import { DisplaySeller, formatTimeAgo } from "./verification-utils";
 
+import PremiumPagination from "@/components/shared/PremiumPagination";
+
 interface SellerTableProps {
   sellers: DisplaySeller[];
   fetchingSellers: boolean;
   error: string | null;
   selectedSeller: DisplaySeller | null;
   onSellerSelect: (seller: DisplaySeller) => void;
+  currentPage: number;
+  hasNext: boolean;
+  hasPrev: boolean;
+  onNextPage: () => void;
+  onPrevPage: () => void;
+  onGoToFirst: () => void;
 }
 
 const SellerTable: React.FC<SellerTableProps> = ({
@@ -25,6 +33,12 @@ const SellerTable: React.FC<SellerTableProps> = ({
   error,
   selectedSeller,
   onSellerSelect,
+  currentPage,
+  hasNext,
+  hasPrev,
+  onNextPage,
+  onPrevPage,
+  onGoToFirst,
 }) => {
   return (
     <div
@@ -126,6 +140,19 @@ const SellerTable: React.FC<SellerTableProps> = ({
           </TableBody>
         </Table>
       </div>
+      {!fetchingSellers && !error && (
+        <PremiumPagination
+          currentPage={currentPage}
+          hasNext={hasNext}
+          hasPrev={hasPrev}
+          isLoading={fetchingSellers}
+          onNextPage={onNextPage}
+          onPrevPage={onPrevPage}
+          onGoToFirst={onGoToFirst}
+          count={sellers.length}
+          entityName="sellers"
+        />
+      )}
     </div>
   );
 };

@@ -28,8 +28,11 @@ const BuyersListPage = () => {
   const dispatch = useDispatch();
   const searchQuery = useSelector(selectSearchQuery);
   const [currentPage, setCurrentPage] = useState(1);
-  const [nextCursor, setNextCursor] = useState<string | undefined>();
-  const [hasNext, setHasNext] = useState(false);
+  const [queryParams, setQueryParams] = useState({
+    limit: 20,
+    after: undefined as string | undefined,
+    before: undefined as string | undefined,
+  });
 
   const [suspendModal, setSuspendModal] = useState(false);
   const [strikeModal, setStrikeModal] = useState(false);
@@ -114,11 +117,11 @@ const BuyersListPage = () => {
     dispatch(setHeaderTitle("Buyer List"));
   }, [dispatch]);
 
-  const buyersPerPage = 20;
-
   const { data: usersData, isLoading, error, refetch } = useGetUsersQuery({
     populate: ["sellerProfile", "addresses", "followers", "following", "blocks", "blockedBy"],
-    limit: buyersPerPage,
+    limit: queryParams.limit,
+    after: queryParams.after,
+    before: queryParams.before,
     sortBy: "createdAt" as const,
     sortDir: "desc" as const,
     ...(searchQuery && { q: searchQuery }),
@@ -186,21 +189,53 @@ const BuyersListPage = () => {
   }, [refetch]);
 
   React.useEffect(() => {
-    if (usersData?.data && typeof usersData.data === "object" && "nextCursor" in usersData.data) {
-      const p = usersData.data as unknown as { nextCursor?: string; hasNext: boolean };
-      setNextCursor(p.nextCursor);
-      setHasNext(p.hasNext);
+    const dataObj = usersData?.data as any;
+    if (dataObj && typeof dataObj === "object") {
+      // Data handles cursor variables natively
     }
   }, [usersData]);
 
   React.useEffect(() => {
     setCurrentPage(1);
-    setNextCursor(undefined);
-    setHasNext(false);
+    setQueryParams((prev) => ({
+      ...prev,
+      after: undefined,
+      before: undefined,
+    }));
   }, [searchQuery]);
 
-  const handleNextPage = () => { if (hasNext && nextCursor) setCurrentPage(currentPage + 1); };
-  const handlePrevPage = () => { if (currentPage > 1) setCurrentPage(currentPage - 1); };
+  const handleNextPage = () => {
+    const dataObj = usersData?.data as any;
+    if (dataObj?.hasNext && dataObj?.nextCursor) {
+      setCurrentPage((prev) => prev + 1);
+      setQueryParams((prev) => ({
+        ...prev,
+        after: dataObj.nextCursor,
+        before: undefined,
+      }));
+    }
+  };
+
+  const handlePrevPage = () => {
+    const dataObj = usersData?.data as any;
+    if (dataObj?.hasPrev && dataObj?.prevCursor) {
+      setCurrentPage((prev) => Math.max(1, prev - 1));
+      setQueryParams((prev) => ({
+        ...prev,
+        before: dataObj.prevCursor,
+        after: undefined,
+      }));
+    }
+  };
+
+  const handleGoToFirstPage = () => {
+    setCurrentPage(1);
+    setQueryParams((prev) => ({
+      ...prev,
+      after: undefined,
+      before: undefined,
+    }));
+  };
   const handleViewBuyer = (buyer: Buyer) => router.push(`/admin-dashboard/buyers/${buyer.id}`);
 
   const openSuspendModal = (buyer: Buyer) => {
@@ -320,13 +355,15 @@ const BuyersListPage = () => {
         <BuyersListLayout
           buyers={buyers}
           currentPage={currentPage}
-          hasNext={hasNext}
+          hasNext={usersData?.data?.hasNext ?? false}
+          hasPrev={usersData?.data?.hasPrev ?? false}
           isLoading={isLoading}
           onViewBuyer={handleViewBuyer}
           onSuspendBuyer={openSuspendModal}
           onStrikeBuyer={openStrikeModal}
           onNextPage={handleNextPage}
           onPrevPage={handlePrevPage}
+          onGoToFirst={handleGoToFirstPage}
         />
       </AnimatedWrapper>
 

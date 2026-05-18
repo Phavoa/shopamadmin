@@ -481,6 +481,11 @@ const Page = () => {
     }
   };
 
+  const handleGoToFirstPage = () => {
+    setCurrentPage(1);
+    fetchSellers({ q: searchQuery || undefined });
+  };
+
   return (
     <PageWrapper className="min-h-screen px-6 py-8">
       <AnimatedWrapper animation="fadeIn" delay={0.1}>
@@ -501,6 +506,7 @@ const Page = () => {
           hasPrev={hasPrev}
           onNextPage={handleNextPage}
           onPrevPage={handlePrevPage}
+          onGoToFirst={handleGoToFirstPage}
           currentPage={currentPage}
         />
       </AnimatedWrapper>

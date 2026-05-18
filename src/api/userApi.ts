@@ -357,7 +357,16 @@ export const userApi = createApi({
      *
      * Tip: If you don't pass populate, the response still includes id-only arrays for these social relations (capped) due to repo configuration.
      */
-    getUsers: builder.query<ApiResponse<{ items: User[] }>, ListUsersParams>({
+    getUsers: builder.query<
+      ApiResponse<{
+        items: User[];
+        nextCursor?: string;
+        prevCursor?: string;
+        hasNext?: boolean;
+        hasPrev?: boolean;
+      }>,
+      ListUsersParams
+    >({
       query: (params = {}) => ({
         url: "/user",
         method: "GET",

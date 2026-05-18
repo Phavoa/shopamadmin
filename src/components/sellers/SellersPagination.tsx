@@ -1,6 +1,5 @@
 import React from "react";
-import { Button } from "@/components/ui/button";
-import { ChevronLeft, ChevronRight } from "lucide-react";
+import PremiumPagination from "@/components/shared/PremiumPagination";
 
 interface DisplaySeller {
   id: string;
@@ -30,6 +29,7 @@ interface SellersPaginationProps {
   onNextPage: () => void;
   onPrevPage: () => void;
   currentPage?: number;
+  onGoToFirst?: () => void;
 }
 
 const SellersPagination: React.FC<SellersPaginationProps> = ({
@@ -39,39 +39,20 @@ const SellersPagination: React.FC<SellersPaginationProps> = ({
   onNextPage,
   onPrevPage,
   currentPage = 1,
+  onGoToFirst = () => {},
 }) => {
   return (
-    <div className="flex items-center justify-between px-6 py-4 border-t border-gray-200">
-      {/* Results count */}
-      <p className="text-sm text-gray-600">Showing {sellers.length} sellers</p>
-
-      {/* Pagination controls */}
-      <div className="flex items-center gap-2">
-        <Button
-          variant="outline"
-          size="sm"
-          onClick={onPrevPage}
-          disabled={!hasPrev}
-          className="h-9 w-9 p-0"
-        >
-          <ChevronLeft className="w-4 h-4" />
-        </Button>
-
-        <div className="flex items-center px-3 py-1.5 text-sm font-medium bg-[#E67E22] text-white rounded-md">
-          {currentPage}
-        </div>
-
-        <Button
-          variant="outline"
-          size="sm"
-          onClick={onNextPage}
-          disabled={!hasNext}
-          className="h-9 w-9 p-0"
-        >
-          <ChevronRight className="w-4 h-4" />
-        </Button>
-      </div>
-    </div>
+    <PremiumPagination
+      currentPage={currentPage}
+      hasNext={hasNext}
+      hasPrev={hasPrev}
+      isLoading={false}
+      onNextPage={onNextPage}
+      onPrevPage={onPrevPage}
+      onGoToFirst={onGoToFirst}
+      count={sellers.length}
+      entityName="sellers"
+    />
   );
 };
 

@@ -10,7 +10,7 @@ import {
 import { Skeleton } from "@/components/ui/skeleton";
 import { HubDisplay } from "./types";
 import { formatTimeAgo } from "./hub-utils";
-import HubsPagination from "./HubsPagination";
+import PremiumPagination from "@/components/shared/PremiumPagination";
 
 interface HubVerificationTableProps {
   hubs: HubDisplay[];
@@ -194,7 +194,7 @@ const HubVerificationTable: React.FC<HubVerificationTableProps> = ({
         </Table>
       </div>
       {!isLoading && !error && (
-        <HubsPagination
+        <PremiumPagination
           currentPage={currentPage}
           hasNext={hasNext}
           hasPrev={hasPrev}
@@ -202,7 +202,8 @@ const HubVerificationTable: React.FC<HubVerificationTableProps> = ({
           onNextPage={onNextPage}
           onPrevPage={onPrevPage}
           onGoToFirst={onGoToFirst}
-          hubsCount={hubs.length}
+          count={hubs.length}
+          entityName="hubs"
         />
       )}
     </div>

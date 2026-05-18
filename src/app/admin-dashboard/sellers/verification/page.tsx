@@ -24,33 +24,83 @@ const Page = () => {
   const [showApproveModal, setShowApproveModal] = useState(false);
   const [showRejectModal, setShowRejectModal] = useState(false);
   const [showDocumentModal, setShowDocumentModal] = useState(false);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [hasNext, setHasNext] = useState(false);
+  const [hasPrev, setHasPrev] = useState(false);
+  const [nextCursor, setNextCursor] = useState<string | undefined>();
+  const [prevCursor, setPrevCursor] = useState<string | undefined>();
+  const [queryParams, setQueryParams] = useState({
+    limit: 10,
+    after: undefined as string | undefined,
+    before: undefined as string | undefined,
+  });
   const [selectedDocument, setSelectedDocument] = useState<{
     url: string;
     title: string;
   } | null>(null);
 
+  const fetchSellerList = async (params: typeof queryParams) => {
+    try {
+      setFetchingSellers(true);
+      setError(null);
+
+      const response = await getSellers({
+        limit: params.limit,
+        after: params.after,
+        before: params.before,
+        populate: "user",
+      });
+
+      setSellers(response.data.items);
+      setHasNext(response.data.hasNext);
+      setHasPrev(response.data.hasPrev);
+      setNextCursor(response.data.nextCursor);
+      setPrevCursor(response.data.prevCursor);
+    } catch (error) {
+      console.error("Failed to fetch sellers:", error);
+      setError("Failed to load sellers. Please try again.");
+    } finally {
+      setFetchingSellers(false);
+    }
+  };
+
   useEffect(() => {
-    const fetchSellers = async () => {
-      try {
-        setFetchingSellers(true);
-        setError(null);
+    fetchSellerList(queryParams);
+  }, [queryParams]);
 
-        const response = await getSellers({
-          limit: 50,
-          populate: "user",
-        });
+  const handleNextPage = () => {
+    if (hasNext && nextCursor) {
+      setSelectedSeller(null);
+      setCurrentPage((prev) => prev + 1);
+      setQueryParams((prev) => ({
+        ...prev,
+        after: nextCursor,
+        before: undefined,
+      }));
+    }
+  };
 
-        setSellers(response.data.items);
-      } catch (error) {
-        console.error("Failed to fetch sellers:", error);
-        setError("Failed to load sellers. Please try again.");
-      } finally {
-        setFetchingSellers(false);
-      }
-    };
+  const handlePrevPage = () => {
+    if (hasPrev && prevCursor) {
+      setSelectedSeller(null);
+      setCurrentPage((prev) => Math.max(1, prev - 1));
+      setQueryParams((prev) => ({
+        ...prev,
+        before: prevCursor,
+        after: undefined,
+      }));
+    }
+  };
 
-    fetchSellers();
-  }, []);
+  const handleGoToFirstPage = () => {
+    setSelectedSeller(null);
+    setCurrentPage(1);
+    setQueryParams((prev) => ({
+      ...prev,
+      after: undefined,
+      before: undefined,
+    }));
+  };
 
   const handleApprove = async () => {
     if (!selectedSeller) return;
@@ -118,6 +168,12 @@ const Page = () => {
               error={error}
               selectedSeller={selectedSeller}
               onSellerSelect={setSelectedSeller}
+              currentPage={currentPage}
+              hasNext={hasNext}
+              hasPrev={hasPrev}
+              onNextPage={handleNextPage}
+              onPrevPage={handlePrevPage}
+              onGoToFirst={handleGoToFirstPage}
             />
           </div>
 
