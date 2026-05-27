@@ -8,5 +8,5 @@ export default function SettingsLayout({
 }: {
   children: React.ReactNode;
 }) {
-  return <RoleGuard allowedRoles={["SUPER_ADMIN", "ADMIN", "HUB_ADMIN"]}>{children}</RoleGuard>;
+  return <RoleGuard allowedRoles={["SUPER_ADMIN", "HUB_ADMIN"]}>{children}</RoleGuard>;
 }

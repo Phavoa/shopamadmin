@@ -3,18 +3,19 @@
 import React, { useEffect, useRef } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import { RootState } from "../../lib/store/store";
-import { useLazyGetAdminByIdQuery } from "../../api/adminApi";
-import { updateUser } from "../../features/auth/authSlice";
+import { useLazyGetAdminMeQuery } from "../../api/adminApi";
+import { updateUser, clearCredentials } from "../../features/auth/authSlice";
+import { authStorage } from "../../lib/auth/authUtils";
 
 /**
  * AuthInitializer handles fetching the enriched user profile (specifically the role)
- * from the specialized admin endpoint after login, as the basic login endpoint
- * may return a generic role.
+ * from the specialized admin /me endpoint after login, automatically resolving
+ * the admin profile using the JWT token without needing an ID parameter.
  */
 export const AuthInitializer = ({ children }: { children: React.ReactNode }) => {
   const dispatch = useDispatch();
   const { user, isAuthenticated } = useSelector((state: RootState) => state.auth);
-  const [getAdminById] = useLazyGetAdminByIdQuery();
+  const [getAdminMe] = useLazyGetAdminMeQuery();
   
   // Track if we've already fetched the enriched profile for the current user session
   const lastFetchedId = useRef<string | null>(null);
@@ -26,7 +27,7 @@ export const AuthInitializer = ({ children }: { children: React.ReactNode }) => 
         try {
           console.log(`🔄 Fetching enriched profile for ${user.email} (ID: ${user.id})...`);
           
-          const response = await getAdminById(user.id).unwrap();
+          const response = await getAdminMe().unwrap();
           
           if (response.data) {
             console.log("📥 FULL ENRICHED PROFILE RESPONSE:", response.data);
@@ -42,10 +43,20 @@ export const AuthInitializer = ({ children }: { children: React.ReactNode }) => 
               lastName: response.data.lastName,
             }));
           }
-        } catch (error) {
+        } catch (error: any) {
           console.error("❌ Failed to fetch enriched user profile:", error);
           // Don't retry indefinitely for the same ID if it fails once
           lastFetchedId.current = user.id;
+
+          // ⚠️ 404 Not Found Handling:
+          // If a non-admin user logs in, the endpoint returns a 404.
+          // In this case, log them out and redirect to login page.
+          if (error?.status === 404) {
+            alert("Access Denied: You do not have administrative privileges.");
+            authStorage.clearTokens();
+            dispatch(clearCredentials());
+            window.location.href = "/auth/login";
+          }
         }
       } else if (!isAuthenticated) {
         // Reset tracker when user logs out
@@ -54,7 +65,7 @@ export const AuthInitializer = ({ children }: { children: React.ReactNode }) => 
     };
 
     fetchFullUser();
-  }, [isAuthenticated, user, getAdminById, dispatch]);
+  }, [isAuthenticated, user, getAdminMe, dispatch]);
 
   return <>{children}</>;
 };

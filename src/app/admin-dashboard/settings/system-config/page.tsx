@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { 
   Search, 
@@ -13,7 +13,7 @@ import {
   Settings,
   RefreshCw
 } from "lucide-react";
-import { useGetSystemConfigsQuery } from "@/api/systemConfigApi";
+import { useGetSystemConfigsQuery, SystemConfig } from "@/api/systemConfigApi";
 import { EditConfigModal } from "@/components/admin/settings/EditConfigModal";
 import { format } from "date-fns";
 import { koboToNaira, formatNaira } from "@/lib/utils";
@@ -25,7 +25,8 @@ const SystemConfigPage = () => {
   const dispatch = useDispatch();
   const [searchQuery, setSearchQuery] = useState("");
   const [after, setAfter] = useState<string | undefined>(undefined);
-  const [before, setBefore] = useState<string | undefined>(undefined);
+  const [accumulatedConfigs, setAccumulatedConfigs] = useState<SystemConfig[]>([]);
+  const observerTarget = useRef<HTMLDivElement>(null);
   const [editModal, setEditModal] = useState<{ isOpen: boolean; config: any | null }>({
     isOpen: false,
     config: null,
@@ -39,17 +40,49 @@ const SystemConfigPage = () => {
     q: searchQuery || undefined,
     limit: 20,
     after,
-    before,
     sortBy: "createdAt",
     sortDir: "desc",
   });
 
-  const configs = configResponse?.data?.items || [];
+  // Accumulate configs
+  useEffect(() => {
+    if (configResponse?.data?.items) {
+      if (!after) {
+        setAccumulatedConfigs(configResponse.data.items);
+      } else {
+        setAccumulatedConfigs(prev => {
+          const newItems = configResponse.data.items.filter(
+            item => !prev.some(p => p.key === item.key)
+          );
+          return [...prev, ...newItems];
+        });
+      }
+    }
+  }, [configResponse, after]);
+
+  // Intersection Observer for Infinite Scroll
+  useEffect(() => {
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries[0].isIntersecting && configResponse?.data?.hasNext && !isFetching) {
+          setAfter(configResponse.data.nextCursor ?? undefined);
+        }
+      },
+      { threshold: 1.0 }
+    );
+
+    if (observerTarget.current) {
+      observer.observe(observerTarget.current);
+    }
+
+    return () => observer.disconnect();
+  }, [observerTarget, configResponse, isFetching]);
+
+  const configs = accumulatedConfigs;
 
   const handleSearch = (q: string) => {
     setSearchQuery(q);
     setAfter(undefined);
-    setBefore(undefined);
   };
 
   const formatValue = (key: string, value: string) => {
@@ -199,38 +232,22 @@ const SystemConfigPage = () => {
         </table>
       </div>
 
-      {/* Pagination Footer */}
-      {!isLoading && !error && configs.length > 0 && (
-        <div className="flex items-center justify-between px-6 py-4 border-t border-gray-200 bg-gray-50/50">
-          <div className="text-sm text-gray-500 font-medium">
-            {isFetching ? (
-              <span className="flex items-center gap-2"><Loader2 className="w-3 h-3 animate-spin" /> Updating...</span>
-            ) : (
-              `Showing ${configs.length} configuration items`
-            )}
-          </div>
-          <div className="flex items-center gap-2">
-            <button
-              onClick={() => {
-                setBefore(configs[0]?.key);
-                setAfter(undefined);
-              }}
-              disabled={isLoading || isFetching || !configResponse?.data?.hasPrev}
-              className="p-2 border border-gray-300 rounded-lg hover:bg-white disabled:opacity-30 disabled:cursor-not-allowed transition-all shadow-sm"
-            >
-              <ChevronLeft className="w-5 h-5 text-gray-600" />
-            </button>
-            <button
-              onClick={() => {
-                setAfter(configs[configs.length - 1]?.key);
-                setBefore(undefined);
-              }}
-              disabled={isLoading || isFetching || !configResponse?.data?.hasNext}
-              className="p-2 border border-gray-300 rounded-lg hover:bg-white disabled:opacity-30 disabled:cursor-not-allowed transition-all shadow-sm"
-            >
-              <ChevronRight className="w-5 h-5 text-gray-600" />
-            </button>
-          </div>
+      {/* Infinite Scroll Target & Loading Indicator */}
+      {!isLoading && !error && (
+        <div 
+          ref={observerTarget}
+          className="flex items-center justify-center p-6 h-20 border-t border-gray-200"
+        >
+          {isFetching && configs.length > 0 ? (
+            <div className="flex items-center gap-2 text-sm text-gray-500 font-medium">
+              <Loader2 className="w-5 h-5 animate-spin text-[#E67E22]" />
+              Loading more...
+            </div>
+          ) : configResponse?.data?.hasNext ? (
+             <div className="text-sm text-gray-400">Scroll down to load more</div>
+          ) : configs.length > 0 ? (
+             <div className="text-sm text-gray-400">End of list</div>
+          ) : null}
         </div>
       )}
 

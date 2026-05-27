@@ -9,7 +9,7 @@ export default function LogisticsLayout({
   children: React.ReactNode;
 }) {
   return (
-    <RoleGuard allowedRoles={["SUPER_ADMIN", "HUB_ADMIN", "ADMIN"]}>
+    <RoleGuard allowedRoles={["SUPER_ADMIN", "HUB_ADMIN"]}>
       {children}
     </RoleGuard>
   );

@@ -188,6 +188,15 @@ export const adminApi = createApi({
       ],
     }),
 
+    // Get current logged in admin profile
+    getAdminMe: builder.query<ApiResponse<Admin>, void>({
+      query: () => ({
+        url: "/admin/accounts/me",
+        method: "GET",
+      }),
+      providesTags: ["Admin"],
+    }),
+
     // Update admin (role change = SUPER ADMIN only)
     updateAdmin: builder.mutation<
       ApiResponse<Admin>,
@@ -238,6 +247,8 @@ export const {
   useLazyGetAdminsQuery,
   useGetAdminByIdQuery,
   useLazyGetAdminByIdQuery,
+  useGetAdminMeQuery,
+  useLazyGetAdminMeQuery,
   useUpdateAdminMutation,
   useDeleteAdminMutation,
   useGetSystemAlertsQuery,

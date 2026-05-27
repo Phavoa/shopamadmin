@@ -124,44 +124,48 @@ function Header() {
               </div>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end" className="w-64 p-2 shadow-xl border-border/50 bg-background/95 backdrop-blur-sm">
-              <div className="px-2 py-1.5 text-xs font-semibold text-muted-foreground uppercase tracking-wider">
-                Logistics Dashboards
-              </div>
-              <DropdownMenuItem 
-                onClick={() => handleNavigation("/logistics/lagos")}
-                className="flex items-center gap-3 p-3 cursor-pointer rounded-md focus:bg-green-50 focus:text-green-700 transition-all duration-200"
-              >
-                <div className="h-8 w-8 rounded-full bg-green-100 flex items-center justify-center text-green-600">
-                  {isNavigating === "/logistics/lagos" ? (
-                    <Loader2 className="w-4 h-4 animate-spin" />
-                  ) : (
-                    <Truck className="w-4 h-4" />
-                  )}
-                </div>
-                <div className="flex flex-col">
-                  <span className="font-medium">Lagos Logistics</span>
-                  <span className="text-xs text-muted-foreground">Manage Lagos hub operations</span>
-                </div>
-              </DropdownMenuItem>
-              
-              <DropdownMenuItem 
-                onClick={() => handleNavigation("/logistics/non-lagos")}
-                className="flex items-center gap-3 p-3 cursor-pointer rounded-md focus:bg-orange-50 focus:text-orange-700 transition-all duration-200"
-              >
-                <div className="h-8 w-8 rounded-full bg-orange-100 flex items-center justify-center text-orange-600">
-                  {isNavigating === "/logistics/non-lagos" ? (
-                    <Loader2 className="w-4 h-4 animate-spin" />
-                  ) : (
-                    <Truck className="w-4 h-4" />
-                  )}
-                </div>
-                <div className="flex flex-col">
-                  <span className="font-medium">Non-Lagos Logistics</span>
-                  <span className="text-xs text-muted-foreground">Manage regional hub operations</span>
-                </div>
-              </DropdownMenuItem>
-              
-              <div className="my-2 border-t border-border/50" />
+              {(user?.role === "SUPER_ADMIN" || user?.role === "HUB_ADMIN") && (
+                <>
+                  <div className="px-2 py-1.5 text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+                    Logistics Dashboards
+                  </div>
+                  <DropdownMenuItem 
+                    onClick={() => handleNavigation("/logistics/lagos")}
+                    className="flex items-center gap-3 p-3 cursor-pointer rounded-md focus:bg-green-50 focus:text-green-700 transition-all duration-200"
+                  >
+                    <div className="h-8 w-8 rounded-full bg-green-100 flex items-center justify-center text-green-600">
+                      {isNavigating === "/logistics/lagos" ? (
+                        <Loader2 className="w-4 h-4 animate-spin" />
+                      ) : (
+                        <Truck className="w-4 h-4" />
+                      )}
+                    </div>
+                    <div className="flex flex-col">
+                      <span className="font-medium">Lagos Logistics</span>
+                      <span className="text-xs text-muted-foreground">Manage Lagos hub operations</span>
+                    </div>
+                  </DropdownMenuItem>
+                  
+                  <DropdownMenuItem 
+                    onClick={() => handleNavigation("/logistics/non-lagos")}
+                    className="flex items-center gap-3 p-3 cursor-pointer rounded-md focus:bg-orange-50 focus:text-orange-700 transition-all duration-200"
+                  >
+                    <div className="h-8 w-8 rounded-full bg-orange-100 flex items-center justify-center text-orange-600">
+                      {isNavigating === "/logistics/non-lagos" ? (
+                        <Loader2 className="w-4 h-4 animate-spin" />
+                      ) : (
+                        <Truck className="w-4 h-4" />
+                      )}
+                    </div>
+                    <div className="flex flex-col">
+                      <span className="font-medium">Non-Lagos Logistics</span>
+                      <span className="text-xs text-muted-foreground">Manage regional hub operations</span>
+                    </div>
+                  </DropdownMenuItem>
+                  
+                  <div className="my-2 border-t border-border/50" />
+                </>
+              )}
               
               <DropdownMenuItem className="text-red-600 focus:bg-red-50 focus:text-red-700 p-3 rounded-md cursor-pointer flex items-center gap-3">
                 <div className="h-8 w-8 rounded-full bg-red-100 flex items-center justify-center">

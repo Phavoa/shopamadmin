@@ -393,7 +393,7 @@ function Sidebar() {
 
       <div className="mt-auto px-2">
         <hr className="border-[var(--sidebar-border)] my-4" />
-        {(user?.role === "SUPER_ADMIN" || user?.role === "ADMIN" || user?.role === "HUB_ADMIN") && (
+        {(user?.role === "SUPER_ADMIN" || user?.role === "HUB_ADMIN") && (
           <button
             onClick={() => handleNavClick("settings", "/admin-dashboard/settings")}
             disabled={isNavigating && navigatingTo !== "settings"}
