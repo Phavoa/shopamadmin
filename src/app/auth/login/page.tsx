@@ -58,7 +58,8 @@ export default function LoginPage() {
 
       // Navigate based on user role after successful login
       setTimeout(() => {
-        if (trueRole === "HUB_ADMIN" || trueRole === "hub-admin") {
+        const roleStr = trueRole as string;
+        if (roleStr === "HUB_ADMIN" || roleStr === "hub-admin") {
           router.push("/logistics/lagos");
         } else {
           router.push("/admin-dashboard");
