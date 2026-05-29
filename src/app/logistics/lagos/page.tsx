@@ -4,9 +4,10 @@
 import { useState, useCallback, useMemo, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
-import { Plus, RefreshCw, Search, LayoutDashboard, Loader2 } from "lucide-react";
+import { Plus, RefreshCw, Search, LayoutDashboard, Loader2, LogOut } from "lucide-react";
 import { useGetOrdersQuery, Order, GetOrdersParams } from "@/api/orderApi";
 import { useCreateRiderMutation, useGetRidersQuery } from "@/api/ridersApi";
+import { useLogoutMutation } from "@/api/authApi";
 import {
   useAssignRiderToShipmentMutation,
   useUpdateShipmentStatusByCodeMutation,
@@ -625,6 +626,20 @@ export default function LagosHubDashboard() {
   // Derived loading state
   const isRefreshing = pickupLoading || deliveryLoading;
 
+  const [logout, { isLoading: isLoggingOut }] = useLogoutMutation();
+
+  const handleLogout = async () => {
+    try {
+      await logout().unwrap();
+      document.cookie = "userRole=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT";
+      router.push("/auth/login");
+    } catch (error) {
+      console.error("Logout failed:", error);
+      document.cookie = "userRole=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT";
+      router.push("/auth/login");
+    }
+  };
+
   // Get error messages for display - properly handle RTK Query error types
   const getErrorMessage = (error: unknown): string | null => {
     if (!error) return null;
@@ -669,7 +684,7 @@ export default function LagosHubDashboard() {
             </p>
           </div>
           <div className="flex gap-3">
-            {(user?.role === "SUPER_ADMIN" || user?.role === "ADMIN" || user?.role === "HUB_ADMIN") && (
+            {(user?.role === "SUPER_ADMIN") && (
               <Button
                 onClick={() => {
                   setIsNavigatingBack(true);
@@ -685,6 +700,22 @@ export default function LagosHubDashboard() {
                   <LayoutDashboard className="w-4 h-4 text-slate-400 group-hover:text-blue-500 group-hover:scale-110 transition-all duration-300" />
                 )}
                 <span className="font-semibold tracking-tight">Back to Admin</span>
+              </Button>
+            )}
+
+            {(user?.role === "HUB_ADMIN" || user?.role === "hub-admin") && (
+              <Button
+                onClick={handleLogout}
+                variant="outline"
+                disabled={isLoggingOut}
+                className="group flex items-center gap-2 border-red-200 bg-white text-red-600 shadow-sm hover:shadow-md hover:border-red-400 hover:bg-red-50/50 transition-all duration-300 rounded-full px-5 py-2"
+              >
+                {isLoggingOut ? (
+                  <Loader2 className="w-4 h-4 animate-spin text-red-500" />
+                ) : (
+                  <LogOut className="w-4 h-4 text-red-500 group-hover:scale-110 transition-all duration-300" />
+                )}
+                <span className="font-semibold tracking-tight">Logout</span>
               </Button>
             )}
 

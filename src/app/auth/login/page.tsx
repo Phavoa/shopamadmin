@@ -10,11 +10,13 @@ import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { PasswordInput } from "@/components/ui/password-input";
 import { useLoginMutation } from "@/api/authApi";
+import { useLazyGetAdminMeQuery } from "@/api/adminApi";
 import { loginSchema, type LoginFormData } from "@/lib/auth/validationSchemas";
 
 export default function LoginPage() {
   const router = useRouter();
   const [login, { isLoading: isLoggingIn }] = useLoginMutation();
+  const [getAdminMe] = useLazyGetAdminMeQuery();
   const [apiError, setApiError] = React.useState<string | null>(null);
   const [successMessage, setSuccessMessage] = React.useState<string | null>(
     null,
@@ -38,16 +40,29 @@ export default function LoginPage() {
     setSuccessMessage(null);
 
     try {
-      await login({
+      const response = await login({
         email: data.email,
         password: data.password,
       }).unwrap();
 
-      setSuccessMessage("Login successful! Redirecting to dashboard...");
+      // Fetch the true enriched profile to get the correct role
+      const adminMeResponse = await getAdminMe().unwrap();
+      const trueRole = adminMeResponse?.data?.role || response?.data?.user?.role;
+      
+      // Store the true role in a cookie for the middleware to read
+      if (trueRole) {
+        document.cookie = `userRole=${trueRole}; path=/; max-age=86400; samesite=strict`;
+      }
 
-      // Navigate to admin dashboard after successful login
+      setSuccessMessage("Login successful! Redirecting...");
+
+      // Navigate based on user role after successful login
       setTimeout(() => {
-        router.push("/admin-dashboard");
+        if (trueRole === "HUB_ADMIN" || trueRole === "hub-admin") {
+          router.push("/logistics/lagos");
+        } else {
+          router.push("/admin-dashboard");
+        }
       }, 1000);
     } catch (err) {
       console.error("Login failed:", err);

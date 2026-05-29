@@ -4,9 +4,10 @@
 import { useState, useCallback, useMemo, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
-import { Plus, RefreshCw, Search, LayoutDashboard, Loader2 } from "lucide-react";
+import { Plus, RefreshCw, Search, LayoutDashboard, Loader2, LogOut } from "lucide-react";
 import { useGetOrdersQuery, Order, GetOrdersParams } from "@/api/orderApi";
 import { useCreateRiderMutation, useGetRidersQuery } from "@/api/ridersApi";
+import { useLogoutMutation } from "@/api/authApi";
 import {
   useAssignRiderToShipmentMutation,
   useUpdateShipmentStatusByCodeMutation,
@@ -20,6 +21,8 @@ import {
 } from "@/api/orderExceptionsApi";
 import { useNotifications } from "@/hooks/useNotifications";
 import { ErrorBoundary } from "@/components/ui/error-boundary";
+import { useSelector } from "react-redux";
+import { RootState } from "@/lib/store/store";
 
 // Import all components
 import KPIGrid from "@/components/logistics/KPIGrid";
@@ -77,6 +80,7 @@ interface Rider {
 export default function NonLagosHubDashboard() {
   const router = useRouter();
   const { showSuccess, showError, handleAsyncOperation } = useNotifications();
+  const { user } = useSelector((state: RootState) => state.auth);
 
   // Modal states
   const [showAddRiderModal, setShowAddRiderModal] = useState(false);
@@ -627,6 +631,20 @@ export default function NonLagosHubDashboard() {
   // Derived loading state
   const isRefreshing = pickupLoading || deliveryLoading;
 
+  const [logout, { isLoading: isLoggingOut }] = useLogoutMutation();
+
+  const handleLogout = async () => {
+    try {
+      await logout().unwrap();
+      document.cookie = "userRole=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT";
+      router.push("/auth/login");
+    } catch (error) {
+      console.error("Logout failed:", error);
+      document.cookie = "userRole=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT";
+      router.push("/auth/login");
+    }
+  };
+
   // Get error messages for display - properly handle RTK Query error types
   const getErrorMessage = (error: unknown): string | null => {
     if (!error) return null;
@@ -657,6 +675,13 @@ export default function NonLagosHubDashboard() {
   const pickupErrorMessage = getErrorMessage(pickupError);
   const deliveryErrorMessage = getErrorMessage(deliveryError);
 
+  // We need useSelector to get the user's role here, wait - the file might not have useSelector imported. 
+  // Let me just add the check, if it throws I'll fix the import. No, I must check if it's imported first.
+  // Wait, I am replacing lines here, I'll deal with useSelector import in a separate call if needed.
+  
+  // Actually, I should just assume useSelector and RootState are missing and I'll add them.
+  // Let me replace the component part.
+
   return (
     <ErrorBoundary>
       <div className="min-h-screen bg-gray-50 p-6">
@@ -671,22 +696,40 @@ export default function NonLagosHubDashboard() {
             </p>
           </div>
           <div className="flex gap-3">
-            <Button
-              onClick={() => {
-                setIsNavigatingBack(true);
-                router.push("/admin-dashboard");
-              }}
-              variant="outline"
-              disabled={isNavigatingBack}
-              className="group flex items-center gap-2 border-slate-200 bg-white text-slate-700 shadow-sm hover:shadow-md hover:border-orange-400 hover:text-orange-600 hover:bg-orange-50/50 transition-all duration-300 rounded-full px-5 py-2"
-            >
-              {isNavigatingBack ? (
-                <Loader2 className="w-4 h-4 animate-spin text-orange-500" />
-              ) : (
-                <LayoutDashboard className="w-4 h-4 text-slate-400 group-hover:text-orange-500 group-hover:scale-110 transition-all duration-300" />
-              )}
-              <span className="font-semibold tracking-tight">Back to Admin</span>
-            </Button>
+            {(user?.role === "SUPER_ADMIN") && (
+              <Button
+                onClick={() => {
+                  setIsNavigatingBack(true);
+                  router.push("/admin-dashboard");
+                }}
+                variant="outline"
+                disabled={isNavigatingBack}
+                className="group flex items-center gap-2 border-slate-200 bg-white text-slate-700 shadow-sm hover:shadow-md hover:border-orange-400 hover:text-orange-600 hover:bg-orange-50/50 transition-all duration-300 rounded-full px-5 py-2"
+              >
+                {isNavigatingBack ? (
+                  <Loader2 className="w-4 h-4 animate-spin text-orange-500" />
+                ) : (
+                  <LayoutDashboard className="w-4 h-4 text-slate-400 group-hover:text-orange-500 group-hover:scale-110 transition-all duration-300" />
+                )}
+                <span className="font-semibold tracking-tight">Back to Admin</span>
+              </Button>
+            )}
+
+            {(user?.role === "HUB_ADMIN" || user?.role === "hub-admin") && (
+              <Button
+                onClick={handleLogout}
+                variant="outline"
+                disabled={isLoggingOut}
+                className="group flex items-center gap-2 border-red-200 bg-white text-red-600 shadow-sm hover:shadow-md hover:border-red-400 hover:bg-red-50/50 transition-all duration-300 rounded-full px-5 py-2"
+              >
+                {isLoggingOut ? (
+                  <Loader2 className="w-4 h-4 animate-spin text-red-500" />
+                ) : (
+                  <LogOut className="w-4 h-4 text-red-500 group-hover:scale-110 transition-all duration-300" />
+                )}
+                <span className="font-semibold tracking-tight">Logout</span>
+              </Button>
+            )}
 
             <Button
               onClick={() => router.push("/logistics/track-order")}

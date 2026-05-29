@@ -24,8 +24,9 @@ const protectedRoutes = [
 export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
-  // Get the auth token from cookies
+  // Get the auth token and user role from cookies
   const authToken = request.cookies.get("authToken")?.value;
+  const userRole = request.cookies.get("userRole")?.value;
 
   const isAuthenticated = !!authToken;
   const isAuthRoute = pathname.startsWith("/auth");
@@ -40,12 +41,23 @@ export async function middleware(request: NextRequest) {
     isAuthRoute,
     isProtectedRoute,
     isPublicRoute,
+    userRole,
   });
 
   // Redirect authenticated users away from auth pages
   if (isAuthenticated && isAuthRoute) {
-    console.log("Redirecting authenticated user from auth page to dashboard");
+    console.log("Redirecting authenticated user from auth page based on role");
+    if (userRole === "HUB_ADMIN" || userRole === "hub-admin") {
+      return NextResponse.redirect(new URL("/logistics/lagos", request.url));
+    }
     return NextResponse.redirect(new URL("/admin-dashboard", request.url));
+  }
+
+  // Protect admin-dashboard from HUB_ADMIN at the middleware level to prevent flashing
+  if (isAuthenticated && pathname.startsWith("/admin-dashboard")) {
+    if (userRole === "HUB_ADMIN" || userRole === "hub-admin") {
+      return NextResponse.redirect(new URL("/logistics/lagos", request.url));
+    }
   }
 
   // Redirect unauthenticated users from protected routes to login

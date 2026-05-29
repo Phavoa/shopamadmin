@@ -33,7 +33,7 @@ export default function RootLayout({
         <div className="mx-auto pr-[var(--page-gutter)] grid grid-cols-1 md:grid-cols-[var(--sidebar-width)_1fr] gap-[var(--card-gap)]">
           <Sidebar />
           <AppWapper>
-            <RoleGuard allowedRoles={["SUPER_ADMIN", "ADMIN", "HUB_ADMIN"]}>
+            <RoleGuard allowedRoles={["SUPER_ADMIN", "ADMIN"]}>
               {children}
             </RoleGuard>
           </AppWapper>
