@@ -6,12 +6,14 @@ export interface CreateCategoryRequest {
   name: string;
   image?: string; // Optional category image URL
   slug?: string; // Optional, will be generated from name if omitted
+  position?: number;
 }
 
 export interface UpdateCategoryRequest {
   name?: string;
   image?: string; // Optional category image URL
   slug?: string; // Optional, will be re-derived from name if name changes and slug not provided
+  position?: number;
 }
 
 export interface Category {
@@ -21,6 +23,7 @@ export interface Category {
   image?: string; // Optional category image URL
   createdAt: string;
   updatedAt: string;
+  position?: number;
 }
 
 export interface CategoriesListParams {
@@ -29,7 +32,7 @@ export interface CategoriesListParams {
   limit?: number; // 1-50 (default 20)
   after?: string; // Opaque cursor for forward paging
   before?: string; // Opaque cursor for backward paging
-  sortBy?: "createdAt" | "name";
+  sortBy?: "createdAt" | "name" | "position";
   sortDir?: "asc" | "desc";
 }
 
@@ -171,6 +174,19 @@ export const categoriesApi = createApi({
       invalidatesTags: ["Categories", "Category"],
     }),
 
+    // Reorder categories in bulk (ADMIN – temporarily public)
+    reorderCategories: builder.mutation<
+      ApiResponse<{ ok: boolean }>,
+      { categoryIds: string[] }
+    >({
+      query: (reorderData) => ({
+        url: "/categories/reorder",
+        method: "PUT",
+        body: reorderData,
+      }),
+      invalidatesTags: ["Categories"],
+    }),
+
     // List categories (public, keyset pagination)
     getCategories: builder.query<
       GetCategoriesApiResponse,
@@ -260,4 +276,5 @@ export const {
   useGetCategoryQuery,
   useLazyGetCategoryQuery,
   useDeleteCategoryMutation,
+  useReorderCategoriesMutation,
 } = categoriesApi;

@@ -2,7 +2,7 @@
 
 import React, { useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { Bell, Shield, CreditCard, Package, User } from "lucide-react";
+import { Bell, Shield, CreditCard, Package, User, Smartphone } from "lucide-react";
 import { useDispatch } from "react-redux";
 import { setHeaderTitle } from "@/features/shared/headerSice";
 import {
@@ -81,6 +81,16 @@ export default function SettingsPage() {
         "Livestream pricing config",
       ],
       route: "/admin-dashboard/settings/system-config",
+    },
+    {
+      icon: Smartphone,
+      title: "App Versions",
+      items: [
+        "Force App Updates",
+        "Soft Updates Banners",
+        "Mobile Maintenance Mode",
+      ],
+      route: "/admin-dashboard/settings/app-versions",
     },
   ];
 

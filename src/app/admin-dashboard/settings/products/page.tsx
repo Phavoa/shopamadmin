@@ -22,6 +22,7 @@ import {
   useCreateCategoryMutation,
   useUpdateCategoryMutation,
   useDeleteCategoryMutation,
+  useReorderCategoriesMutation,
   type Category,
 } from "../../../../api/categoriesApi";
 
@@ -63,7 +64,6 @@ export default function ProductCategoriesPage() {
     refetch,
   } = useGetCategoriesQuery({
     limit: 100,
-    sortBy: "name",
     sortDir: "asc",
   });
 
@@ -73,8 +73,27 @@ export default function ProductCategoriesPage() {
     useUpdateCategoryMutation();
   const [deleteCategory, { isLoading: isDeleting }] =
     useDeleteCategoryMutation();
+  const [reorderCategories, { isLoading: isReordering }] =
+    useReorderCategoriesMutation();
 
   const categories = categoriesData?.data?.items || [];
+
+  const handleReorder = async (reorderedCategories: Category[]) => {
+    // Optimistically reorder is already handled by CategoryTable state
+    const categoryIds = reorderedCategories.map(cat => cat.id);
+    try {
+      await reorderCategories({ categoryIds }).unwrap();
+      console.log("✅ Categories reordered successfully!");
+      refetch();
+    } catch (error: unknown) {
+      const errorMessage =
+        error && typeof error === "object" && "data" in error
+          ? (error as { data?: { message?: string } })?.data?.message
+          : "Failed to reorder categories";
+      console.error("Reorder categories error:", error);
+      alert(errorMessage);
+    }
+  };
 
   // Event handlers
   const handleEdit = (category: Category) => {
@@ -276,6 +295,8 @@ export default function ProductCategoriesPage() {
               categories={categories}
               onEdit={handleEdit}
               onDelete={handleDelete}
+              onReorder={handleReorder}
+              isReordering={isReordering}
             />
           )}
         </div>
