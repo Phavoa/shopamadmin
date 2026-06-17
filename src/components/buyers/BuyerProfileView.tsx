@@ -3,6 +3,7 @@ import { ArrowLeft } from "lucide-react";
 import { useGetOrdersQuery } from "@/api/orderApi";
 import { getUserDisciplineSummary } from "@/api/disciplineApi";
 import type { Order } from "@/api/orderApiRTK";
+import EditUserModal from "@/components/shared/EditUserModal";
 
 interface WalletSummary {
   balanceKobo: string;
@@ -20,6 +21,7 @@ interface SelectedBuyer {
   createdAt: string;
   updatedAt: string;
   profileImage?: string;
+  imageUrl?: string;
   followersCount?: number;
   followingCount?: number;
   // Enriched Profile Fields (#19)
@@ -30,6 +32,7 @@ interface SelectedBuyer {
   lastActivity?: string;
   linkedBank?: string;
   has2FA?: boolean;
+  defaultAddress?: any;
 }
 
 interface BuyerProfileViewProps {
@@ -41,6 +44,7 @@ const BuyerProfileView: React.FC<BuyerProfileViewProps> = ({
   selectedBuyer,
   onBack,
 }) => {
+  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   // Use RTK Query hook for orders
   const { data: ordersResponse, isLoading: ordersLoading } = useGetOrdersQuery({
     buyerId: selectedBuyer?.id,
@@ -395,42 +399,73 @@ const BuyerProfileView: React.FC<BuyerProfileViewProps> = ({
 
             {/* Buyer Information Card */}
             <div className="bg-white rounded-lg border border-gray-200 p-6">
-              <h3 className="text-base font-semibold text-gray-900 mb-4">
-                Buyer Information
-              </h3>
-              <div className="space-y-3">
-                <div>
-                  <span className="text-sm text-gray-500">Buyer ID: </span>
-                  <span className="text-sm text-gray-900">
-                    B-{selectedBuyer?.id?.slice(0, 8)}
-                  </span>
+              <div className="flex justify-between items-center mb-4">
+                <h3 className="text-base font-semibold text-gray-900">
+                  Buyer Information
+                </h3>
+                <button
+                  type="button"
+                  onClick={() => setIsEditModalOpen(true)}
+                  className="px-3 py-1.5 text-xs font-semibold rounded-lg border border-gray-200 hover:border-orange-500 hover:text-orange-600 bg-white text-gray-700 shadow-sm transition-all"
+                >
+                  Edit Details
+                </button>
+              </div>
+              <div className="space-y-4">
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <span className="text-xs text-gray-500 block">Buyer ID</span>
+                    <span className="text-sm font-medium text-gray-900">
+                      B-{selectedBuyer?.id?.slice(0, 8)}
+                    </span>
+                  </div>
+                  <div>
+                    <span className="text-xs text-gray-500 block">Joined</span>
+                    <span className="text-sm font-medium text-gray-900">
+                      {selectedBuyer?.createdAt
+                        ? new Date(selectedBuyer.createdAt).toLocaleDateString(
+                            "en-US",
+                            {
+                              month: "short",
+                              year: "numeric",
+                            }
+                          )
+                        : "N/A"}
+                    </span>
+                  </div>
                 </div>
-                <div>
-                  <span className="text-sm text-gray-500">Joined: </span>
-                  <span className="text-sm text-gray-900">
-                    {selectedBuyer?.createdAt
-                      ? new Date(selectedBuyer.createdAt).toLocaleDateString(
-                          "en-US",
-                          {
-                            month: "short",
-                            year: "numeric",
-                          }
-                        )
-                      : "N/A"}
-                  </span>
+
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <span className="text-xs text-gray-500 block">Email</span>
+                    <span className="text-sm font-medium text-gray-900 break-all">
+                      {selectedBuyer?.email || "N/A"}
+                    </span>
+                  </div>
+                  <div>
+                    <span className="text-xs text-gray-500 block">Phone</span>
+                    <span className="text-sm font-medium text-gray-900">
+                      {selectedBuyer?.phone || "N/A"}
+                    </span>
+                  </div>
                 </div>
-                <div>
-                  <span className="text-sm text-gray-500">Email: </span>
-                  <span className="text-sm text-gray-900">
-                    {selectedBuyer?.email || "N/A"}
-                  </span>
-                </div>
-                <div>
-                  <span className="text-sm text-gray-500">Phone: </span>
-                  <span className="text-sm text-gray-900">
-                    {selectedBuyer?.phone || "N/A"}
-                  </span>
-                </div>
+
+                {selectedBuyer?.defaultAddress && (
+                  <div className="pt-3 border-t border-gray-100">
+                    <span className="text-xs text-gray-500 block mb-2">Default Address ({selectedBuyer.defaultAddress.label || "Home"})</span>
+                    <div className="text-sm text-gray-900 border border-gray-100 rounded-xl p-3 bg-gray-50/50 space-y-1">
+                      <p className="font-semibold text-gray-800">{selectedBuyer.defaultAddress.fullName}</p>
+                      <p className="text-gray-600 text-xs">{selectedBuyer.defaultAddress.phone}</p>
+                      <p className="text-gray-600 text-xs">{selectedBuyer.defaultAddress.line1}{selectedBuyer.defaultAddress.line2 ? `, ${selectedBuyer.defaultAddress.line2}` : ""}</p>
+                      <p className="text-gray-600 text-xs">{selectedBuyer.defaultAddress.city}, {selectedBuyer.defaultAddress.state}, {selectedBuyer.defaultAddress.country}</p>
+                      {selectedBuyer.defaultAddress.deliveryZone?.name && (
+                        <span className="inline-block bg-orange-50 text-orange-600 text-[10px] font-bold px-2 py-0.5 rounded-full mt-1">
+                          Zone: {selectedBuyer.defaultAddress.deliveryZone.name}
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                )}
               </div>
             </div>
           </div>
@@ -618,6 +653,21 @@ const BuyerProfileView: React.FC<BuyerProfileViewProps> = ({
           </div>
         </div>
       </div>
+
+      {selectedBuyer && (
+        <EditUserModal
+          isOpen={isEditModalOpen}
+          userId={selectedBuyer.id}
+          currentUserData={{
+            firstName: selectedBuyer.firstName,
+            lastName: selectedBuyer.lastName,
+            phone: selectedBuyer.phone,
+            imageUrl: selectedBuyer.imageUrl || selectedBuyer.profileImage,
+            defaultAddress: selectedBuyer.defaultAddress,
+          }}
+          onOpenChange={setIsEditModalOpen}
+        />
+      )}
     </div>
   );
 };

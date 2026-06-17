@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useState } from "react";
 import { Card } from "@/components/ui/card";
 import { OrderStatistics } from "@/api/ordersApi";
 import { User } from "@/types/auth";
@@ -7,6 +7,7 @@ import SellerStatsGrid from "./SellerStatsGrid";
 import SellerOverview from "./SellerOverview";
 import SellerActivityLog from "./SellerActivityLog";
 import SellerAddressSection from "./SellerAddressSection";
+import EditUserModal from "@/components/shared/EditUserModal";
 
 interface DisplaySeller {
   id: string;
@@ -66,10 +67,23 @@ const SellerProfileCard: React.FC<SellerProfileCardProps> = ({
   productsLoading,
   productsError,
 }) => {
+  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+
   return (
     <div className="min-h-screen col-span-7">
       <div className="max-w-2xl mx-auto">
-        <Card className="bg-transparent py-4 rounded-2xl shadow-none border border-gray-200 overflow-hidden">
+        <Card className="bg-transparent py-4 rounded-2xl shadow-none border border-gray-200 overflow-hidden relative">
+          {/* Edit Button */}
+          <div className="flex justify-end px-5 md:px-6 mb-2">
+            <button
+              type="button"
+              onClick={() => setIsEditModalOpen(true)}
+              className="px-3 py-1.5 text-xs font-semibold rounded-lg border border-gray-200 hover:border-orange-500 hover:text-orange-600 bg-white text-gray-700 shadow-sm transition-all"
+            >
+              Edit Details
+            </button>
+          </div>
+
           {/* Header Section with Stats Grid */}
           <SellerStatsGrid displaySeller={displaySeller} user={user} />
 
@@ -94,8 +108,24 @@ const SellerProfileCard: React.FC<SellerProfileCardProps> = ({
           <SellerAddressSection user={user} />
         </Card>
       </div>
+
+      {user && (
+        <EditUserModal
+          isOpen={isEditModalOpen}
+          userId={user.id}
+          currentUserData={{
+            firstName: user.firstName,
+            lastName: user.lastName,
+            phone: user.phone || undefined,
+            imageUrl: user.imageUrl || undefined,
+            defaultAddress: user.defaultAddress,
+          }}
+          onOpenChange={setIsEditModalOpen}
+        />
+      )}
     </div>
   );
 };
 
 export default SellerProfileCard;
+

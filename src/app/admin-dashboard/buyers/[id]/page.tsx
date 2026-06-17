@@ -32,6 +32,7 @@ interface ExtendedUser {
   lastActivity?: string;
   linkedBank?: string;
   has2FA?: boolean;
+  defaultAddress?: any;
 }
 
 const BuyerProfilePage = () => {
@@ -66,6 +67,7 @@ const BuyerProfilePage = () => {
     createdAt: user.createdAt,
     updatedAt: user.updatedAt,
     profileImage: user.profileImage || user.imageUrl || '',
+    imageUrl: user.imageUrl || user.profileImage || '',
     followersCount: user.followersCount || 0,
     followingCount: user.followingCount || 0,
     // Enriched Profile Fields (#19)
@@ -76,6 +78,7 @@ const BuyerProfilePage = () => {
     lastActivity: user.lastActivity,
     linkedBank: user.linkedBank,
     has2FA: user.has2FA,
+    defaultAddress: user.defaultAddress || null,
   } : null;
 
   const handleBack = () => {

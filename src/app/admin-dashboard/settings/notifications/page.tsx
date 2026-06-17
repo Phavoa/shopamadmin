@@ -4,7 +4,7 @@ import React, { useState } from "react";
 import { useRouter } from "next/navigation";
 import { 
   ArrowLeft, Mail, MessageSquare, Bell, Loader2, 
-  ChevronRight, Settings, Info, Save, ShieldCheck, Zap
+  ChevronRight, Settings, Info, Save, ShieldCheck, Zap, Send
 } from "lucide-react";
 import { 
   useGetEmailTemplatesQuery, 
@@ -22,6 +22,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { Switch } from "@/components/ui/switch";
 import { useDispatch } from "react-redux";
 import { setHeaderTitle } from "@/features/shared/headerSice";
+import TestPushModal from "@/components/shared/TestPushModal";
 
 export default function NotificationSettingsPage() {
   const router = useRouter();
@@ -44,6 +45,7 @@ export default function NotificationSettingsPage() {
   const [pushNotifications, setPushNotifications] = useState<PushTemplate[]>([]);
 
   const [isSaving, setIsSaving] = useState(false);
+  const [isTestModalOpen, setIsTestModalOpen] = useState(false);
 
   const humanizeKey = (key: string) => {
     return key
@@ -142,6 +144,14 @@ export default function NotificationSettingsPage() {
             </p>
           </div>
           <div className="flex items-center gap-3">
+            <button
+              type="button"
+              onClick={() => setIsTestModalOpen(true)}
+              className="px-6 py-2.5 bg-white border border-[var(--color-border)] text-[var(--color-text-primary)] rounded-[var(--radius-md)] font-semibold text-sm shadow-sm hover:bg-gray-50 transition-all flex items-center gap-2"
+            >
+              <Send className="w-4 h-4 text-purple-600" />
+              Test Push
+            </button>
             <button
               onClick={() => router.push("/admin-dashboard/settings/notifications/templates")}
               className="px-6 py-2.5 bg-white border border-[var(--color-border)] text-[var(--color-text-primary)] rounded-[var(--radius-md)] font-semibold text-sm shadow-sm hover:bg-gray-50 transition-all flex items-center gap-2"
@@ -255,6 +265,7 @@ export default function NotificationSettingsPage() {
           </AnimatePresence>
         </div>
       </div>
+      <TestPushModal isOpen={isTestModalOpen} onOpenChange={setIsTestModalOpen} />
     </div>
   );
 }

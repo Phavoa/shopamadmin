@@ -416,6 +416,22 @@ export const userApi = createApi({
       }),
       invalidatesTags: (result, error, userId) => [{ type: "User", id: userId }],
     }),
+
+    // Update any user's profile/fields (Admin only)
+    adminUpdateUser: builder.mutation<
+      ApiResponse<User>,
+      { userId: string; data: UpdateProfileRequest }
+    >({
+      query: ({ userId, data }) => ({
+        url: `/admin/users/${userId}`,
+        method: "PATCH",
+        body: data,
+      }),
+      invalidatesTags: (result, error, { userId }) => [
+        { type: "User", id: userId },
+        { type: "User", id: "LIST" },
+      ],
+    }),
   }),
 });
 
@@ -433,4 +449,6 @@ export const {
   useGetUserByIdQuery,
   useOverrideLivestreamTierMutation,
   useResetLivestreamTierMutation,
+  useAdminUpdateUserMutation,
 } = userApi;
+
