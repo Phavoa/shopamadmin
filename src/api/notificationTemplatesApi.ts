@@ -61,6 +61,13 @@ const baseQuery = fetchBaseQuery({
   },
 });
 
+export interface BroadcastPushRequest {
+  title?: string;
+  body?: string;
+  pushTemplateKey?: string;
+  variables?: Record<string, string>;
+}
+
 export const notificationTemplatesApi = createApi({
   reducerPath: "notificationTemplatesApi",
   baseQuery,
@@ -159,6 +166,13 @@ export const notificationTemplatesApi = createApi({
         body,
       }),
     }),
+    broadcastPush: builder.mutation<{ success: boolean; message?: string }, BroadcastPushRequest>({
+      query: (body) => ({
+        url: "/admin/notifications/broadcast",
+        method: "POST",
+        body,
+      }),
+    }),
   }),
 });
 
@@ -170,4 +184,5 @@ export const {
   useGetPushTemplatesQuery,
   useUpdatePushTemplateMutation,
   useSendTestPushMutation,
+  useBroadcastPushMutation,
 } = notificationTemplatesApi;

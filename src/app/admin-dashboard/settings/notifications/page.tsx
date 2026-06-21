@@ -20,9 +20,11 @@ import {
 import { toast } from "react-hot-toast";
 import { motion, AnimatePresence } from "framer-motion";
 import { Switch } from "@/components/ui/switch";
-import { useDispatch } from "react-redux";
+import { useDispatch, useSelector } from "react-redux";
 import { setHeaderTitle } from "@/features/shared/headerSice";
 import TestPushModal from "@/components/shared/TestPushModal";
+import BroadcastPushModal from "@/components/shared/BroadcastPushModal";
+import { RootState } from "@/lib/store/store";
 
 export default function NotificationSettingsPage() {
   const router = useRouter();
@@ -46,6 +48,9 @@ export default function NotificationSettingsPage() {
 
   const [isSaving, setIsSaving] = useState(false);
   const [isTestModalOpen, setIsTestModalOpen] = useState(false);
+  const [isBroadcastModalOpen, setIsBroadcastModalOpen] = useState(false);
+  const { user } = useSelector((state: RootState) => state.auth);
+  const isSuperAdmin = user?.role === "SUPER_ADMIN";
 
   const humanizeKey = (key: string) => {
     return key
@@ -144,6 +149,16 @@ export default function NotificationSettingsPage() {
             </p>
           </div>
           <div className="flex items-center gap-3">
+            {isSuperAdmin && (
+              <button
+                type="button"
+                onClick={() => setIsBroadcastModalOpen(true)}
+                className="px-6 py-2.5 bg-white border border-[var(--color-border)] text-[var(--color-text-primary)] rounded-[var(--radius-md)] font-semibold text-sm shadow-sm hover:bg-gray-50 transition-all flex items-center gap-2 active:scale-95"
+              >
+                <Send className="w-4 h-4 text-red-500" />
+                Broadcast Push
+              </button>
+            )}
             <button
               type="button"
               onClick={() => setIsTestModalOpen(true)}
@@ -266,6 +281,7 @@ export default function NotificationSettingsPage() {
         </div>
       </div>
       <TestPushModal isOpen={isTestModalOpen} onOpenChange={setIsTestModalOpen} />
+      <BroadcastPushModal isOpen={isBroadcastModalOpen} onOpenChange={setIsBroadcastModalOpen} />
     </div>
   );
 }
