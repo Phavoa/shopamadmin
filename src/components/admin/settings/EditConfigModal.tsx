@@ -82,7 +82,17 @@ export const EditConfigModal: React.FC<EditConfigModalProps> = ({
               Value {isKobo && "(in Naira)"}
             </label>
             
-            {isBoolean ? (
+            {config.key === "ACTIVE_PAYMENT_PROVIDER" ? (
+              <select
+                value={value}
+                onChange={(e) => setValue(e.target.value)}
+                className="w-full px-4 py-3 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-[#E67E22] bg-white"
+              >
+                <option value="PAYSTACK">Paystack</option>
+                <option value="FLUTTERWAVE">Flutterwave</option>
+                <option value="MONNIFY">Monnify</option>
+              </select>
+            ) : isBoolean ? (
               <div className="flex items-center gap-3">
                 <label className="relative inline-flex items-center cursor-pointer">
                   <input

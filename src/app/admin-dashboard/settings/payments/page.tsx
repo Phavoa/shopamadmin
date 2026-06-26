@@ -1,29 +1,72 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { ArrowLeft } from "lucide-react";
+import { ArrowLeft, Loader2, CheckCircle2 } from "lucide-react";
+import { toast } from "sonner";
+import {
+  useGetSystemConfigByKeyQuery,
+  useUpdateSystemConfigMutation,
+} from "@/api/systemConfigApi";
+import { useDispatch } from "react-redux";
+import { setHeaderTitle } from "@/features/shared/headerSice";
+
+type PaymentProvider = "PAYSTACK" | "FLUTTERWAVE" | "MONNIFY";
 
 export default function PaymentsWalletSettingsPage() {
   const router = useRouter();
+  const dispatch = useDispatch();
 
-  // Payment Gateways state
-  const [transactionFee, setTransactionFee] = useState("30");
+  useEffect(() => {
+    dispatch(setHeaderTitle("Payments & Wallet Settings"));
+  }, [dispatch]);
 
-  // Escrow Management state
-  const [autoReleaseHours, setAutoReleaseHours] = useState("8");
-  const [disputeHoldDays, setDisputeHoldDays] = useState("14");
-  const [manualReleaseRequired, setManualReleaseRequired] = useState(true);
+  // Fetch configs
+  const { data: activeProviderData, isLoading: isLoadingProvider } =
+    useGetSystemConfigByKeyQuery("ACTIVE_PAYMENT_PROVIDER");
+  const { data: manualWithdrawalsData, isLoading: isLoadingManual } =
+    useGetSystemConfigByKeyQuery("MANUAL_WITHDRAWALS_ENABLED");
 
-  // Wallet Settings state
-  const [minWithdrawal, setMinWithdrawal] = useState("1000");
-  const [withdrawalFee, setWithdrawalFee] = useState("50");
-  const [dailyWithdrawalLimit, setDailyWithdrawalLimit] = useState("365");
-  const [instantWithdrawals, setInstantWithdrawals] = useState(true);
+  const [updateConfig, { isLoading: isUpdating }] =
+    useUpdateSystemConfigMutation();
 
-  // API & Webhooks state
-  const [webhookUrl, setWebhookUrl] = useState("https://www.shopam.ng/webhooks/payments");
-  const [webhookVerification, setWebhookVerification] = useState(true);
+  // Local state
+  const [activeProvider, setActiveProvider] =
+    useState<PaymentProvider>("PAYSTACK");
+  const [manualWithdrawals, setManualWithdrawals] = useState<boolean>(false);
+
+  // Sync with fetched data
+  useEffect(() => {
+    if (activeProviderData?.data?.value) {
+      setActiveProvider(activeProviderData.data.value as PaymentProvider);
+    }
+    if (manualWithdrawalsData?.data?.value) {
+      setManualWithdrawals(manualWithdrawalsData.data.value === "true");
+    }
+  }, [activeProviderData, manualWithdrawalsData]);
+
+  const handleSave = async () => {
+    try {
+      // Update Provider
+      await updateConfig({
+        key: "ACTIVE_PAYMENT_PROVIDER",
+        value: activeProvider,
+      }).unwrap();
+
+      // Update Manual Withdrawals
+      await updateConfig({
+        key: "MANUAL_WITHDRAWALS_ENABLED",
+        value: manualWithdrawals.toString(),
+      }).unwrap();
+
+      toast.success("Payment settings updated successfully");
+    } catch (error) {
+      console.error("Failed to save payment settings:", error);
+      toast.error("Failed to update payment settings");
+    }
+  };
+
+  const isLoading = isLoadingProvider || isLoadingManual;
 
   return (
     <div className="min-h-screen bg-white">
@@ -45,279 +88,180 @@ export default function PaymentsWalletSettingsPage() {
         </button>
 
         <button
-          style={{
-            padding: "8px 20px",
-            borderRadius: "8px",
-            background: "#E67E22",
-            color: "#FFF",
-            fontSize: "14px",
-            fontWeight: 500,
-            border: "none",
-            cursor: "pointer",
-          }}
+          onClick={handleSave}
+          disabled={isLoading || isUpdating}
+          className="flex items-center justify-center min-w-[140px] px-5 py-2 rounded-lg text-white text-sm font-medium transition-colors disabled:opacity-70"
+          style={{ background: "#E67E22" }}
         >
-          Save Changes
+          {isUpdating ? (
+            <>
+              <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+              Saving...
+            </>
+          ) : (
+            "Save Changes"
+          )}
         </button>
       </div>
 
       {/* Content */}
       <div className="p-6">
-        <div className="grid grid-cols-2 gap-6">
-          {/* Payment Gateways */}
-          <div
-            style={{
-              padding: "20px",
-              borderRadius: "18px",
-              border: "0.3px solid rgba(0, 0, 0, 0.20)",
-              background: "#FFF",
-            }}
-          >
-            <h2 className="text-lg font-semibold text-black mb-2">
-              Payment Gateways
-            </h2>
-            <p className="text-sm text-gray-600 mb-6">
-              Configure payment processors
-            </p>
+        {isLoading ? (
+          <div className="flex flex-col items-center justify-center py-20">
+            <Loader2 className="w-8 h-8 animate-spin text-[#E67E22] mb-4" />
+            <p className="text-gray-500 font-medium">Loading settings...</p>
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6 max-w-5xl">
+            {/* Payment Gateways */}
+            <div
+              className="p-6 bg-white shadow-sm"
+              style={{
+                borderRadius: "18px",
+                border: "0.3px solid rgba(0, 0, 0, 0.20)",
+              }}
+            >
+              <h2 className="text-lg font-semibold text-black mb-2">
+                Active Payment Gateway
+              </h2>
+              <p className="text-sm text-gray-500 mb-6">
+                Select the primary payment processor for checkouts and deposits.
+              </p>
 
-            <div className="space-y-4">
-              <div className="flex items-center justify-between pb-4 border-b border-gray-100">
-                <div>
-                  <h3 className="text-sm font-medium text-black mb-1">
-                    Paystack
-                  </h3>
-                  <p className="text-xs text-gray-600">
-                    Primary payment gateway
-                  </p>
-                </div>
-                <div className="flex items-center gap-2">
-                  <span
-                    className="px-3 py-1 text-xs font-medium rounded-full"
-                    style={{ background: "#D7FDD9", color: "#008D3F" }}
-                  >
-                    Active
-                  </span>
-                  <button className="px-4 py-1.5 text-xs border border-gray-300 rounded-lg hover:bg-gray-50">
-                    Configure
-                  </button>
-                </div>
-              </div>
-
-              <div className="flex items-center justify-between pb-4 border-b border-gray-100">
-                <div>
-                  <h3 className="text-sm font-medium text-black mb-1">
-                    Flutterwave
-                  </h3>
-                  <p className="text-xs text-gray-600">
-                    Secondary payment gateway
-                  </p>
-                </div>
-                <div className="flex items-center gap-2">
-                  <span
-                    className="px-3 py-1 text-xs font-medium rounded-full"
-                    style={{ background: "#D7FDD9", color: "#008D3F" }}
-                  >
-                    Active
-                  </span>
-                  <button className="px-4 py-1.5 text-xs border border-gray-300 rounded-lg hover:bg-gray-50">
-                    Configure
-                  </button>
-                </div>
-              </div>
-
-              <div className="pt-2">
-                <label className="block text-sm font-medium text-black mb-2">
-                  Transaction Fee (%)
+              <div className="space-y-3">
+                {/* Paystack */}
+                <label
+                  className={`flex items-center justify-between p-4 border rounded-xl cursor-pointer transition-all ${
+                    activeProvider === "PAYSTACK"
+                      ? "border-[#E67E22] bg-orange-50/30"
+                      : "border-gray-200 hover:border-gray-300"
+                  }`}
+                >
+                  <div className="flex items-center gap-3">
+                    <input
+                      type="radio"
+                      name="payment_provider"
+                      value="PAYSTACK"
+                      checked={activeProvider === "PAYSTACK"}
+                      onChange={(e) =>
+                        setActiveProvider(e.target.value as PaymentProvider)
+                      }
+                      className="w-4 h-4 text-[#E67E22] focus:ring-[#E67E22]"
+                    />
+                    <div>
+                      <h3 className="text-sm font-semibold text-gray-900">
+                        Paystack
+                      </h3>
+                    </div>
+                  </div>
+                  {activeProvider === "PAYSTACK" && (
+                    <CheckCircle2 className="w-5 h-5 text-[#E67E22]" />
+                  )}
                 </label>
-                <input
-                  type="text"
-                  value={transactionFee}
-                  onChange={(e) => setTransactionFee(e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm"
-                />
+
+                {/* Flutterwave */}
+                <label
+                  className={`flex items-center justify-between p-4 border rounded-xl cursor-pointer transition-all ${
+                    activeProvider === "FLUTTERWAVE"
+                      ? "border-[#E67E22] bg-orange-50/30"
+                      : "border-gray-200 hover:border-gray-300"
+                  }`}
+                >
+                  <div className="flex items-center gap-3">
+                    <input
+                      type="radio"
+                      name="payment_provider"
+                      value="FLUTTERWAVE"
+                      checked={activeProvider === "FLUTTERWAVE"}
+                      onChange={(e) =>
+                        setActiveProvider(e.target.value as PaymentProvider)
+                      }
+                      className="w-4 h-4 text-[#E67E22] focus:ring-[#E67E22]"
+                    />
+                    <div>
+                      <h3 className="text-sm font-semibold text-gray-900">
+                        Flutterwave
+                      </h3>
+                    </div>
+                  </div>
+                  {activeProvider === "FLUTTERWAVE" && (
+                    <CheckCircle2 className="w-5 h-5 text-[#E67E22]" />
+                  )}
+                </label>
+
+                {/* Monnify */}
+                <label
+                  className={`flex items-center justify-between p-4 border rounded-xl cursor-pointer transition-all ${
+                    activeProvider === "MONNIFY"
+                      ? "border-[#E67E22] bg-orange-50/30"
+                      : "border-gray-200 hover:border-gray-300"
+                  }`}
+                >
+                  <div className="flex items-center gap-3">
+                    <input
+                      type="radio"
+                      name="payment_provider"
+                      value="MONNIFY"
+                      checked={activeProvider === "MONNIFY"}
+                      onChange={(e) =>
+                        setActiveProvider(e.target.value as PaymentProvider)
+                      }
+                      className="w-4 h-4 text-[#E67E22] focus:ring-[#E67E22]"
+                    />
+                    <div>
+                      <h3 className="text-sm font-semibold text-gray-900">
+                        Monnify
+                      </h3>
+                    </div>
+                  </div>
+                  {activeProvider === "MONNIFY" && (
+                    <CheckCircle2 className="w-5 h-5 text-[#E67E22]" />
+                  )}
+                </label>
+              </div>
+            </div>
+
+            {/* Wallet Settings / Manual Withdrawals */}
+            <div
+              className="p-6 bg-white shadow-sm"
+              style={{
+                borderRadius: "18px",
+                border: "0.3px solid rgba(0, 0, 0, 0.20)",
+              }}
+            >
+              <h2 className="text-lg font-semibold text-black mb-2">
+                Wallet & Withdrawals
+              </h2>
+              <p className="text-sm text-gray-500 mb-6">
+                Manage how user withdrawals are processed.
+              </p>
+
+              <div className="space-y-6">
+                <div className="flex items-start justify-between p-4 border border-gray-100 rounded-xl bg-gray-50/50">
+                  <div className="pr-4">
+                    <h3 className="text-sm font-medium text-gray-900 mb-1">
+                      Manual Withdrawals Processing
+                    </h3>
+                    <p className="text-xs text-gray-500 leading-relaxed">
+                      When enabled, withdrawals bypass the automated provider
+                      disbursement API and are queued for manual approval and
+                      processing by an admin.
+                    </p>
+                  </div>
+                  <label className="relative inline-flex items-center cursor-pointer mt-1 flex-shrink-0">
+                    <input
+                      type="checkbox"
+                      className="sr-only peer"
+                      checked={manualWithdrawals}
+                      onChange={(e) => setManualWithdrawals(e.target.checked)}
+                    />
+                    <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-orange-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-[#E67E22]"></div>
+                  </label>
+                </div>
               </div>
             </div>
           </div>
-
-          {/* Escrow Management */}
-          <div
-            style={{
-              padding: "20px",
-              borderRadius: "18px",
-              border: "0.3px solid rgba(0, 0, 0, 0.20)",
-              background: "#FFF",
-            }}
-          >
-            <h2 className="text-lg font-semibold text-black mb-2">
-              Escrow Management
-            </h2>
-            <p className="text-sm text-gray-600 mb-6">
-              Funds holding and release rules
-            </p>
-
-            <div className="space-y-4">
-              <div className="pt-2">
-                <label className="block text-sm font-medium text-black mb-2">
-                  Auto-release after delivery (hours)
-                </label>
-                <input
-                  type="text"
-                  value={autoReleaseHours}
-                  onChange={(e) => setAutoReleaseHours(e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm"
-                />
-              </div>
-
-              <div className="pt-2">
-                <label className="block text-sm font-medium text-black mb-2">
-                  Dispute hold period (days)
-                </label>
-                <input
-                  type="text"
-                  value={disputeHoldDays}
-                  onChange={(e) => setDisputeHoldDays(e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm"
-                />
-              </div>
-
-              <div className="flex items-start justify-between pt-2">
-                <div>
-                  <h3 className="text-sm font-medium text-black mb-1">
-                    Manual Release Required
-                  </h3>
-                  <p className="text-xs text-gray-600">
-                    For orders above NGN 500,000
-                  </p>
-                </div>
-                <input
-                  type="checkbox"
-                  checked={manualReleaseRequired}
-                  onChange={(e) => setManualReleaseRequired(e.target.checked)}
-                  className="w-5 h-5 mt-1"
-                />
-              </div>
-            </div>
-          </div>
-
-          {/* Wallet Settings */}
-          <div
-            style={{
-              padding: "20px",
-              borderRadius: "18px",
-              border: "0.3px solid rgba(0, 0, 0, 0.20)",
-              background: "#FFF",
-            }}
-          >
-            <h2 className="text-lg font-semibold text-black mb-2">
-              Wallet Settings
-            </h2>
-            <p className="text-sm text-gray-600 mb-6">
-              User wallet and withdrawal settings
-            </p>
-
-            <div className="space-y-4">
-              <div className="pt-2">
-                <label className="block text-sm font-medium text-black mb-2">
-                  Minimum Withdrawal (NGN)
-                </label>
-                <input
-                  type="text"
-                  value={minWithdrawal}
-                  onChange={(e) => setMinWithdrawal(e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm"
-                />
-              </div>
-
-              <div className="pt-2">
-                <label className="block text-sm font-medium text-black mb-2">
-                  Withdrawal Fee (NGN)
-                </label>
-                <input
-                  type="text"
-                  value={withdrawalFee}
-                  onChange={(e) => setWithdrawalFee(e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm"
-                />
-              </div>
-
-              <div className="pt-2">
-                <label className="block text-sm font-medium text-black mb-2">
-                  Daily Withdrawal Limit (NGN)
-                </label>
-                <input
-                  type="text"
-                  value={dailyWithdrawalLimit}
-                  onChange={(e) => setDailyWithdrawalLimit(e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm"
-                />
-              </div>
-
-              <div className="flex items-start justify-between pt-2">
-                <div>
-                  <h3 className="text-sm font-medium text-black mb-1">
-                    Instant Withdrawals
-                  </h3>
-                  <p className="text-xs text-gray-600">
-                    Process withdrawals immediately
-                  </p>
-                </div>
-                <input
-                  type="checkbox"
-                  checked={instantWithdrawals}
-                  onChange={(e) => setInstantWithdrawals(e.target.checked)}
-                  className="w-5 h-5 mt-1"
-                />
-              </div>
-            </div>
-          </div>
-
-          {/* API & Webhooks */}
-          <div
-            style={{
-              padding: "20px",
-              borderRadius: "18px",
-              border: "0.3px solid rgba(0, 0, 0, 0.20)",
-              background: "#FFF",
-            }}
-          >
-            <h2 className="text-lg font-semibold text-black mb-2">
-              API & Webhooks
-            </h2>
-            <p className="text-sm text-gray-600 mb-6">
-              External integrations and callbacks
-            </p>
-
-            <div className="space-y-4">
-              <div className="pt-2">
-                <label className="block text-sm font-medium text-black mb-2">
-                  Webhook URL
-                </label>
-                <input
-                  type="text"
-                  value={webhookUrl}
-                  onChange={(e) => setWebhookUrl(e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm"
-                />
-              </div>
-
-              <div className="flex items-start justify-between pt-2">
-                <div>
-                  <h3 className="text-sm font-medium text-black mb-1">
-                    Webhook Verification
-                  </h3>
-                  <p className="text-xs text-gray-600">
-                    Verify webhook signatures
-                  </p>
-                </div>
-                <input
-                  type="checkbox"
-                  checked={webhookVerification}
-                  onChange={(e) => setWebhookVerification(e.target.checked)}
-                  className="w-5 h-5 mt-1"
-                />
-              </div>
-            </div>
-          </div>
-        </div>
+        )}
       </div>
     </div>
   );
