@@ -10,6 +10,7 @@ export interface OrderItem {
   productId: string;
   quantity: number;
   price: number;
+  vatKobo?: string;
   product?: {
     id: string;
     name: string;
@@ -81,6 +82,7 @@ export interface OrderVM {
   orderNumber: string;
   status: string;
   totalAmount: number;
+  vatKobo?: string;
   createdAt: string;
   updatedAt: string;
   items: OrderItem[];

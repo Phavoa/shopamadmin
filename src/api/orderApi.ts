@@ -12,6 +12,8 @@ export interface OrderItem {
   productId: string;
   title: string;
   qty: number;
+  quantity?: number;
+  price?: number;
   unitPriceKobo: string;
   lineTotalKobo: string;
   status: string;
@@ -28,6 +30,7 @@ export interface OrderItem {
     payoutReleasedKobo: number;
     refundedKobo: number;
   };
+  vatKobo?: string;
   product: {
     id: string;
     sellerId: string;
@@ -44,7 +47,9 @@ export interface OrderItem {
     thumbnailUrl: string;
     createdAt: string;
     updatedAt: string;
+    [key: string]: any;
   };
+  [key: string]: any;
 }
 
 export interface Buyer {
@@ -54,6 +59,7 @@ export interface Buyer {
   email: string;
   phone: string;
   imageUrl: string | null;
+  [key: string]: any;
 }
 
 export interface SellerUser {
@@ -63,6 +69,7 @@ export interface SellerUser {
   email: string;
   phone: string | null;
   imageUrl: string | null;
+  [key: string]: any;
 }
 
 export interface SellerProfile {
@@ -74,11 +81,13 @@ export interface SellerProfile {
   locationCity: string;
   status: string;
   user: SellerUser;
+  [key: string]: any;
 }
 
 export interface CheckoutSession {
   id: string;
-  metadata: Record<string, never>;
+  metadata: Record<string, any>;
+  [key: string]: any;
 }
 
 export interface ShipmentEvent {
@@ -87,6 +96,7 @@ export interface ShipmentEvent {
   note: string;
   description?: string;
   createdAt: string;
+  [key: string]: any;
 }
 
 export interface Shipment {
@@ -97,6 +107,9 @@ export interface Shipment {
   pickupRequestId?: string;
   events: ShipmentEvent[];
   hub?: Hub;
+  carrier?: string;
+  trackingNumber?: string;
+  [key: string]: any;
 }
 
 export interface AddressSnapshot {
@@ -117,7 +130,9 @@ export interface AddressSnapshot {
     code: string;
     name: string;
     active: boolean;
+    [key: string]: any;
   };
+  [key: string]: any;
 }
 
 export interface Order {
@@ -138,6 +153,7 @@ export interface Order {
   subtotalKobo: string;
   shippingKobo: string;
   feesKobo: string;
+  vatKobo?: string;
   totalKobo: string;
   itemIds: string[];
   paymentIds: string[];
@@ -148,6 +164,14 @@ export interface Order {
   checkoutSession: CheckoutSession;
   shipment?: Shipment;
   orderExceptions?: any[];
+  deliveryType?: "pickup" | "delivery" | string;
+  pickup?: boolean;
+  delivery?: boolean;
+  orderNumber?: string;
+  totalAmount?: number;
+  commissionKobo?: string | number;
+  notes?: string;
+  [key: string]: any;
 }
 
 export interface OrderListResponse {
@@ -186,6 +210,7 @@ export interface GetOrdersParams {
   delivery?: boolean;
   isLagosOrder?: boolean;
   isNonLagosOrder?: boolean;
+  status?: string;
 }
  
 export interface ManualReleaseDto {
