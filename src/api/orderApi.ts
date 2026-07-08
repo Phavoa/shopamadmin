@@ -28,6 +28,7 @@ export interface OrderItem {
     payoutReleasedKobo: number;
     refundedKobo: number;
   };
+  vatKobo?: string;
   product: {
     id: string;
     sellerId: string;
@@ -138,6 +139,7 @@ export interface Order {
   subtotalKobo: string;
   shippingKobo: string;
   feesKobo: string;
+  vatKobo?: string;
   totalKobo: string;
   itemIds: string[];
   paymentIds: string[];
@@ -186,6 +188,7 @@ export interface GetOrdersParams {
   delivery?: boolean;
   isLagosOrder?: boolean;
   isNonLagosOrder?: boolean;
+  status?: string;
 }
  
 export interface ManualReleaseDto {

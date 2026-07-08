@@ -48,7 +48,7 @@ export default function SettingsPage() {
       items: [
         "Gateways: Paystack, Flutterwave",
         "Escrow rules and sudo release",
-        "Livestream provider toggles",
+        "VAT collection & tax rates",
         "Webhooks and API keys",
       ],
       route: "/admin-dashboard/settings/payments",

@@ -23,6 +23,7 @@ import {
   X,
   Store,
   MessageSquare,
+  Package,
 } from "lucide-react";
 import Link from "next/link";
 import { useLogoutMutation } from "@/api/authApi";
@@ -87,6 +88,9 @@ function Sidebar() {
   useEffect(() => {
     if (pathname === "/admin-dashboard") {
       setActiveMainItem("dashboard");
+      setActiveSubItem(null);
+    } else if (pathname.startsWith("/admin-dashboard/orders")) {
+      setActiveMainItem("orders");
       setActiveSubItem(null);
     } else if (pathname.startsWith("/admin-dashboard/livestream")) {
       setActiveMainItem("livestream");
@@ -176,6 +180,18 @@ function Sidebar() {
             >
               {spinnerOrIcon("dashboard", <LayoutGrid className="w-[var(--icon-size-sm)] h-[var(--icon-size-sm)]" />)}
               <span>Dashboard</span>
+            </button>
+          </li>
+
+          {/* Orders */}
+          <li>
+            <button
+              onClick={() => handleNavClick("orders", "/admin-dashboard/orders")}
+              disabled={isNavigating && navigatingTo !== "orders"}
+              className={mainItemClass("orders")}
+            >
+              {spinnerOrIcon("orders", <Package className="w-[var(--icon-size-sm)] h-[var(--icon-size-sm)]" />)}
+              <span>Orders</span>
             </button>
           </li>
 
