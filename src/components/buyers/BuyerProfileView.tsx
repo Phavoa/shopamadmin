@@ -1,8 +1,7 @@
 import React, { useEffect, useState } from "react";
 import { ArrowLeft } from "lucide-react";
-import { useGetOrdersQuery } from "@/api/orderApi";
+import { useGetOrdersQuery, type Order } from "@/api/orderApi";
 import { getUserDisciplineSummary } from "@/api/disciplineApi";
-import type { Order } from "@/api/orderApiRTK";
 import EditUserModal from "@/components/shared/EditUserModal";
 
 interface WalletSummary {
