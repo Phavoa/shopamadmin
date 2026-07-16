@@ -60,8 +60,9 @@ export const UserDetailsPanel: React.FC<UserDetailsPanelProps> = ({ chat }) => {
           "seller.user",
           "shipment",
           "shipment.events",
-          "checkoutSession",
           "shipment.hub",
+          "shipment.hub.deliveryZone",
+          "checkoutSession",
         ],
       },
       { skip: !user.id },
@@ -255,7 +256,7 @@ export const UserDetailsPanel: React.FC<UserDetailsPanelProps> = ({ chat }) => {
                         <span className="text-[11px] font-black text-green-600">
                           ₦
                           {(
-                            Number((order as any).totalAmount || order.totalKobo || 0) /
+                            Number(order.totalKobo || ((order as any).totalAmount ? Number((order as any).totalAmount) * 100 : 0)) /
                             100
                           ).toLocaleString()}
                         </span>

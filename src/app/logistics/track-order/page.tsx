@@ -99,6 +99,8 @@ export default function TrackOrderPage() {
         "seller.user",
         "shipment",
         "shipment.events",
+        "shipment.hub",
+        "shipment.hub.deliveryZone",
         "checkoutSession",
       ],
       // Optionally add isLagosOrder or isNonLagosOrder here if context exists
@@ -127,6 +129,8 @@ export default function TrackOrderPage() {
           "seller.user",
           "shipment",
           "shipment.events",
+          "shipment.hub",
+          "shipment.hub.deliveryZone",
           "checkoutSession",
         ],
       },

@@ -22,7 +22,19 @@ export default function Page() {
     limit: 100,
     sortBy: "createdAt",
     sortDir: "desc",
-    populate: ["buyer", "seller", "shipment", "items", "items.product"],
+    populate: [
+      "items",
+      "items.product",
+      "payments",
+      "buyer",
+      "seller",
+      "seller.user",
+      "shipment",
+      "shipment.events",
+      "shipment.hub",
+      "shipment.hub.deliveryZone",
+      "checkoutSession",
+    ],
   });
 
   const { data: exceptionsData, isLoading: isLoadingExceptions } =

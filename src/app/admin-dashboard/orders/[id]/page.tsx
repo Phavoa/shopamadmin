@@ -50,7 +50,19 @@ export default function OrderDetailsPage() {
     {
       id: orderId,
       params: {
-        populate: ["buyer", "seller", "shipment", "items", "items.product"],
+        populate: [
+          "items",
+          "items.product",
+          "payments",
+          "buyer",
+          "seller",
+          "seller.user",
+          "shipment",
+          "shipment.events",
+          "shipment.hub",
+          "shipment.hub.deliveryZone",
+          "checkoutSession",
+        ],
       },
     },
     { skip: !orderId }
@@ -133,6 +145,23 @@ export default function OrderDetailsPage() {
     }
   };
 
+  const getEventStatusColor = (status: string) => {
+    switch (status) {
+      case "AWAITING_SELLER_SHIPMENT":
+        return { color: "#E67E22", bg: "#FFE0C5", text: "Awaiting Shipment" };
+      case "IN_TRANSIT":
+        return { color: "#F813AB", bg: "#FFD6EF", text: "In Transit" };
+      case "AT_SHOPAM_HUB":
+        return { color: "#E67E22", bg: "#FFE8D4", text: "At Hub" };
+      case "OUT_FOR_DELIVERY":
+        return { color: "#0915FF", bg: "#DDE0FF", text: "Out for Delivery" };
+      case "DELIVERED":
+        return { color: "#02B753", bg: "#D1FFE3", text: "Delivered" };
+      default:
+        return { color: "#6B7280", bg: "#F3F4F6", text: status?.replace(/_/g, " ") || "Unknown" };
+    }
+  };
+
   if (isLoading) {
     return (
       <PageWrapper className="min-h-screen bg-[#F9FAFB] flex flex-col items-center justify-center p-6">
@@ -172,6 +201,7 @@ export default function OrderDetailsPage() {
   const shopLocation = order.sellerProfile?.locationCity && order.sellerProfile?.locationState 
     ? `${order.sellerProfile.locationCity}, ${order.sellerProfile.locationState}`
     : order.sellerProfile?.locationState || null;
+  const sellerUser = order.sellerProfile?.user || order.seller?.user;
 
   const isPickup = order.deliveryType === "pickup" || (order as any).pickup;
 
@@ -447,6 +477,46 @@ export default function OrderDetailsPage() {
                 )}
               </div>
             </div>
+
+            {/* Shipment Events Timeline */}
+            {order.shipment?.events && order.shipment.events.length > 0 && (
+              <div className="mt-6 pt-6 border-t border-gray-100">
+                <h3 className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-4 flex items-center gap-1.5">
+                  <Clock className="w-3.5 h-3.5 text-gray-400" />
+                  Shipment Events Timeline
+                </h3>
+                <div className="relative pl-6 border-l border-gray-200/80 space-y-5">
+                  {order.shipment.events.map((event: any) => {
+                    const statusColor = getEventStatusColor(event.status);
+                    return (
+                      <div key={event.id} className="relative">
+                        {/* Timeline dot */}
+                        <span
+                          className="absolute -left-[30px] top-1 flex h-4 w-4 items-center justify-center rounded-full bg-white border-2 ring-4 ring-white"
+                          style={{ borderColor: statusColor.color }}
+                        />
+                        <div className="flex flex-col sm:flex-row sm:justify-between sm:items-start gap-1">
+                          <div>
+                            <p
+                              className="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-md inline-block mb-1 font-mono"
+                              style={{ color: statusColor.color, backgroundColor: statusColor.bg }}
+                            >
+                              {statusColor.text}
+                            </p>
+                            <p className="text-sm text-gray-600 font-medium leading-relaxed">
+                              {event.note || event.description}
+                            </p>
+                          </div>
+                          <span className="text-[10px] text-gray-400 font-semibold shrink-0 pt-0.5">
+                            {formatDate(event.createdAt || event.timestamp)}
+                          </span>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
           </Card>
         </div>
 
@@ -613,6 +683,28 @@ export default function OrderDetailsPage() {
               <div className="text-[11px] text-gray-400 font-mono pt-1 border-t border-gray-100">
                 Seller ID: {order.sellerProfile?.userId || order.seller?.id || "N/A"}
               </div>
+
+              {sellerUser && (
+                <div className="mt-4 pt-3 border-t border-gray-100 space-y-2">
+                  <div className="font-bold text-gray-900 mb-1 text-xs">Seller Contact Details</div>
+                  <div className="flex items-center gap-2.5">
+                    <User className="w-3.5 h-3.5 text-gray-400 shrink-0" />
+                    <span>{`${sellerUser.firstName || ""} ${sellerUser.lastName || ""}`.trim()}</span>
+                  </div>
+                  {sellerUser.email && (
+                    <div className="flex items-center gap-2.5">
+                      <Mail className="w-3.5 h-3.5 text-gray-400 shrink-0" />
+                      <span className="truncate">{sellerUser.email}</span>
+                    </div>
+                  )}
+                  {sellerUser.phone && (
+                    <div className="flex items-center gap-2.5">
+                      <Phone className="w-3.5 h-3.5 text-gray-400 shrink-0" />
+                      <span>{sellerUser.phone}</span>
+                    </div>
+                  )}
+                </div>
+              )}
             </div>
           </Card>
         </div>

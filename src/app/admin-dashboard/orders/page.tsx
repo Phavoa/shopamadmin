@@ -6,6 +6,7 @@ import { useGetOrdersQuery, type Order } from "@/api/orderApi";
 import { useDispatch } from "react-redux";
 import { setHeaderTitle } from "@/features/shared/headerSice";
 import { PageWrapper, AnimatedWrapper } from "@/components/shared/AnimatedWrapper";
+import PremiumPagination from "@/components/shared/PremiumPagination";
 import {
   Package,
   Search,
@@ -65,7 +66,19 @@ export default function OrdersListPage() {
     refetch,
   } = useGetOrdersQuery({
     limit: 30,
-    populate: ["buyer", "seller", "shipment", "items", "items.product"],
+    populate: [
+      "items",
+      "items.product",
+      "payments",
+      "buyer",
+      "seller",
+      "seller.user",
+      "shipment",
+      "shipment.events",
+      "shipment.hub",
+      "shipment.hub.deliveryZone",
+      "checkoutSession",
+    ],
     ...(debouncedSearch && { q: debouncedSearch }),
     ...(deliveryFilter === "PICKUP" && { pickup: true }),
     ...(deliveryFilter === "DELIVERY" && { delivery: true }),
@@ -106,7 +119,7 @@ export default function OrdersListPage() {
       const st = (order.status || "").toLowerCase();
       if (st === "completed" || st === "delivered") {
         completedCount += 1;
-        totalRevenue += Number(order.totalAmount) || 0;
+        totalRevenue += order.totalKobo ? (Number(order.totalKobo) / 100) : (Number(order.totalAmount) || 0);
       }
       if (order.vatKobo) {
         totalVatCollectedKobo += Number(order.vatKobo) || 0;
@@ -139,6 +152,11 @@ export default function OrdersListPage() {
       setCurrentPage((prev) => Math.max(1, prev - 1));
       setCursor({ before: dataObj.prevCursor, after: undefined });
     }
+  };
+
+  const handleGoToFirst = () => {
+    setCurrentPage(1);
+    setCursor({});
   };
 
   const getStatusBadge = (status: string) => {
@@ -382,7 +400,7 @@ export default function OrdersListPage() {
                   const buyerName = order.buyer
                     ? `${order.buyer.firstName || ""} ${order.buyer.lastName || ""}`.trim() || "Unknown Buyer"
                     : "Unknown Buyer";
-                  const shopName = order.seller?.shopName || "Unknown Shop";
+                  const shopName = order.sellerProfile?.shopName || order.seller?.shopName || "Unknown Shop";
                   const isPickup = order.deliveryType === "pickup" || (order as any).pickup;
                   const vatKoboNum = Number(order.vatKobo || 0);
 
@@ -394,7 +412,7 @@ export default function OrdersListPage() {
                     >
                       <td className="py-4 px-6">
                         <div className="font-bold text-gray-900 group-hover:text-[#E67E22] transition-colors">
-                          #{order.orderNumber || order.id.slice(0, 8)}
+                          #{order.orderCode || order.orderNumber || order.id.slice(0, 8)}
                         </div>
                         <div className="text-xs text-gray-500 mt-0.5">{formatDate(order.createdAt)}</div>
                       </td>
@@ -433,7 +451,7 @@ export default function OrdersListPage() {
 
                       <td className="py-4 px-6">
                         <div className="font-extrabold text-gray-900">
-                          ₦{(order.totalAmount || 0).toLocaleString()}
+                          ₦{(order.totalKobo ? (Number(order.totalKobo) / 100) : (order.totalAmount || 0)).toLocaleString()}
                         </div>
                         {vatKoboNum > 0 && (
                           <span className="inline-flex items-center mt-1 px-1.5 py-0.5 rounded text-[10px] font-bold bg-orange-100 text-[#E67E22]" title="Deducted from Seller Payout">
@@ -465,33 +483,17 @@ export default function OrdersListPage() {
 
         {/* Pagination Footer */}
         {!isLoading && filteredOrders.length > 0 && (
-          <div className="flex items-center justify-between px-6 py-4 border-t border-gray-100 bg-gray-50/50">
-            <div className="text-xs font-medium text-gray-500">
-              Page <span className="font-bold text-gray-900">{currentPage}</span>
-            </div>
-            <div className="flex items-center gap-2">
-              <Button
-                onClick={handlePrevPage}
-                disabled={!((ordersResponse?.data as any)?.hasPrev)}
-                variant="outline"
-                size="sm"
-                className="h-8 px-3 text-xs border-gray-200 disabled:opacity-40 cursor-pointer"
-              >
-                <ChevronLeft className="w-4 h-4 mr-1" />
-                Previous
-              </Button>
-              <Button
-                onClick={handleNextPage}
-                disabled={!((ordersResponse?.data as any)?.hasNext)}
-                variant="outline"
-                size="sm"
-                className="h-8 px-3 text-xs border-gray-200 disabled:opacity-40 cursor-pointer"
-              >
-                Next
-                <ChevronRight className="w-4 h-4 ml-1" />
-              </Button>
-            </div>
-          </div>
+          <PremiumPagination
+            currentPage={currentPage}
+            hasNext={!!((ordersResponse?.data as any)?.hasNext)}
+            hasPrev={!!((ordersResponse?.data as any)?.hasPrev)}
+            isLoading={isFetching}
+            onNextPage={handleNextPage}
+            onPrevPage={handlePrevPage}
+            onGoToFirst={handleGoToFirst}
+            count={filteredOrders.length}
+            entityName="orders"
+          />
         )}
       </div>
     </PageWrapper>
