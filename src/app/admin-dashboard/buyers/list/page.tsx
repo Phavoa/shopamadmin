@@ -67,7 +67,7 @@ const BuyersListPage = () => {
             if (resp.data?.items) {
               const orders = resp.data.items;
               const totalOrders = orders.length;
-              const totalSpendKobo = orders.reduce((sum, o) => sum + (Number(o.totalAmount) || 0), 0);
+               const totalSpendKobo = orders.reduce((sum, o) => sum + (o.totalKobo ? Number(o.totalKobo) : (o.totalAmount ? Number(o.totalAmount) * 100 : 0)), 0);
               return { id, stats: { totalOrders, totalSpend: Math.round(totalSpendKobo / 100) } };
             }
           } catch (err) {

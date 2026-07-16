@@ -80,8 +80,10 @@ export interface OrderLot {
 export interface OrderVM {
   id: string;
   orderNumber: string;
+  orderCode?: string;
   status: string;
   totalAmount: number;
+  totalKobo?: string;
   vatKobo?: string;
   createdAt: string;
   updatedAt: string;
@@ -362,7 +364,12 @@ export const getOrderStatisticsBySeller = async (
           order.status.toLowerCase() === "completed" ||
           order.status.toLowerCase() === "delivered"
       )
-      .reduce((sum, order) => sum + order.totalAmount, 0);
+      .reduce((sum, order) => {
+        const amount = order.totalKobo
+          ? Number(order.totalKobo) / 100
+          : (Number(order.totalAmount) || 0);
+        return sum + amount;
+      }, 0);
 
     const averageOrderValue =
       completedOrders > 0 ? totalRevenue / completedOrders : 0;

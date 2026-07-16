@@ -103,7 +103,19 @@ export default function LagosHubDashboard() {
   const [pickupPage, setPickupPage] = useState(1);
   const [pickupParams, setPickupParams] = useState<GetOrdersParams>({
     pickup: true,
-    populate: ["buyer", "seller", "shipment", "shipment.hub"],
+    populate: [
+      "items",
+      "items.product",
+      "payments",
+      "buyer",
+      "seller",
+      "seller.user",
+      "shipment",
+      "shipment.events",
+      "shipment.hub",
+      "shipment.hub.deliveryZone",
+      "checkoutSession",
+    ],
     isLagosOrder: true,
     sortBy: "createdAt",
     sortDir: "desc",
@@ -113,7 +125,19 @@ export default function LagosHubDashboard() {
   const [deliveryPage, setDeliveryPage] = useState(1);
   const [deliveryParams, setDeliveryParams] = useState<GetOrdersParams>({
     delivery: true,
-    populate: ["buyer", "seller", "shipment"],
+    populate: [
+      "items",
+      "items.product",
+      "payments",
+      "buyer",
+      "seller",
+      "seller.user",
+      "shipment",
+      "shipment.events",
+      "shipment.hub",
+      "shipment.hub.deliveryZone",
+      "checkoutSession",
+    ],
     isLagosOrder: true,
     sortBy: "createdAt",
     sortDir: "desc",

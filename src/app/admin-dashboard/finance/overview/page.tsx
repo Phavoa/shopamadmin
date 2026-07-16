@@ -20,13 +20,22 @@ const formatPercent = (val: number): string => {
   return `${sign}${val.toFixed(1)}% vs yesterday`;
 };
 
+const formatDateStr = (dateStr: string): string => {
+  try {
+    const date = new Date(dateStr);
+    return date.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
+  } catch {
+    return dateStr;
+  }
+};
+
 // Map dropdown label → API period param
 const PERIOD_OPTIONS: { label: string; value: FinanceOverviewPeriod }[] = [
   { label: "Today", value: "today" },
   { label: "Last 7 days", value: "week" },
   { label: "Last 30 days", value: "month" },
   { label: "Last 90 days", value: "year" },
-  { label: "All time", value: "all" },
+  { label: "Custom Range", value: "custom" },
 ];
 
 const DollarSignIcon = () => (
@@ -48,10 +57,20 @@ export default function FinanceOverviewPage() {
   // ── Period state for the bar chart dropdown ──────────────────────────────────
   const [period, setPeriod] = useState<FinanceOverviewPeriod>("week");
 
-  // ── Existing KPI cards query (now synced with period) ─────────────────────
-  const { data: kpiData, isLoading: kpiLoading } = useGetFinancialStatsQuery({
+  // Default dates: past 30 days to today
+  const todayStr = new Date().toISOString().slice(0, 10);
+  const pastStr = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
+  const [startDate, setStartDate] = useState<string>(pastStr);
+  const [endDate, setEndDate] = useState<string>(todayStr);
+
+  const queryParams = {
     period,
-  });
+    ...(period === "custom" && startDate ? { from: `${startDate}T00:00:00.000Z` } : {}),
+    ...(period === "custom" && endDate ? { to: `${endDate}T23:59:59.999Z` } : {}),
+  };
+
+  // ── Existing KPI cards query (now synced with period) ─────────────────────
+  const { data: kpiData, isLoading: kpiLoading } = useGetFinancialStatsQuery(queryParams);
   const stats = kpiData?.data;
 
   // ── Finance overview query — drives bar chart & payout volume ─────────────────
@@ -59,12 +78,14 @@ export default function FinanceOverviewPage() {
     data: overviewData,
     isLoading: overviewLoading,
     isFetching: overviewFetching,
-  } = useGetFinanceOverviewQuery({ period });
+  } = useGetFinanceOverviewQuery(queryParams);
   const overview = overviewData?.data;
 
   const isChartLoading = overviewLoading || overviewFetching;
   const selectedLabel =
-    PERIOD_OPTIONS.find((o) => o.value === period)?.label ?? "Last 7 days";
+    period === "custom"
+      ? `${startDate ? formatDateStr(startDate) : "Start"} - ${endDate ? formatDateStr(endDate) : "End"}`
+      : (PERIOD_OPTIONS.find((o) => o.value === period)?.label ?? "Last 7 days");
 
   // ── KPI cards — real API data ────────────────────────────────────────────────
   const kpiCards = [
@@ -209,20 +230,39 @@ export default function FinanceOverviewPage() {
                 </span>
               )}
             </h2>
-            <select
-              value={period}
-              onChange={(e) =>
-                setPeriod(e.target.value as FinanceOverviewPeriod)
-              }
-              className="px-3 py-2 text-sm border border-gray-300 rounded-lg bg-white"
-              style={{ borderRadius: "8px" }}
-            >
-              {PERIOD_OPTIONS.map((opt) => (
-                <option key={opt.value} value={opt.value}>
-                  {opt.label}
-                </option>
-              ))}
-            </select>
+            <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
+              {period === "custom" && (
+                <div className="flex items-center gap-2">
+                  <input
+                    type="date"
+                    value={startDate}
+                    onChange={(e) => setStartDate(e.target.value)}
+                    className="px-3 py-2 text-sm border border-gray-200 bg-white rounded-lg focus:outline-none focus:ring-2 focus:ring-[#E67E22]/50 text-gray-700 font-medium"
+                  />
+                  <span className="text-xs text-gray-400 font-bold uppercase">to</span>
+                  <input
+                    type="date"
+                    value={endDate}
+                    onChange={(e) => setEndDate(e.target.value)}
+                    className="px-3 py-2 text-sm border border-gray-200 bg-white rounded-lg focus:outline-none focus:ring-2 focus:ring-[#E67E22]/50 text-gray-700 font-medium"
+                  />
+                </div>
+              )}
+              <select
+                value={period}
+                onChange={(e) =>
+                  setPeriod(e.target.value as FinanceOverviewPeriod)
+                }
+                className="px-3 py-2 text-sm border border-gray-200 rounded-lg bg-white font-medium text-gray-700 focus:outline-none focus:ring-2 focus:ring-[#E67E22]/50 cursor-pointer"
+                style={{ borderRadius: "8px" }}
+              >
+                {PERIOD_OPTIONS.map((opt) => (
+                  <option key={opt.value} value={opt.value}>
+                    {opt.label}
+                  </option>
+                ))}
+              </select>
+            </div>
           </div>
 
           <div

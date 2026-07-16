@@ -45,7 +45,6 @@ export type FinanceOverviewPeriod =
   | "week"
   | "month"
   | "year"
-  | "all"
   | "custom";
 
 export interface FinanceOverviewParams {

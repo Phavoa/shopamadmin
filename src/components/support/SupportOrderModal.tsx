@@ -20,7 +20,7 @@ interface SupportOrderModalProps {
 export const SupportOrderModal: React.FC<SupportOrderModalProps> = ({ order, onClose }) => {
   if (!order) return null;
 
-  const totalKobo = Number(order.totalAmount || order.totalKobo || 0);
+  const totalKobo = order.totalKobo ? Number(order.totalKobo) : (order.totalAmount ? Number(order.totalAmount) * 100 : 0);
   const subTotalKobo = Number(order.subtotalKobo || 0);
   const shippingKobo = Number(order.shippingKobo || 0);
   
